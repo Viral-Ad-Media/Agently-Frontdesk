@@ -23,6 +23,14 @@ Start with `README.md` for setup and the phased plan. `docs/BASE44_INVENTORY.md`
 - `src/gateway/index.js` and `src/gateway/providers/*`: the five capabilities plus call transcription.
 - `src/lib/seed.js`: demo tenant, placeholder rate card and inspection slots.
 
+## Working method (Karpathy guidelines, adopted)
+
+- State assumptions; when a step is ambiguous, say which reading you took.
+- Simplest approach: no abstractions for single-use code, no speculative options.
+- Surgical changes: every changed line traces to the request; don't touch adjacent code.
+- Goal-driven: define the check first (`npm test`, the boss-test script in the brief), then make it pass.
+- Design rules in `docs/TOOLKIT.md`; the brief's tokens win any conflict.
+
 ## Working notes
 
 - `npm run dev` serves the app at http://localhost:5173. On this Windows machine use `npm.cmd` from PowerShell.

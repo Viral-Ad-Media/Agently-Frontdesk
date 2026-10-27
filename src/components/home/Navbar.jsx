@@ -19,7 +19,7 @@ export default function Navbar({ dark = false }) {
     ["Front desk", "/frontdesk"],
   ];
   return (
-    <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-200 ${scrolled ? "border-b border-border bg-background/90 backdrop-blur-md" : ""}`}>
+    <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-200 ${scrolled ? "border-b border-border bg-background" : ""}`}>
       <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-3 md:px-8">
         <Logo light={light} word={tenant.name} />
         <nav className={`hidden items-center gap-8 text-sm md:flex ${light ? "text-white/85" : "text-foreground/80"}`}>
