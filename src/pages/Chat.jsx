@@ -266,6 +266,7 @@ export default function Chat() {
             <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
               {m.role === "user" ? (
                 <div className="max-w-[85%] rounded-lg rounded-br-sm bg-foreground px-4 py-2.5 text-[15px] text-background">
+                  {m.channel === "call" && <span className="mb-1 block text-[12px] text-background/70">Said on the phone</span>}
                   {m.content}
                   {m.photo && c.photo && <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="mt-2 border-0" />}
                 </div>

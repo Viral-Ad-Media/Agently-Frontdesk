@@ -153,6 +153,22 @@ export async function converse({ trade = "roofing", messages = [], caseState = {
   const extracted = {};
   const asked = caseState.lastQuestion || null;
 
+  // A phone call: the whole transcript arrives at once, so qualify it in one pass.
+  if (caseState.channel === "call" && text) {
+    extracted.description = text;
+    extracted.urgency = /leak|drip|water|storm|now|urgent|tonight|pouring/i.test(text) ? "urgent" : "routine";
+    extracted.intent = trade === "medspa" ? "consultation" : "repair";
+    const addr = text.match(/(?:it'?s at|address is|we'?re at|i'?m at)\s+([^.]+)\./i);
+    if (addr) extracted.address = addr[1].trim();
+    return {
+      reply: addr
+        ? "Thanks for calling. I've noted the problem and the address. I'm texting you a link so you can add a photo, and we'll outline the damage from there."
+        : "Thanks for calling. I've noted the problem. What's the address of the property?",
+      extracted,
+      nextAction: addr ? "ask_photo" : "ask_address",
+    };
+  }
+
   if (trade === "medspa") {
     if (!caseState.description) {
       if (!text) return { reply: "Tell me what you'd like help with, or what you've noticed about your skin.", extracted, nextAction: "ask_description" };
