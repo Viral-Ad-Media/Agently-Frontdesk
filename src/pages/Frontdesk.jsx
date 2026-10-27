@@ -74,7 +74,7 @@ export default function Frontdesk() {
             [spa ? "Consultations booked" : "Appointments booked", booked],
             [spa ? "Clients reactivated" : "Jobs reactivated", reactivated],
           ].map(([label, n]) => (
-            <div key={label} className="border-t border-foreground pt-3">
+            <div key={label} className="border-t border-border pt-3">
               <p className="font-heading text-4xl tabular-nums">{n}</p>
               <p className="mt-1 text-[14px] text-muted-foreground">{label}</p>
             </div>

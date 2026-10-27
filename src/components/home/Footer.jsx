@@ -9,7 +9,7 @@ export default function Footer() {
       <div className="mx-auto flex max-w-[1200px] flex-col justify-between gap-8 md:flex-row md:items-end">
         <div>
           <Logo word={tenant.name} />
-          <p className="mt-3 max-w-xs text-[15px] text-muted-foreground">{tenant.trade === "medspa" ? "Tell us what you've noticed. We'll match it to our services, share the price range, and book you with a clinician." : "Show us the damage. We'll tell you what it is, roughly what it costs, and when we can come."}</p>
+          <p className="mt-3 max-w-xs text-[16px] text-foreground">{tenant.trade === "medspa" ? "Tell us what you've noticed. We'll match it to our services, share the price range, and book you with a clinician." : "Show us the damage. We'll tell you what it is, roughly what it costs, and when we can come."}</p>
         </div>
         <nav className="flex flex-wrap gap-6 text-[15px] text-muted-foreground">
           <a href="/#how" className="transition-colors hover:text-primary">How it works</a>
