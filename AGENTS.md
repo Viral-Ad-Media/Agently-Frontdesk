@@ -1,35 +1,30 @@
-
 # AGENTS.md
 
-## Project Context
+## Project context
 
-This is the Agently Frontdesk app; its backend runs on Base44. Treat it as user-owned application code, keep changes focused on the user's request, and preserve existing project conventions.
+Agently Front Desk: an AI front desk for roofing companies and med spas first, then handiwork artisans in general. Built for the Meta Global AI Developer Hackathon by a solo owner. The build brief (`docs/`) is binding; its Part A (competition rules) overrides everything else.
 
-Start with `README.md` for local setup, environment variables, and publish workflow.
+Start with `README.md` for setup and the phased plan. `docs/BASE44_INVENTORY.md` records what the starting build contained and what was replaced.
 
-## Base44 References
+## Hard rules
 
-- CLI overview: https://docs.base44.com/developers/references/cli/get-started/overview.md
-- Agent skills: https://docs.base44.com/developers/backend/overview/skills.md
+- Every AI call goes through `src/gateway/`. The UI never calls a provider directly. The active provider is labelled honestly on screen (`ProviderBadge`).
+- All prompts live in `prompts/prompts.md`.
+- Measurement maths lives in `src/lib/eye.js` and quote maths in `src/lib/quote.js`; no provider replaces the arithmetic. No scale reference means no square-metre figure and no dollar total.
+- Quotes are USD draft ranges with the disclaimer. Status moves one way (draft → awaiting approval → approved → sent) and only on a human tap.
+- One case record (`src/lib/store.js`) is the single source of truth for chat, dashboard and calendar.
+- Synthetic data only. No secrets in the repo; `.env.example` holds key names only.
+- Never present mock or interim-provider output as Meta output.
 
-If your agent supports Agent Skills, install or update Base44 skills before Base44-specific work:
+## Key files
 
-```bash
-npx skills add base44/skills
-```
+- `src/pages/Chat.jsx`: the customer journey (describe → photo → outlined assessment → draft quote → booking).
+- `src/pages/Frontdesk.jsx`: the owner dashboard (numbers, lead cards with Approve / Edit / Send, calendar).
+- `src/gateway/index.js` and `src/gateway/providers/*`: the five capabilities plus call transcription.
+- `src/lib/seed.js`: demo tenant, placeholder rate card and inspection slots.
 
-## Key Files
+## Working notes
 
-- `src/`: frontend application source.
-- `src/api/base44Client.js`: frontend Base44 SDK client.
-- `vite.config.js`: Vite config and Base44 Vite plugin setup.
-- `.env.local`: local-only environment values; never commit secrets.
-
-## Working Notes
-
-- Use `base44 dev` as the default local development command when you need the local Base44 backend. It can run the backend and frontend together.
-- When docs or code mention the frontend being started automatically, that usually means the Base44 project config includes `site.serveCommand`, for example `"serveCommand": "npm run dev"` in `base44/config.jsonc`.
-- Use `npm run dev` only for frontend-only work against the hosted Base44 backend.
-- Prefer the existing Base44 CLI workflow over adding new npm scripts for Base44-specific tasks.
-- Reuse the existing SDK client and Vite plugin patterns before adding new Base44 integration paths.
-- Run the relevant checks from `package.json` before finishing code changes.
+- `npm run dev` serves the app at http://localhost:5173. On this Windows machine use `npm.cmd` from PowerShell.
+- Run `npm run lint` and `npm run build` before finishing code changes.
+- Commit small, verified steps with clear messages. The first commit is the pre-event starting build; everything after it is hackathon work.
