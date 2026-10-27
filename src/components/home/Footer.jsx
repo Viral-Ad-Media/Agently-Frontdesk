@@ -11,13 +11,13 @@ export default function Footer() {
           <Logo word={tenant.name} />
           <p className="mt-3 max-w-xs text-[15px] text-muted-foreground">{tenant.trade === "medspa" ? "Tell us what you've noticed. We'll match it to our services, share the price range, and book you with a clinician." : "Show us the damage. We'll tell you what it is, roughly what it costs, and when we can come."}</p>
         </div>
-        <nav className="flex flex-wrap gap-6 font-spec text-[11px] uppercase text-muted-foreground">
+        <nav className="flex flex-wrap gap-6 text-[15px] text-muted-foreground">
           <a href="/#how" className="transition-colors hover:text-primary">How it works</a>
           <Link to="/chat" className="transition-colors hover:text-primary">Start a case</Link>
           <Link to="/frontdesk" className="transition-colors hover:text-primary">Front desk</Link>
         </nav>
       </div>
-      <p className="mx-auto mt-8 max-w-[1200px] font-spec text-[11px] uppercase text-muted-foreground">
+      <p className="mx-auto mt-8 max-w-[1200px] text-[13px] text-muted-foreground">
         © 2026 {tenant.name} · Front desk by Agently. Draft ranges are not a binding quote.
       </p>
     </footer>
