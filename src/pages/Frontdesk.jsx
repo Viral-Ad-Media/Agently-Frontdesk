@@ -1,165 +1,216 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { CalendarCheck, Check, Inbox, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo } from "@/lib/store";
+import { STATUS_LABEL } from "@/lib/quote";
 import Logo from "@/components/shared/Logo";
-import { Inbox, CalendarCheck, Mail, Phone, Loader2, Send } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import MercuryButton from "@/components/shared/MercuryButton";
+import ProviderBadge from "@/components/shared/ProviderBadge";
+import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
+import Severity from "@/components/frontdesk/Severity";
+import AssessmentCard from "@/components/frontdesk/AssessmentCard";
+import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 
-const when = (iso) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Flexible");
+const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 
+// The owner's one screen: three numbers, lead cards with one-tap approve / edit / send, and the calendar.
 export default function Frontdesk() {
-  const [email, setEmail] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [counts, setCounts] = useState({ pending: 0, accepted: 0 });
-  const [pending, setPending] = useState(null);
-  const [schedule, setSchedule] = useState(null);
+  const { cases, slots, tenant, leads } = useStore();
+  const [openId, setOpenId] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      const me = await base44.auth.me();
-      setEmail(me?.alert_email || me?.email || "");
-      const [pendingPage, schedulePage, pendingCount, acceptedCount] = await Promise.all([
-        base44.entities.BookingRequest.filter({ status: "pending" }, { sort: "-created_date", limit: 20 }),
-        base44.entities.BookingRequest.filter({ status: "accepted" }, { sort: "preferred_date", limit: 20 }),
-        base44.entities.BookingRequest.count({ status: "pending" }),
-        base44.entities.BookingRequest.count({ status: "accepted" }),
-      ]);
-      setPending(pendingPage.items);
-      setSchedule(schedulePage.items);
-      setCounts({ pending: pendingCount, accepted: acceptedCount });
-    })();
-  }, []);
-
-  const saveEmail = async () => {
-    setSaving(true);
-    await base44.auth.updateMe({ alert_email: email });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
+  const answered = cases.filter((c) => c.messages.some((m) => m.role === "assistant")).length;
+  const booked = cases.filter((c) => c.bookingSlotId).length;
+  const reactivated = leads.filter((l) => l.recovered).length;
+  const schedule = slots
+    .filter((s) => s.caseId)
+    .map((s) => ({ ...s, case: cases.find((c) => c.id === s.caseId) }))
+    .sort((a, b) => a.start.localeCompare(b.start));
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-5 md:px-12">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4">
-          <Logo />
-          <Link to="/dispatch" className="font-spec text-xs uppercase text-muted-foreground transition-colors hover:text-primary">
-            Artisan dispatch →
-          </Link>
+      <header className="border-b border-border px-4 py-3 md:px-8">
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3">
+          <Logo word={tenant.name} />
+          <div className="flex items-center gap-2">
+            <ProviderBadge className="hidden sm:inline-flex" />
+            <Link to="/chat" className="fd-btn-outline h-9 px-3 text-[13px]">
+              <MessageSquare className="h-4 w-4" /> Customer view
+            </Link>
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1400px] px-6 py-12 md:px-12">
-        <p className="font-spec text-xs uppercase text-primary">Front desk</p>
-        <h1 className="mt-4 text-[clamp(2rem,4.5vw,3.6rem)] font-light leading-[1.05]">Today at the desk.</h1>
-
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
-          <div className="rounded-3xl border border-border bg-card p-6">
-            <Inbox className="h-6 w-6 text-primary" strokeWidth={1.4} />
-            <p className="mt-6 font-heading text-5xl">{counts.pending}</p>
-            <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">Awaiting dispatch</p>
-          </div>
-          <div className="rounded-3xl border border-border bg-card p-6">
-            <CalendarCheck className="h-6 w-6 text-primary" strokeWidth={1.4} />
-            <p className="mt-6 font-heading text-5xl">{counts.accepted}</p>
-            <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">Booked artisans</p>
-          </div>
-          <div className="rounded-3xl border border-border bg-card p-6">
-            <Mail className="h-6 w-6 text-primary" strokeWidth={1.4} />
-            <p className="mt-6 font-heading text-2xl">Booking alerts</p>
-            <div className="mt-3 flex gap-2">
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-              <MercuryButton type="button" variant="terracotta" onClick={saveEmail} disabled={saving} className="px-5 py-3">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-              </MercuryButton>
-            </div>
-            <p className="mt-3 text-[13px] text-muted-foreground">
-              {saved ? "Saved — alerts go to this address." : "Every new booking request is emailed here the moment it arrives."}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-14 grid gap-12 lg:grid-cols-2">
-          <section>
-            <h2 className="font-spec text-xs uppercase text-muted-foreground">Inbox · awaiting dispatch</h2>
-            <div className="mt-5 space-y-4">
-              {pending === null && <p className="text-sm text-muted-foreground">Loading…</p>}
-              {pending?.length === 0 && (
-                <p className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-                  No new requests. Bookings arrive here the moment a customer sends one.
-                </p>
-              )}
-              {pending?.map((b) => (
-                <div key={b.id} className="rounded-2xl border border-border bg-card p-5">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-primary/15 px-3 py-1 font-spec text-[10px] uppercase text-primary">Pending</span>
-                    <span className="font-spec text-[11px] uppercase text-muted-foreground">{when(b.preferred_date)}</span>
-                  </div>
-                  <h3 className="mt-3 text-2xl">{b.customer_name}</h3>
-                  <a href={`tel:${b.phone}`} className="mt-1 inline-flex items-center gap-2 font-spec text-xs uppercase text-primary">
-                    <Phone className="h-3.5 w-3.5" /> {b.phone}
-                  </a>
-                  <p className="mt-3 text-[15px] text-muted-foreground">{b.notes || "No job description supplied."}</p>
-                  <Link
-                    to="/dispatch"
-                    className="mt-4 inline-flex items-center gap-2 font-spec text-[11px] uppercase transition-colors hover:text-primary"
-                  >
-                    <Send className="h-3.5 w-3.5" /> Dispatch to nearby artisans
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <h2 className="font-spec text-xs uppercase text-muted-foreground">Schedule · accepted jobs</h2>
-            <div className="mt-5 space-y-4">
-              {schedule === null && <p className="text-sm text-muted-foreground">Loading…</p>}
-              {schedule?.length === 0 && (
-                <p className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-                  Nothing booked yet. Accept a job in the dispatch feed and it lands here.
-                </p>
-              )}
-              {schedule?.map((b) => (
-                <div key={b.id} className="flex gap-5 rounded-2xl border border-border bg-secondary/40 p-5">
-                  <div className="shrink-0 border-r border-border pr-5 text-center">
-                    <p className="font-heading text-3xl">{when(b.preferred_date).split(" ")[0]}</p>
-                    <p className="font-spec text-[10px] uppercase text-muted-foreground">{when(b.preferred_date).split(" ").slice(1).join(" ")}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-xl">{b.assigned_artisan_name || b.artisan_name || "Artisan"}</h3>
-                    <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">
-                      {b.customer_name} · {b.phone}
-                    </p>
-                    <p className="mt-2 text-[15px] text-muted-foreground">{b.notes?.slice(0, 90) || "No job description supplied."}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        {/* <div className="mt-16 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-border bg-card p-6">
+      <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-heading text-2xl">Project archive</p>
-            <p className="mt-1 text-[15px] text-muted-foreground">Download the whole Agently Frontdesk source for review.</p>
+            <p className="font-spec text-[11px] uppercase text-primary">Front desk</p>
+            <h1 className="mt-1 text-3xl">Today at the desk</h1>
           </div>
-          <a
-            href="/agently-frontdesk.zip"
-            download
-            className="group inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background transition-all duration-500 ease-viscous hover:-translate-y-0.5 hover:bg-primary"
+          <button
+            type="button"
+            onClick={() => window.confirm("Clear every demo case and booking and start fresh?") && resetDemo()}
+            className="fd-btn-outline h-9 px-3 text-[13px] text-muted-foreground"
           >
-            <Download className="h-4 w-4 transition-transform duration-500 ease-viscous group-hover:translate-y-0.5" />
-            Download .zip
-          </a>
-        </div> */}
+            <RefreshCw className="h-4 w-4" /> Reset demo data
+          </button>
+        </div>
 
-        <p className="mt-6 font-spec text-[11px] uppercase text-muted-foreground">
-          Booking alerts are emailed by Agently Frontdesk's own mail service. Google Calendar sync is not connected.
-        </p>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {[
+            ["Enquiries answered", answered, MessageSquare],
+            ["Appointments booked", booked, CalendarCheck],
+            ["Jobs reactivated", reactivated, Inbox],
+          ].map(([label, n, Icon]) => (
+            <div key={label} className="fd-card p-5">
+              <Icon className="h-5 w-5 text-primary" strokeWidth={1.6} />
+              <p className="mt-4 font-heading text-4xl">{n}</p>
+              <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-10 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
+          <section>
+            <h2 className="font-spec text-[11px] uppercase text-muted-foreground">Leads · newest first</h2>
+            <div className="mt-4 space-y-4">
+              {cases.length === 0 && (
+                <p className="rounded-lg border border-dashed border-border p-6 text-[15px] text-muted-foreground">
+                  No enquiries yet. Open the{" "}
+                  <Link to="/chat" className="text-primary underline">
+                    customer view
+                  </Link>{" "}
+                  and describe a roof problem to see a lead land here.
+                </p>
+              )}
+              {cases.map((c) => (
+                <LeadCard key={c.id} c={c} slot={c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} />
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="font-spec text-[11px] uppercase text-muted-foreground">Calendar · inspections</h2>
+            <div className="mt-4 space-y-3">
+              {schedule.length === 0 && (
+                <p className="rounded-lg border border-dashed border-border p-6 text-[15px] text-muted-foreground">Nothing booked yet. A booking made in chat appears here instantly.</p>
+              )}
+              {schedule.map((s) => (
+                <div key={s.id} className="fd-card flex gap-4 p-4">
+                  <div className="shrink-0 border-r border-border pr-4 text-center">
+                    <p className="font-heading text-2xl leading-none">{new Date(s.start).getDate()}</p>
+                    <p className="mt-1 font-spec text-[10px] uppercase text-muted-foreground">{new Date(s.start).toLocaleDateString("en-US", { month: "short" })}</p>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px]">
+                      {fmtTime(s.start)}–{fmtTime(s.end)} · {s.case?.customer?.name || "Homeowner"}
+                    </p>
+                    <p className="truncate text-[14px] text-muted-foreground">{s.case?.customer?.address || "Address unknown"}</p>
+                    <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">{s.case?.assessment?.failedPart || "Assessment pending"}</p>
+                  </div>
+                  <button type="button" onClick={() => cancelBooking(s.caseId)} aria-label="Cancel booking" className="self-start text-muted-foreground hover:text-destructive">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              <p className="text-[12px] text-muted-foreground">Slots offered in chat and this list read the same calendar. A taken slot is never offered twice.</p>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
+  );
+}
+
+function LeadCard({ c, slot, open, onToggle }) {
+  const [editing, setEditing] = useState(false);
+  const [low, setLow] = useState(c.quote?.low ?? "");
+  const [high, setHigh] = useState(c.quote?.high ?? "");
+  const q = c.quote;
+  const status = q?.status;
+  const canApprove = q && q.low !== null && (status === "draft" || status === "awaiting_approval");
+  const canSend = q && status === "approved";
+
+  const save = () => {
+    const l = Number(low);
+    const h = Number(high);
+    if (!(l > 0) || !(h >= l)) return;
+    editQuoteRange(c.id, l, h);
+    setEditing(false);
+  };
+
+  return (
+    <article className="fd-card overflow-hidden">
+      <div className="flex gap-4 p-4">
+        {c.photo ? (
+          <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="h-24 w-32 shrink-0 [&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>span]:hidden" showReference={false} />
+        ) : (
+          <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-secondary font-spec text-[11px] uppercase text-muted-foreground">No photo yet</div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {c.assessment ? <Severity value={c.assessment.severity} /> : <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">In conversation</span>}
+            {q && <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase">{STATUS_LABEL[status]}</span>}
+            <span className="ml-auto font-spec text-[11px] uppercase text-muted-foreground">{new Date(c.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+          </div>
+          <h3 className="mt-2 truncate text-lg">{c.customer.name || "Homeowner"}{c.customer.address ? ` · ${c.customer.address}` : ""}</h3>
+          <p className="truncate text-[14px] text-muted-foreground">{c.assessment?.failedPart || c.description || "Waiting for the customer's description."}</p>
+          {q && (
+            <p className="mt-1 text-[15px]">
+              {q.low !== null ? (
+                <>
+                  Draft {money(q.low)} – {money(q.high)} <span className="text-muted-foreground">· confidence {Math.round((c.assessment?.confidence || 0) * 100)}%</span>
+                </>
+              ) : (
+                <span className="text-[hsl(var(--primary-deep))]">No total: no scale reference. Site visit to confirm.</span>
+              )}
+            </p>
+          )}
+          {slot && (
+            <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">
+              Inspection {fmtDay(slot.start)} {fmtTime(slot.start)}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {q && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border bg-background px-4 py-3">
+          {!editing ? (
+            <>
+              <button type="button" disabled={!canApprove} onClick={() => moveQuote(c.id, "approved")} className="fd-btn-primary">
+                <Check className="h-4 w-4" /> Approve
+              </button>
+              <button type="button" disabled={status === "sent" || q.low === null} onClick={() => setEditing(true)} className="fd-btn-outline">
+                <Pencil className="h-4 w-4" /> Edit
+              </button>
+              <button type="button" disabled={!canSend} onClick={() => moveQuote(c.id, "sent")} className="fd-btn-ink">
+                <Send className="h-4 w-4" /> Send
+              </button>
+              {status === "sent" && <span className="text-[13px] text-muted-foreground">Sent to the customer. Their chat shows the confirmed range.</span>}
+              {status === "awaiting_approval" && <span className="text-[13px] text-muted-foreground">Customer booked. Approve the range, then send it.</span>}
+            </>
+          ) : (
+            <>
+              <label className="flex items-center gap-2 text-[14px]">
+                Low $<input value={low} onChange={(e) => setLow(e.target.value)} inputMode="numeric" className="h-10 w-24 rounded-xl border border-border bg-card px-3 outline-none focus:border-foreground" />
+              </label>
+              <label className="flex items-center gap-2 text-[14px]">
+                High $<input value={high} onChange={(e) => setHigh(e.target.value)} inputMode="numeric" className="h-10 w-24 rounded-xl border border-border bg-card px-3 outline-none focus:border-foreground" />
+              </label>
+              <button type="button" onClick={save} className="fd-btn-primary">Save range</button>
+              <button type="button" onClick={() => setEditing(false)} className="fd-btn-outline">Cancel</button>
+            </>
+          )}
+          <button type="button" onClick={onToggle} className="ml-auto text-[13px] text-muted-foreground underline-offset-2 hover:underline">
+            {open ? "Hide assessment" : "Show assessment"}
+          </button>
+        </div>
+      )}
+
+      {open && c.assessment && (
+        <div className="border-t border-border p-4">
+          <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} />
+        </div>
+      )}
+    </article>
   );
 }

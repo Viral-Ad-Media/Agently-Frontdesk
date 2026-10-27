@@ -1,21 +1,15 @@
-# Agently Frontdesk
+# Agently Front Desk
 
-AI repair triage, itemised estimates and vetted local artisans, dispatched by real distance.
+The AI front desk that turns a photo of a problem into an assessed job, a draft quote and a booked appointment, for roofing companies and med spas first, then handiwork artisans in general. Built for the Meta Global AI Developer Hackathon (submission 4 November 2026).
 
-- **Home** (`/`): hero, artisan directory, how it works.
-- **Aura** (`/aura`): voice/photo AI assistant that diagnoses a repair, prices it and flags emergencies.
-- **Artisan profile** (`/artisan/:id`): reviews and booking requests.
-- **Dispatch** (`/dispatch`): artisans accept pending jobs.
-- **Front desk** (`/frontdesk`): operator view of pending and accepted bookings.
+**Status (27 Oct, Phase 0):** the core roofing journey runs end to end on the **mock provider**, labelled "Mock provider" on every screen. No Meta or interim model is wired yet; the gateway swap is Phase 1 (interim) and Phase 4 (Meta).
 
-Stack: React 18, Vite, Tailwind, shadcn/ui, TanStack Query. Backend (auth, data entities, file uploads, serverless functions) runs on Base44 via `@base44/sdk`.
+## The journey
 
-## Project layout
-
-- `src/` — frontend source (`pages/`, `components/`, `lib/`).
-- `src/api/base44Client.js` — backend SDK client.
-- `base44/entities/` — data models (`BookingRequest`, `ArtisanReview`, `User`).
-- `base44/functions/` — serverless functions (`aura` AI chat, `frontdeskNotify` booking alerts).
+1. Customer describes the problem in chat (`/chat`); the front desk asks for the address, then a photo.
+2. The photo is outlined (segmentation), measured (`src/lib/eye.js`: shoelace area, scale from a reference object, tilt correction; **no reference means no square-metre figure**), assessed, and priced from the rate card as a USD draft range with the maths and disclaimer shown.
+3. The customer books a real inspection slot in three taps.
+4. The owner sees the lead on the dashboard (`/frontdesk`), taps Approve, then Send. Status moves one way: draft → awaiting approval → approved → sent. The customer's chat shows the sent range.
 
 ## Run locally
 
@@ -24,28 +18,21 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. Without backend configuration the public pages (home, artisan profiles) render with sample data; Aura, bookings, reviews and the dispatch/front desk boards need the backend.
+Open http://localhost:5173. No keys are needed for the mock provider. Copy `.env.example` to `.env.local` to change `VITE_AI_PROVIDER`.
 
-### With the backend
+On Windows PowerShell with script execution disabled, use `npm.cmd` instead of `npm`.
 
-Install the Base44 CLI (`npm install -g base44@latest`) and [Deno](https://docs.deno.com/runtime/getting_started/installation/), then:
+Rehearsal photos: `public/demo/roof-test.jpg` (reference object in frame) and `public/demo/roof-noref.jpg` (a file name containing `noref` makes the mock provider report no reference, so the no-reference rule can be rehearsed). Both are synthetic drawings.
 
-```bash
-base44 login   # one-time per machine
-base44 link    # one-time per clone, writes base44/.app.jsonc
-base44 dev     # local backend + frontend together
-```
+## Layout
 
-`base44 dev` starts the frontend itself, so don't also run `npm run dev`. Entity data is in-memory and resets on restart. Use `base44 dev --remote` to work against the live hosted backend (writes go to production data).
-
-## Environment
-
-Local values go in `.env.local` (gitignored):
-
-```
-VITE_BASE44_APP_ID=
-VITE_BASE44_APP_BASE_URL=
-```
+- `src/gateway/` — the AI Gateway: `segmentDamage`, `assess`, `converse`, `reactivateMessage`, `renderReportVisual`, `transcribeCall`. Providers: `mock` (deterministic), `initial` (Phase 1), `meta` (Phase 4). Every call is logged with capability, latency and provider.
+- `prompts/prompts.md` — every prompt, versioned.
+- `src/lib/store.js` — the case record, calendar slots and gateway log (localStorage, synthetic data only).
+- `src/lib/seed.js` — demo tenant (placeholder name), placeholder rate card, inspection slots.
+- `src/lib/eye.js`, `src/lib/quote.js` — measurement and quote maths, pure functions.
+- `src/pages/Chat.jsx`, `src/pages/Frontdesk.jsx`, `src/pages/Home.jsx` — the three screens.
+- `docs/BASE44_INVENTORY.md` — what the starting build contained and what was replaced.
 
 ## Checks
 
@@ -53,3 +40,7 @@ VITE_BASE44_APP_BASE_URL=
 npm run lint
 npm run build
 ```
+
+## Phased plan
+
+Phase 0 (today) boss test → Phase 1 interim provider, guided capture retakes, video frame snapshot, contract tests → Phase 2 reactivation, daily summary → Phase 3 med spa tenant, report visual → Phase 4 Meta swap, voice calls → Phase 5 golden tests, demo video, submission.

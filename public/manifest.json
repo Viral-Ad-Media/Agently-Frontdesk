@@ -1,16 +1,10 @@
 {
-  "name": "Agently Frontdesk",
-  "short_name": "Agently",
-  "description": "AI repair triage, itemised estimates and vetted local artisans, dispatched by real distance.",
+  "name": "Agently Front Desk",
+  "short_name": "Front Desk",
+  "description": "Describe a roof problem, add a photo, get the damage outlined, a draft price range and a booked inspection.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#141414",
-  "theme_color": "#141414",
-  "icons": [
-    {
-      "src": "https://media.base44.com/images/public/6adf4df2954ef8733787d5d7/9e4705b04_generated_image.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
+  "background_color": "#f6f5f1",
+  "theme_color": "#f15a24",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }
