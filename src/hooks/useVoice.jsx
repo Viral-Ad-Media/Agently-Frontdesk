@@ -40,14 +40,23 @@ export default function useVoice({ onFinal }) {
 
   const stop = useCallback(() => recRef.current?.stop(), []);
 
-  const speak = useCallback((text) => {
-    if (!window.speechSynthesis) return;
+  const speak = useCallback((text, onEnd) => {
+    if (!window.speechSynthesis) {
+      onEnd?.();
+      return;
+    }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1;
     u.onstart = () => setSpeaking(true);
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
+    u.onend = () => {
+      setSpeaking(false);
+      onEnd?.();
+    };
+    u.onerror = () => {
+      setSpeaking(false);
+      onEnd?.();
+    };
     window.speechSynthesis.speak(u);
   }, []);
 

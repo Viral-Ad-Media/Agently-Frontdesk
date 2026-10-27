@@ -3,15 +3,17 @@
 // outline for every photo, so the owner can rehearse the journey without any key.
 //
 // Return shapes (the contract every provider must honour):
-//   segmentDamage({ photoName, width, height })
+//   segmentDamage({ trade, photoName, width, height, dataUrl })
 //     -> { regions: [{ label, bbox:[x0,y0,x1,y1], polygon:[[x,y]...], areaPercent }],
 //          reference: { label, bbox, knownWidthM } | null, tiltDeg, confidence }
-//   assess({ trade, description, urgency, segmentation, measurement })
+//   assess({ trade, description, urgency, segmentation, measurement, tenant })
 //     -> { summary, severity: "Minor"|"Moderate"|"Severe", material:{ name, confidence, alternatives:[{name,confidence}] },
-//          failedPart, workNeeded:[string], emergency: { isEmergency, reason, actions:[string], hotline } | null, confidence }
-//   converse({ trade, messages, caseState })
-//     -> { reply, extracted: { description?, address?, urgency?, intent? }, nextAction: "ask_description"|"ask_address"|"ask_photo"|"assess"|"none" }
-//   reactivateMessage({ lead }) -> { message, generic: boolean }
+//          failedPart, workNeeded:[string], emergency: { isEmergency, reason, actions:[string], hotline } | null, confidence,
+//          serviceMatch?: [{ serviceId, name, fit }], clinicianFlags?: [string] }   (med spa only)
+//   converse({ trade, messages, caseState, tenant })
+//     -> { reply, extracted: { description?, address?, urgency?, intent? },
+//          nextAction: "ask_description"|"ask_address"|"ask_consent"|"ask_photo"|"assess"|"none" }
+//   reactivateMessage({ lead, tenant }) -> { message, generic: boolean }
 //   renderReportVisual({ photoDataUrl, segmentation, assessment, quote, tenant }) -> { imageDataUrl }
 //   transcribeCall({ audio }) -> { transcript, segments: [] }
 //
@@ -21,11 +23,28 @@ import { areaPercent } from "../../lib/eye.js";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// A fixed damage outline on the upper-middle of the roof, plus a standard 3-tab shingle tab
+// Roofing: a fixed damage outline on the upper-middle of the roof, plus a standard 3-tab shingle tab
 // as the scale reference. A photo whose file name contains "noref" has no reference in frame,
 // which exercises the no-reference rule (percent only, no square metres).
-export async function segmentDamage({ photoName = "" } = {}) {
+// Med spa: a small concern-area outline, never a reference (nothing is measured in metres).
+export async function segmentDamage({ trade = "roofing", photoName = "" } = {}) {
   await wait(900);
+  if (trade === "medspa") {
+    const polygon = [
+      [540, 430],
+      [640, 418],
+      [672, 500],
+      [630, 560],
+      [548, 548],
+      [516, 490],
+    ];
+    return {
+      regions: [{ label: "area of concern", bbox: [516, 418, 672, 560], polygon, areaPercent: Math.round(areaPercent(polygon) * 10) / 10 }],
+      reference: null,
+      tiltDeg: 0,
+      confidence: 0.7,
+    };
+  }
   const polygon = [
     [372, 318],
     [604, 296],
@@ -44,16 +63,15 @@ export async function segmentDamage({ photoName = "" } = {}) {
         areaPercent: Math.round(areaPercent(polygon) * 10) / 10,
       },
     ],
-    reference: noReference
-      ? null
-      : { label: "standard 3-tab shingle tab (305 mm)", bbox: [690, 560, 782, 586], knownWidthM: 0.305 },
+    reference: noReference ? null : { label: "standard 3-tab shingle tab (305 mm)", bbox: [690, 560, 782, 586], knownWidthM: 0.305 },
     tiltDeg: 24,
     confidence: 0.74,
   };
 }
 
-export async function assess({ description = "", urgency = null, measurement = null } = {}) {
+export async function assess({ trade = "roofing", description = "", urgency = null, measurement = null, tenant = null } = {}) {
   await wait(1100);
+  if (trade === "medspa") return assessMedspa({ description, tenant });
   const text = description.toLowerCase();
   const electrical = /spark|electric|wire|outlet|light fitting|fuse/.test(text);
   const inside = /ceiling|inside|dripping|bucket|bedroom|living room|kitchen/.test(text);
@@ -99,12 +117,58 @@ export async function assess({ description = "", urgency = null, measurement = n
   };
 }
 
-export async function converse({ messages = [], caseState = {} } = {}) {
+// Med spa: organises an inquiry and matches it to the spa's own services. Never a diagnosis, never a promised result.
+function assessMedspa({ description, tenant }) {
+  const text = description.toLowerCase();
+  const services = tenant?.services || [];
+  const scored = services
+    .map((s) => ({ s, hits: s.concerns.filter((c) => text.includes(c.split(" ")[0])).length }))
+    .filter((x) => x.hits > 0)
+    .sort((a, b) => b.hits - a.hits);
+  const matches = (scored.length ? scored : services.slice(0, 1).map((s) => ({ s, hits: 0 }))).slice(0, 2);
+  const flags = ["Clinician to confirm skin type and sensitivity before any plan"];
+  if (/pain|bleed|spread|grow|chang|itch|fever/.test(text)) flags.push("Client describes a change or discomfort: clinician to review before anything is offered");
+  if (/pregnan|breastfeed/.test(text)) flags.push("Client mentions pregnancy or breastfeeding: clinician to advise on suitability");
+  if (/retinol|accutane|isotretinoin|antibiotic/.test(text)) flags.push("Client mentions active skincare medication: clinician to check timing");
+  const top = matches[0]?.s;
+  return {
+    summary: `You've described ${description.trim().replace(/\.$/, "") || "a skin concern"}. We've noted the area in your photo and matched it to ${
+      top ? top.name : "a consultation"
+    } from our service list. A clinician reviews this before anything is recommended.`,
+    severity: flags.length > 1 ? "Moderate" : "Minor",
+    material: { name: "service match", confidence: scored.length ? 0.7 : 0.4, alternatives: [] },
+    failedPart: "Area of concern noted for clinician review (not a diagnosis)",
+    workNeeded: ["A clinician reviews your photo and notes", "Consultation to confirm suitability and the plan", "Treatment only after the clinician agrees it with you"],
+    serviceMatch: matches.map(({ s, hits }) => ({ serviceId: s.id, name: s.name, fit: hits > 0 ? "likely" : "to discuss" })),
+    clinicianFlags: flags,
+    emergency: null,
+    confidence: scored.length ? 0.7 : 0.45,
+  };
+}
+
+export async function converse({ trade = "roofing", messages = [], caseState = {} } = {}) {
   await wait(600);
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   const text = (lastUser?.content || "").trim();
   const extracted = {};
   const asked = caseState.lastQuestion || null;
+
+  if (trade === "medspa") {
+    if (!caseState.description) {
+      if (!text) return { reply: "Tell me what you'd like help with, or what you've noticed about your skin.", extracted, nextAction: "ask_description" };
+      extracted.description = text;
+      extracted.urgency = "routine";
+      extracted.intent = "consultation";
+      return {
+        reply: "Thank you. A photo helps our clinician see what you mean, but it's optional. If you'd like to share one, please confirm consent first.",
+        extracted,
+        nextAction: "ask_consent",
+      };
+    }
+    if (!caseState.consent) return { reply: "Whenever you're ready, confirm consent below and add a photo, or tell me more.", extracted, nextAction: "ask_consent" };
+    if (!caseState.photo) return { reply: "Add a photo of the area when you're ready. Natural light, no filters.", extracted, nextAction: "ask_photo" };
+    return { reply: "Thank you. Here's what we've noted for the clinician.", extracted, nextAction: "assess" };
+  }
 
   if (!caseState.description) {
     if (!text) {
@@ -136,14 +200,23 @@ export async function converse({ messages = [], caseState = {} } = {}) {
   return { reply: "I've got everything I need. Here is the assessment.", extracted, nextAction: "assess" };
 }
 
-export async function reactivateMessage({ lead = {} } = {}) {
+export async function reactivateMessage({ lead = {}, tenant = {} } = {}) {
   await wait(500);
+  const who = tenant.name || "the team";
   const hasHistory = Array.isArray(lead.history) && lead.history.length > 0;
   if (!hasHistory) {
-    return { message: `Hi${lead.name ? ` ${lead.name}` : ""}, it's the team here. Is the roof job still on your list? Happy to book a quick look.`, generic: true };
+    return { message: `Hi${lead.firstName ? ` ${lead.firstName}` : ""}, it's ${who}. Is this still on your list? Happy to book a quick look whenever suits.`, generic: true };
   }
   const last = lead.history[lead.history.length - 1];
-  return { message: `Hi ${lead.name}, following up on the ${last.topic} you asked about in ${last.when}. Want us to pick it up where we left off?`, generic: false };
+  const when = monthName(last.when);
+  const nudge = /postpone|hold/i.test(last.summary) ? "Is now a better time?" : /budget/i.test(last.summary) ? "Happy to talk through options that fit." : /quote/i.test(last.summary) ? "Want us to pick it up where we left off?" : "Would a quick look help?";
+  return { message: `Hi ${lead.firstName || lead.name}, it's ${who}. Back in ${when} you asked about ${last.topic}. ${nudge}`, generic: false };
+}
+
+function monthName(ym) {
+  const [y, m] = String(ym).split("-").map(Number);
+  if (!y || !m) return "a while ago";
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long" });
 }
 
 // Composes the annotated photo and the summary onto one canvas. Labelled Mock: it is a composition, not a generated image.
@@ -155,7 +228,7 @@ export async function renderReportVisual({ photoDataUrl, segmentation, assessmen
   const H = Math.round(img.height * scale);
   const canvas = document.createElement("canvas");
   canvas.width = W;
-  canvas.height = H + 220;
+  canvas.height = H + 260;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -174,16 +247,20 @@ export async function renderReportVisual({ photoDataUrl, segmentation, assessmen
     ctx.strokeStyle = "#f15a24";
     ctx.stroke();
   }
+  const isSpa = tenant?.trade === "medspa";
   ctx.fillStyle = "#101216";
   ctx.font = "600 34px sans-serif";
-  ctx.fillText(`${tenant?.name || "Roof report"} - damage report`, 40, H + 56);
+  ctx.fillText(`${tenant?.name || "Report"} - ${isSpa ? "consultation notes" : "damage report"}`, 40, H + 56);
   ctx.font = "400 24px sans-serif";
   ctx.fillStyle = "#5a5b61";
-  wrap(ctx, assessment?.summary || "", 40, H + 100, W - 80, 30, 2);
+  wrap(ctx, assessment?.summary || "", 40, H + 100, W - 80, 30, 3);
   ctx.fillStyle = "#101216";
-  ctx.font = "500 24px sans-serif";
-  const money = quote && quote.low !== null ? `Draft range $${quote.low}-$${quote.high} USD. ${quote.disclaimer}` : "No measurement, so no dollar total yet. Site visit to confirm.";
-  ctx.fillText(`Severity: ${assessment?.severity || "-"}.  ${money}`, 40, H + 190);
+  ctx.font = "500 22px sans-serif";
+  const money = quote && quote.low !== null ? `Draft range $${quote.low}-$${quote.high} USD.` : "No dollar total yet.";
+  ctx.fillText(`${isSpa ? "Priority" : "Severity"}: ${assessment?.severity || "-"}.  ${money}`, 40, H + 206);
+  ctx.font = "400 18px sans-serif";
+  ctx.fillStyle = "#5a5b61";
+  ctx.fillText(quote?.disclaimer || tenant?.disclaimer || "", 40, H + 238);
   return { imageDataUrl: canvas.toDataURL("image/jpeg", 0.85) };
 }
 

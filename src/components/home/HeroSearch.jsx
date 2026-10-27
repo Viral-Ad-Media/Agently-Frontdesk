@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import { useStore } from "@/lib/store";
 
 export default function HeroSearch() {
+  const tenant = useStore((s) => s.tenant);
   const [q, setQ] = useState("");
   const navigate = useNavigate();
   const go = (text) => navigate(`/chat${text ? `?q=${encodeURIComponent(text)}` : ""}`);
@@ -17,7 +19,7 @@ export default function HeroSearch() {
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="What's happening? e.g. water dripping through the bedroom ceiling"
+        placeholder={tenant.words.placeholder}
         aria-label="Describe the roof problem"
         className="h-10 min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-white/60"
       />

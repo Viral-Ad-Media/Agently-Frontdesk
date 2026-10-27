@@ -1,0 +1,1149 @@
+[
+  {
+    "id": "lead-dead-01",
+    "tenantId": "summit-ridge",
+    "name": "Sarah Johnson",
+    "firstName": "Sarah",
+    "phone": "+12025551000",
+    "email": "sarah.johnson1@example.com",
+    "address": "125 Oak Street, Austin, TX 78701",
+    "source": "Facebook Ads",
+    "serviceType": "Roof repair",
+    "damageType": "Hail damage",
+    "status": "dead",
+    "notes": "Historical inquiry about hail damage; follow-up stalled.",
+    "createdAt": "2026-01-12",
+    "lastContactedAt": "2026-01-15",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Requested estimate but stopped responding",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-01",
+        "topic": "roof repair (hail damage)",
+        "summary": "Requested estimate but stopped responding"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-02",
+    "tenantId": "summit-ridge",
+    "name": "Michael Davis",
+    "firstName": "Michael",
+    "phone": "+12025551001",
+    "email": "michael.davis2@example.com",
+    "address": "139 Maple Street, Houston, TX 77002",
+    "source": "Google Ads",
+    "serviceType": "Roof replacement",
+    "damageType": "Wind damage",
+    "status": "dead",
+    "notes": "Historical inquiry about wind damage; follow-up stalled.",
+    "createdAt": "2026-01-19",
+    "lastContactedAt": "2026-01-23",
+    "optOut": false,
+    "reactivation": {
+      "status": "queued",
+      "attempts": 0
+    },
+    "lastInteraction": "Asked to postpone roof inspection",
+    "previousQuote": 1275,
+    "history": [
+      {
+        "when": "2026-01",
+        "topic": "roof replacement (wind damage)",
+        "summary": "Asked to postpone roof inspection"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-03",
+    "tenantId": "summit-ridge",
+    "name": "Emily Wilson",
+    "firstName": "Emily",
+    "phone": "+12025551002",
+    "email": "emily.wilson3@example.com",
+    "address": "153 Cedar Street, Dallas, TX 75201",
+    "source": "Website Form",
+    "serviceType": "Roof inspection",
+    "damageType": "Roof leak",
+    "status": "dead",
+    "notes": "Historical inquiry about roof leak; follow-up stalled.",
+    "createdAt": "2026-01-26",
+    "lastContactedAt": "2026-01-31",
+    "optOut": false,
+    "reactivation": {
+      "status": "contacted",
+      "attempts": 3
+    },
+    "lastInteraction": "Did not confirm appointment",
+    "previousQuote": 1700,
+    "history": [
+      {
+        "when": "2026-01",
+        "topic": "roof inspection (roof leak)",
+        "summary": "Did not confirm appointment"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-04",
+    "tenantId": "summit-ridge",
+    "name": "James Martinez",
+    "firstName": "James",
+    "phone": "+12025551003",
+    "email": "james.martinez4@example.com",
+    "address": "167 Pine Street, San Antonio, TX 78205",
+    "source": "Referral",
+    "serviceType": "Emergency roof repair",
+    "damageType": "Missing shingles",
+    "status": "dead",
+    "notes": "Historical inquiry about missing shingles; follow-up stalled.",
+    "createdAt": "2026-02-02",
+    "lastContactedAt": "2026-02-08",
+    "optOut": false,
+    "reactivation": {
+      "status": "replied",
+      "attempts": 1
+    },
+    "lastInteraction": "Quote sent; no decision received",
+    "previousQuote": 2125,
+    "history": [
+      {
+        "when": "2026-02",
+        "topic": "emergency roof repair (missing shingles)",
+        "summary": "Quote sent; no decision received"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-05",
+    "tenantId": "summit-ridge",
+    "name": "Olivia Brown",
+    "firstName": "Olivia",
+    "phone": "+12025551004",
+    "email": "olivia.brown5@example.com",
+    "address": "181 Willow Street, Fort Worth, TX 76102",
+    "source": "Google Business Profile",
+    "serviceType": "Storm damage restoration",
+    "damageType": "Storm damage",
+    "status": "dead",
+    "notes": "Historical inquiry about storm damage; follow-up stalled.",
+    "createdAt": "2026-02-09",
+    "lastContactedAt": "2026-02-16",
+    "optOut": false,
+    "reactivation": {
+      "status": "dead",
+      "attempts": 2
+    },
+    "lastInteraction": "Could not reach after initial inquiry",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-02",
+        "topic": "storm damage restoration (storm damage)",
+        "summary": "Could not reach after initial inquiry"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-06",
+    "tenantId": "summit-ridge",
+    "name": "Daniel Anderson",
+    "firstName": "Daniel",
+    "phone": "+12025551005",
+    "email": "daniel.anderson6@example.com",
+    "address": "195 Elm Street, Austin, TX 78701",
+    "source": "Home Show",
+    "serviceType": "Roof repair",
+    "damageType": "Age-related wear",
+    "status": "dead",
+    "notes": "Historical inquiry about age-related wear; follow-up stalled. Opted out; exclude from outreach.",
+    "createdAt": "2026-02-16",
+    "lastContactedAt": "2026-02-24",
+    "optOut": true,
+    "reactivation": {
+      "status": "dead",
+      "attempts": 3
+    },
+    "lastInteraction": "Homeowner requested no further contact",
+    "previousQuote": 2975,
+    "history": [
+      {
+        "when": "2026-02",
+        "topic": "roof repair (age-related wear)",
+        "summary": "Homeowner requested no further contact"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-07",
+    "tenantId": "summit-ridge",
+    "name": "Sophia Taylor",
+    "firstName": "Sophia",
+    "phone": "+12025551006",
+    "email": "sophia.taylor7@example.com",
+    "address": "209 Magnolia Street, Houston, TX 77002",
+    "source": "Facebook Ads",
+    "serviceType": "Roof replacement",
+    "damageType": "Hail damage",
+    "status": "dead",
+    "notes": "Historical inquiry about hail damage; follow-up stalled.",
+    "createdAt": "2026-02-23",
+    "lastContactedAt": "2026-03-04",
+    "optOut": false,
+    "reactivation": {
+      "status": "queued",
+      "attempts": 0
+    },
+    "lastInteraction": "Budget concern; follow-up unanswered",
+    "previousQuote": 3400,
+    "history": [
+      {
+        "when": "2026-02",
+        "topic": "roof replacement (hail damage)",
+        "summary": "Budget concern; follow-up unanswered"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-08",
+    "tenantId": "summit-ridge",
+    "name": "William Thomas",
+    "firstName": "William",
+    "phone": "+12025551007",
+    "email": "william.thomas8@example.com",
+    "address": "223 Birch Street, Dallas, TX 75201",
+    "source": "Google Ads",
+    "serviceType": "Roof inspection",
+    "damageType": "Wind damage",
+    "status": "dead",
+    "notes": "Historical inquiry about wind damage; follow-up stalled.",
+    "createdAt": "2026-03-02",
+    "lastContactedAt": "2026-03-12",
+    "optOut": false,
+    "reactivation": {
+      "status": "contacted",
+      "attempts": 2
+    },
+    "lastInteraction": "Requested callback but did not respond",
+    "previousQuote": 3825,
+    "history": [
+      {
+        "when": "2026-03",
+        "topic": "roof inspection (wind damage)",
+        "summary": "Requested callback but did not respond"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-09",
+    "tenantId": "summit-ridge",
+    "name": "Ava Moore",
+    "firstName": "Ava",
+    "phone": "+12025551008",
+    "email": "ava.moore9@example.com",
+    "address": "237 Ash Street, San Antonio, TX 78205",
+    "source": "Website Form",
+    "serviceType": "Emergency roof repair",
+    "damageType": "Roof leak",
+    "status": "dead",
+    "notes": "Historical inquiry about roof leak; follow-up stalled.",
+    "createdAt": "2026-03-09",
+    "lastContactedAt": "2026-03-20",
+    "optOut": false,
+    "reactivation": {
+      "status": "replied",
+      "attempts": 3
+    },
+    "lastInteraction": "Requested estimate but stopped responding",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-03",
+        "topic": "emergency roof repair (roof leak)",
+        "summary": "Requested estimate but stopped responding"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-10",
+    "tenantId": "summit-ridge",
+    "name": "Benjamin Jackson",
+    "firstName": "Benjamin",
+    "phone": "+12025551009",
+    "email": "benjamin.jackson10@example.com",
+    "address": "251 Spruce Street, Fort Worth, TX 76102",
+    "source": "Referral",
+    "serviceType": "Storm damage restoration",
+    "damageType": "Missing shingles",
+    "status": "dead",
+    "notes": "Historical inquiry about missing shingles; follow-up stalled.",
+    "createdAt": "2026-03-16",
+    "lastContactedAt": "2026-03-28",
+    "optOut": false,
+    "reactivation": {
+      "status": "dead",
+      "attempts": 1
+    },
+    "lastInteraction": "Asked to postpone roof inspection",
+    "previousQuote": 850,
+    "history": [
+      {
+        "when": "2026-03",
+        "topic": "storm damage restoration (missing shingles)",
+        "summary": "Asked to postpone roof inspection"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-11",
+    "tenantId": "summit-ridge",
+    "name": "Isabella White",
+    "firstName": "Isabella",
+    "phone": "+12025551010",
+    "email": "isabella.white11@example.com",
+    "address": "265 River Street, Austin, TX 78701",
+    "source": "Google Business Profile",
+    "serviceType": "Roof repair",
+    "damageType": "Storm damage",
+    "status": "dead",
+    "notes": "Historical inquiry about storm damage; follow-up stalled.",
+    "createdAt": "2026-03-23",
+    "lastContactedAt": "2026-04-05",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Did not confirm appointment",
+    "previousQuote": 1275,
+    "history": [
+      {
+        "when": "2026-03",
+        "topic": "roof repair (storm damage)",
+        "summary": "Did not confirm appointment"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-12",
+    "tenantId": "summit-ridge",
+    "name": "Lucas Harris",
+    "firstName": "Lucas",
+    "phone": "+12025551011",
+    "email": "lucas.harris12@example.com",
+    "address": "279 Sunset Street, Houston, TX 77002",
+    "source": "Home Show",
+    "serviceType": "Roof replacement",
+    "damageType": "Age-related wear",
+    "status": "dead",
+    "notes": "Historical inquiry about age-related wear; follow-up stalled.",
+    "createdAt": "2026-03-30",
+    "lastContactedAt": "2026-04-13",
+    "optOut": false,
+    "reactivation": {
+      "status": "queued",
+      "attempts": 0
+    },
+    "lastInteraction": "Quote sent; no decision received",
+    "previousQuote": 1700,
+    "history": [
+      {
+        "when": "2026-03",
+        "topic": "roof replacement (age-related wear)",
+        "summary": "Quote sent; no decision received"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-13",
+    "tenantId": "summit-ridge",
+    "name": "Mia Martin",
+    "firstName": "Mia",
+    "phone": "+12025551012",
+    "email": "mia.martin13@example.com",
+    "address": "293 Oak Street, Dallas, TX 75201",
+    "source": "Facebook Ads",
+    "serviceType": "Roof inspection",
+    "damageType": "Hail damage",
+    "status": "dead",
+    "notes": "Historical inquiry about hail damage; follow-up stalled.",
+    "createdAt": "2026-04-06",
+    "lastContactedAt": "2026-04-21",
+    "optOut": false,
+    "reactivation": {
+      "status": "contacted",
+      "attempts": 1
+    },
+    "lastInteraction": "Could not reach after initial inquiry",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-04",
+        "topic": "roof inspection (hail damage)",
+        "summary": "Could not reach after initial inquiry"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-14",
+    "tenantId": "summit-ridge",
+    "name": "Henry Thompson",
+    "firstName": "Henry",
+    "phone": "+12025551013",
+    "email": "henry.thompson14@example.com",
+    "address": "307 Maple Street, San Antonio, TX 78205",
+    "source": "Google Ads",
+    "serviceType": "Emergency roof repair",
+    "damageType": "Wind damage",
+    "status": "dead",
+    "notes": "Historical inquiry about wind damage; follow-up stalled.",
+    "createdAt": "2026-04-13",
+    "lastContactedAt": "2026-04-29",
+    "optOut": false,
+    "reactivation": {
+      "status": "replied",
+      "attempts": 2
+    },
+    "lastInteraction": "Said project was on hold",
+    "previousQuote": 2550,
+    "history": [
+      {
+        "when": "2026-04",
+        "topic": "emergency roof repair (wind damage)",
+        "summary": "Said project was on hold"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-15",
+    "tenantId": "summit-ridge",
+    "name": "Charlotte Garcia",
+    "firstName": "Charlotte",
+    "phone": "+12025551014",
+    "email": "charlotte.garcia15@example.com",
+    "address": "321 Cedar Street, Fort Worth, TX 76102",
+    "source": "Website Form",
+    "serviceType": "Storm damage restoration",
+    "damageType": "Roof leak",
+    "status": "dead",
+    "notes": "Historical inquiry about roof leak; follow-up stalled.",
+    "createdAt": "2026-04-20",
+    "lastContactedAt": "2026-05-07",
+    "optOut": false,
+    "reactivation": {
+      "status": "dead",
+      "attempts": 3
+    },
+    "lastInteraction": "Budget concern; follow-up unanswered",
+    "previousQuote": 2975,
+    "history": [
+      {
+        "when": "2026-04",
+        "topic": "storm damage restoration (roof leak)",
+        "summary": "Budget concern; follow-up unanswered"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-16",
+    "tenantId": "summit-ridge",
+    "name": "Alexander Robinson",
+    "firstName": "Alexander",
+    "phone": "+12025551015",
+    "email": "alexander.robinson16@example.com",
+    "address": "335 Pine Street, Austin, TX 78701",
+    "source": "Referral",
+    "serviceType": "Roof repair",
+    "damageType": "Missing shingles",
+    "status": "dead",
+    "notes": "Historical inquiry about missing shingles; follow-up stalled.",
+    "createdAt": "2026-04-27",
+    "lastContactedAt": "2026-05-15",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Requested callback but did not respond",
+    "previousQuote": 3400,
+    "history": [
+      {
+        "when": "2026-04",
+        "topic": "roof repair (missing shingles)",
+        "summary": "Requested callback but did not respond"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-17",
+    "tenantId": "summit-ridge",
+    "name": "Amelia Clark",
+    "firstName": "Amelia",
+    "phone": "+12025551016",
+    "email": "amelia.clark17@example.com",
+    "address": "349 Willow Street, Houston, TX 77002",
+    "source": "Google Business Profile",
+    "serviceType": "Roof replacement",
+    "damageType": "Storm damage",
+    "status": "dead",
+    "notes": "Historical inquiry about storm damage; follow-up stalled.",
+    "createdAt": "2026-05-04",
+    "lastContactedAt": "2026-05-23",
+    "optOut": false,
+    "reactivation": {
+      "status": "queued",
+      "attempts": 0
+    },
+    "lastInteraction": "Requested estimate but stopped responding",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-05",
+        "topic": "roof replacement (storm damage)",
+        "summary": "Requested estimate but stopped responding"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-18",
+    "tenantId": "summit-ridge",
+    "name": "Ethan Lewis",
+    "firstName": "Ethan",
+    "phone": "+12025551017",
+    "email": "ethan.lewis18@example.com",
+    "address": "363 Elm Street, Dallas, TX 75201",
+    "source": "Home Show",
+    "serviceType": "Roof inspection",
+    "damageType": "Age-related wear",
+    "status": "dead",
+    "notes": "Historical inquiry about age-related wear; follow-up stalled. Opted out; exclude from outreach.",
+    "createdAt": "2026-05-11",
+    "lastContactedAt": "2026-05-31",
+    "optOut": true,
+    "reactivation": {
+      "status": "dead",
+      "attempts": 3
+    },
+    "lastInteraction": "Homeowner requested no further contact",
+    "previousQuote": 4250,
+    "history": [
+      {
+        "when": "2026-05",
+        "topic": "roof inspection (age-related wear)",
+        "summary": "Homeowner requested no further contact"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-19",
+    "tenantId": "summit-ridge",
+    "name": "Harper Lee",
+    "firstName": "Harper",
+    "phone": "+12025551018",
+    "email": "harper.lee19@example.com",
+    "address": "377 Magnolia Street, San Antonio, TX 78205",
+    "source": "Facebook Ads",
+    "serviceType": "Emergency roof repair",
+    "damageType": "Hail damage",
+    "status": "dead",
+    "notes": "Historical inquiry about hail damage; follow-up stalled.",
+    "createdAt": "2026-05-18",
+    "lastContactedAt": "2026-06-08",
+    "optOut": false,
+    "reactivation": {
+      "status": "replied",
+      "attempts": 1
+    },
+    "lastInteraction": "Did not confirm appointment",
+    "previousQuote": 850,
+    "history": [
+      {
+        "when": "2026-05",
+        "topic": "emergency roof repair (hail damage)",
+        "summary": "Did not confirm appointment"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-20",
+    "tenantId": "summit-ridge",
+    "name": "Noah Walker",
+    "firstName": "Noah",
+    "phone": "+12025551019",
+    "email": "noah.walker20@example.com",
+    "address": "391 Birch Street, Fort Worth, TX 76102",
+    "source": "Google Ads",
+    "serviceType": "Storm damage restoration",
+    "damageType": "Wind damage",
+    "status": "dead",
+    "notes": "Historical inquiry about wind damage; follow-up stalled.",
+    "createdAt": "2026-05-25",
+    "lastContactedAt": "2026-05-28",
+    "optOut": false,
+    "reactivation": {
+      "status": "dead",
+      "attempts": 2
+    },
+    "lastInteraction": "Quote sent; no decision received",
+    "previousQuote": 1275,
+    "history": [
+      {
+        "when": "2026-05",
+        "topic": "storm damage restoration (wind damage)",
+        "summary": "Quote sent; no decision received"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-21",
+    "tenantId": "summit-ridge",
+    "name": "Evelyn Hall",
+    "firstName": "Evelyn",
+    "phone": "+12025551020",
+    "email": "evelyn.hall21@example.com",
+    "address": "405 Ash Street, Austin, TX 78701",
+    "source": "Website Form",
+    "serviceType": "Roof repair",
+    "damageType": "Roof leak",
+    "status": "dead",
+    "notes": "Historical inquiry about roof leak; follow-up stalled.",
+    "createdAt": "2026-06-01",
+    "lastContactedAt": "2026-06-05",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Could not reach after initial inquiry",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-06",
+        "topic": "roof repair (roof leak)",
+        "summary": "Could not reach after initial inquiry"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-22",
+    "tenantId": "summit-ridge",
+    "name": "Logan Allen",
+    "firstName": "Logan",
+    "phone": "+12025551021",
+    "email": "logan.allen22@example.com",
+    "address": "419 Spruce Street, Houston, TX 77002",
+    "source": "Referral",
+    "serviceType": "Roof replacement",
+    "damageType": "Missing shingles",
+    "status": "dead",
+    "notes": "Historical inquiry about missing shingles; follow-up stalled.",
+    "createdAt": "2026-06-08",
+    "lastContactedAt": "2026-06-13",
+    "optOut": false,
+    "reactivation": {
+      "status": "queued",
+      "attempts": 0
+    },
+    "lastInteraction": "Said project was on hold",
+    "previousQuote": 2125,
+    "history": [
+      {
+        "when": "2026-06",
+        "topic": "roof replacement (missing shingles)",
+        "summary": "Said project was on hold"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-23",
+    "tenantId": "summit-ridge",
+    "name": "Abigail Young",
+    "firstName": "Abigail",
+    "phone": "+12025551022",
+    "email": "abigail.young23@example.com",
+    "address": "433 River Street, Dallas, TX 75201",
+    "source": "Google Business Profile",
+    "serviceType": "Roof inspection",
+    "damageType": "Storm damage",
+    "status": "dead",
+    "notes": "Historical inquiry about storm damage; follow-up stalled.",
+    "createdAt": "2026-06-15",
+    "lastContactedAt": "2026-06-21",
+    "optOut": false,
+    "reactivation": {
+      "status": "contacted",
+      "attempts": 2
+    },
+    "lastInteraction": "Budget concern; follow-up unanswered",
+    "previousQuote": 2550,
+    "history": [
+      {
+        "when": "2026-06",
+        "topic": "roof inspection (storm damage)",
+        "summary": "Budget concern; follow-up unanswered"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-24",
+    "tenantId": "summit-ridge",
+    "name": "Elijah King",
+    "firstName": "Elijah",
+    "phone": "+12025551023",
+    "email": "elijah.king24@example.com",
+    "address": "447 Sunset Street, San Antonio, TX 78205",
+    "source": "Home Show",
+    "serviceType": "Emergency roof repair",
+    "damageType": "Age-related wear",
+    "status": "dead",
+    "notes": "Historical inquiry about age-related wear; follow-up stalled. Opted out; exclude from outreach.",
+    "createdAt": "2026-06-22",
+    "lastContactedAt": "2026-06-29",
+    "optOut": true,
+    "reactivation": {
+      "status": "dead",
+      "attempts": 3
+    },
+    "lastInteraction": "Homeowner requested no further contact",
+    "previousQuote": 2975,
+    "history": [
+      {
+        "when": "2026-06",
+        "topic": "emergency roof repair (age-related wear)",
+        "summary": "Homeowner requested no further contact"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-dead-25",
+    "tenantId": "summit-ridge",
+    "name": "Ella Wright",
+    "firstName": "Ella",
+    "phone": "+12025551024",
+    "email": "ella.wright25@example.com",
+    "address": "461 Oak Street, Fort Worth, TX 76102",
+    "source": "Facebook Ads",
+    "serviceType": "Storm damage restoration",
+    "damageType": "Hail damage",
+    "status": "dead",
+    "notes": "Historical inquiry about hail damage; follow-up stalled.",
+    "createdAt": "2026-06-29",
+    "lastContactedAt": "2026-07-07",
+    "optOut": false,
+    "reactivation": {
+      "status": "dead",
+      "attempts": 1
+    },
+    "lastInteraction": "Requested estimate but stopped responding",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-06",
+        "topic": "storm damage restoration (hail damage)",
+        "summary": "Requested estimate but stopped responding"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-01",
+    "tenantId": "summit-ridge",
+    "name": "Jacob Scott",
+    "firstName": "Jacob",
+    "phone": "+12025551025",
+    "email": "jacob.scott26@example.com",
+    "address": "475 Maple Street, Austin, TX 78701",
+    "source": "Google Ads",
+    "serviceType": "Roof repair",
+    "damageType": "Wind damage",
+    "status": "active",
+    "notes": "Historical inquiry about wind damage; currently engaged with scheduling.",
+    "createdAt": "2026-07-06",
+    "lastContactedAt": "2026-07-15",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Requested a call to discuss repair options",
+    "previousQuote": 3825,
+    "history": [
+      {
+        "when": "2026-07",
+        "topic": "roof repair (wind damage)",
+        "summary": "Requested a call to discuss repair options"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-02",
+    "tenantId": "summit-ridge",
+    "name": "Grace Green",
+    "firstName": "Grace",
+    "phone": "+12025551026",
+    "email": "grace.green27@example.com",
+    "address": "489 Cedar Street, Houston, TX 77002",
+    "source": "Website Form",
+    "serviceType": "Roof replacement",
+    "damageType": "Roof leak",
+    "status": "active",
+    "notes": "Historical inquiry about roof leak; currently engaged with scheduling.",
+    "createdAt": "2026-07-13",
+    "lastContactedAt": "2026-07-23",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Inspection appointment being coordinated",
+    "previousQuote": 4250,
+    "history": [
+      {
+        "when": "2026-07",
+        "topic": "roof replacement (roof leak)",
+        "summary": "Inspection appointment being coordinated"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-03",
+    "tenantId": "summit-ridge",
+    "name": "Liam Baker",
+    "firstName": "Liam",
+    "phone": "+12025551027",
+    "email": "liam.baker28@example.com",
+    "address": "503 Pine Street, Dallas, TX 75201",
+    "source": "Referral",
+    "serviceType": "Roof inspection",
+    "damageType": "Missing shingles",
+    "status": "active",
+    "notes": "Historical inquiry about missing shingles; currently engaged with scheduling.",
+    "createdAt": "2026-07-20",
+    "lastContactedAt": "2026-07-31",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Asked for updated quote",
+    "previousQuote": 850,
+    "history": [
+      {
+        "when": "2026-07",
+        "topic": "roof inspection (missing shingles)",
+        "summary": "Asked for updated quote"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-04",
+    "tenantId": "summit-ridge",
+    "name": "Chloe Adams",
+    "firstName": "Chloe",
+    "phone": "+12025551028",
+    "email": "chloe.adams29@example.com",
+    "address": "517 Willow Street, San Antonio, TX 78205",
+    "source": "Google Business Profile",
+    "serviceType": "Emergency roof repair",
+    "damageType": "Storm damage",
+    "status": "active",
+    "notes": "Historical inquiry about storm damage; currently engaged with scheduling.",
+    "createdAt": "2026-07-27",
+    "lastContactedAt": "2026-08-08",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Confirmed interest in roof assessment",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-07",
+        "topic": "emergency roof repair (storm damage)",
+        "summary": "Confirmed interest in roof assessment"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-05",
+    "tenantId": "summit-ridge",
+    "name": "Mason Nelson",
+    "firstName": "Mason",
+    "phone": "+12025551029",
+    "email": "mason.nelson30@example.com",
+    "address": "531 Elm Street, Fort Worth, TX 76102",
+    "source": "Home Show",
+    "serviceType": "Storm damage restoration",
+    "damageType": "Age-related wear",
+    "status": "active",
+    "notes": "Historical inquiry about age-related wear; currently engaged with scheduling.",
+    "createdAt": "2026-08-03",
+    "lastContactedAt": "2026-08-16",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Shared photos and awaits review",
+    "previousQuote": 1700,
+    "history": [
+      {
+        "when": "2026-08",
+        "topic": "storm damage restoration (age-related wear)",
+        "summary": "Shared photos and awaits review"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-06",
+    "tenantId": "summit-ridge",
+    "name": "Lily Carter",
+    "firstName": "Lily",
+    "phone": "+12025551030",
+    "email": "lily.carter31@example.com",
+    "address": "545 Magnolia Street, Austin, TX 78701",
+    "source": "Facebook Ads",
+    "serviceType": "Roof repair",
+    "damageType": "Hail damage",
+    "status": "active",
+    "notes": "Historical inquiry about hail damage; currently engaged with scheduling.",
+    "createdAt": "2026-08-10",
+    "lastContactedAt": "2026-08-24",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Requested availability for next week",
+    "previousQuote": 2125,
+    "history": [
+      {
+        "when": "2026-08",
+        "topic": "roof repair (hail damage)",
+        "summary": "Requested availability for next week"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-07",
+    "tenantId": "summit-ridge",
+    "name": "Owen Mitchell",
+    "firstName": "Owen",
+    "phone": "+12025551031",
+    "email": "owen.mitchell32@example.com",
+    "address": "559 Birch Street, Houston, TX 77002",
+    "source": "Google Ads",
+    "serviceType": "Roof replacement",
+    "damageType": "Wind damage",
+    "status": "active",
+    "notes": "Historical inquiry about wind damage; currently engaged with scheduling.",
+    "createdAt": "2026-08-17",
+    "lastContactedAt": "2026-09-01",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Requested a call to discuss repair options",
+    "previousQuote": 2550,
+    "history": [
+      {
+        "when": "2026-08",
+        "topic": "roof replacement (wind damage)",
+        "summary": "Requested a call to discuss repair options"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-08",
+    "tenantId": "summit-ridge",
+    "name": "Zoe Perez",
+    "firstName": "Zoe",
+    "phone": "+12025551032",
+    "email": "zoe.perez33@example.com",
+    "address": "573 Ash Street, Dallas, TX 75201",
+    "source": "Website Form",
+    "serviceType": "Roof inspection",
+    "damageType": "Roof leak",
+    "status": "active",
+    "notes": "Historical inquiry about roof leak; currently engaged with scheduling.",
+    "createdAt": "2026-08-24",
+    "lastContactedAt": "2026-09-09",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Inspection appointment being coordinated",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-08",
+        "topic": "roof inspection (roof leak)",
+        "summary": "Inspection appointment being coordinated"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-09",
+    "tenantId": "summit-ridge",
+    "name": "Jack Roberts",
+    "firstName": "Jack",
+    "phone": "+12025551033",
+    "email": "jack.roberts34@example.com",
+    "address": "587 Spruce Street, San Antonio, TX 78205",
+    "source": "Referral",
+    "serviceType": "Emergency roof repair",
+    "damageType": "Missing shingles",
+    "status": "active",
+    "notes": "Historical inquiry about missing shingles; currently engaged with scheduling.",
+    "createdAt": "2026-08-31",
+    "lastContactedAt": "2026-09-17",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Asked for updated quote",
+    "previousQuote": 3400,
+    "history": [
+      {
+        "when": "2026-08",
+        "topic": "emergency roof repair (missing shingles)",
+        "summary": "Asked for updated quote"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-10",
+    "tenantId": "summit-ridge",
+    "name": "Nora Turner",
+    "firstName": "Nora",
+    "phone": "+12025551034",
+    "email": "nora.turner35@example.com",
+    "address": "601 River Street, Fort Worth, TX 76102",
+    "source": "Google Business Profile",
+    "serviceType": "Storm damage restoration",
+    "damageType": "Storm damage",
+    "status": "active",
+    "notes": "Historical inquiry about storm damage; currently engaged with scheduling.",
+    "createdAt": "2026-09-07",
+    "lastContactedAt": "2026-09-25",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Confirmed interest in roof assessment",
+    "previousQuote": 3825,
+    "history": [
+      {
+        "when": "2026-09",
+        "topic": "storm damage restoration (storm damage)",
+        "summary": "Confirmed interest in roof assessment"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-11",
+    "tenantId": "summit-ridge",
+    "name": "Levi Phillips",
+    "firstName": "Levi",
+    "phone": "+12025551035",
+    "email": "levi.phillips36@example.com",
+    "address": "615 Sunset Street, Austin, TX 78701",
+    "source": "Home Show",
+    "serviceType": "Roof repair",
+    "damageType": "Age-related wear",
+    "status": "active",
+    "notes": "Historical inquiry about age-related wear; currently engaged with scheduling.",
+    "createdAt": "2026-01-17",
+    "lastContactedAt": "2026-02-05",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Shared photos and awaits review",
+    "previousQuote": 4250,
+    "history": [
+      {
+        "when": "2026-01",
+        "topic": "roof repair (age-related wear)",
+        "summary": "Shared photos and awaits review"
+      }
+    ],
+    "recovered": false
+  },
+  {
+    "id": "lead-active-12",
+    "tenantId": "summit-ridge",
+    "name": "Ruby Campbell",
+    "firstName": "Ruby",
+    "phone": "+12025551036",
+    "email": "ruby.campbell37@example.com",
+    "address": "629 Oak Street, Houston, TX 77002",
+    "source": "Facebook Ads",
+    "serviceType": "Roof replacement",
+    "damageType": "Hail damage",
+    "status": "active",
+    "notes": "Historical inquiry about hail damage; currently engaged with scheduling.",
+    "createdAt": "2026-01-24",
+    "lastContactedAt": "2026-02-13",
+    "optOut": false,
+    "reactivation": {
+      "status": "idle",
+      "attempts": 0
+    },
+    "lastInteraction": "Requested availability for next week",
+    "previousQuote": null,
+    "history": [
+      {
+        "when": "2026-01",
+        "topic": "roof replacement (hail damage)",
+        "summary": "Requested availability for next week"
+      }
+    ],
+    "recovered": false
+  }
+]

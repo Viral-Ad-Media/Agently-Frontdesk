@@ -30,7 +30,7 @@ export default function Navbar({ dark = false }) {
           ))}
         </nav>
         <Link to="/chat" className="fd-btn-primary">
-          <MessageSquare className="h-4 w-4" /> Describe your roof problem
+          <MessageSquare className="h-4 w-4" /> {tenant.trade === "medspa" ? "Ask about a treatment" : "Describe your roof problem"}
         </Link>
       </div>
     </header>
