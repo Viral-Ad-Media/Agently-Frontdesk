@@ -1,0 +1,16 @@
+{
+  "name": "Agently Frontdesk",
+  "short_name": "Agently",
+  "description": "AI repair triage, itemised estimates and vetted local artisans, dispatched by real distance.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#141414",
+  "icons": [
+    {
+      "src": "https://media.base44.com/images/public/6adf4df2954ef8733787d5d7/9e4705b04_generated_image.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
