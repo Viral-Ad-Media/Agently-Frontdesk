@@ -42,6 +42,8 @@ npm run lint
 npm run build
 ```
 
+`tests/golden.test.js` scores the Eye against `tests/golden/manifest.json` (hand-checked outlines, reference objects, materials): outline IoU, area within 20% when a reference is present, material right on most. Two synthetic photos are in it today; the brief's 12 real photos (3 materials × 2 damage types × 2 angles) go in the same manifest. `GOLDEN_PROVIDER=mock` is the default.
+
 `tests/contract.js` is the gateway contract. The same contract runs against the interim and Meta providers when they are configured, so a provider swap is proven by the same tests.
 
 ## Phased plan
