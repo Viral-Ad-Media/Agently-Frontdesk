@@ -2,12 +2,12 @@
 
 The AI front desk that turns a photo of a problem into an assessed job, a draft quote and a booked appointment, for roofing companies and med spas first, then handiwork artisans in general. Built for the Meta Global AI Developer Hackathon (submission 4 November 2026).
 
-**Status (27 Oct, Phase 0):** the core roofing journey runs end to end on the **mock provider**, labelled "Mock provider" on every screen. No Meta or interim model is wired yet; the gateway swap is Phase 1 (interim) and Phase 4 (Meta).
+**Status (27 Oct, Phase 1 in progress):** the core roofing journey runs end to end on the **mock provider**, labelled on every screen. The interim provider (Claude, `VITE_AI_PROVIDER=initial`) is written and goes live as soon as `ANTHROPIC_API_KEY` is set in `.env.local`; it is untested until then. Meta models arrive in Phase 4.
 
 ## The journey
 
 1. Customer describes the problem in chat (`/chat`); the front desk asks for the address, then a photo.
-2. The photo is outlined (segmentation), measured (`src/lib/eye.js`: shoelace area, scale from a reference object, tilt correction; **no reference means no square-metre figure**), assessed, and priced from the rate card as a USD draft range with the maths and disclaimer shown.
+2. The photo (or a frame picked from a short video) is checked for size, light and blur, shown back to the customer, then outlined (segmentation), measured (`src/lib/eye.js`: shoelace area, scale from a reference object, tilt correction; **no reference means no square-metre figure**), assessed, and priced from the rate card as a USD draft range with the maths and disclaimer shown.
 3. The customer books a real inspection slot in three taps.
 4. The owner sees the lead on the dashboard (`/frontdesk`), taps Approve, then Send. Status moves one way: draft → awaiting approval → approved → sent. The customer's chat shows the sent range.
 
@@ -37,9 +37,12 @@ Rehearsal photos: `public/demo/roof-test.jpg` (reference object in frame) and `p
 ## Checks
 
 ```bash
+npm test        # Eye maths, quote rules, gateway contract against the mock provider
 npm run lint
 npm run build
 ```
+
+`tests/contract.js` is the gateway contract. The same contract runs against the interim and Meta providers when they are configured, so a provider swap is proven by the same tests.
 
 ## Phased plan
 

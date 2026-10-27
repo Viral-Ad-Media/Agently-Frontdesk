@@ -15,6 +15,7 @@ import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
 import AssessmentCard from "@/components/frontdesk/AssessmentCard";
 import EmergencyBanner from "@/components/frontdesk/EmergencyBanner";
 import SlotPicker, { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
+import PhotoCheck from "@/components/frontdesk/PhotoCheck";
 
 // The homeowner's front desk: one case, from first message to booked inspection.
 export default function Chat() {
@@ -31,6 +32,7 @@ export default function Chat() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
   const [failure, setFailure] = useState(null);
+  const [pending, setPending] = useState(null); // a photo waiting for the customer's "use it" tap
   const endRef = useRef(null);
   const sendRef = useRef(null);
   const voice = useVoice({ onFinal: (t) => sendRef.current(t) });
@@ -71,6 +73,7 @@ export default function Chat() {
       const res = await gateway.converse({
         trade: after.trade,
         messages: after.messages.map(({ role, content }) => ({ role, content })),
+        tenant,
         caseState: {
           description: after.description,
           address: after.customer.address,
@@ -106,21 +109,29 @@ export default function Chat() {
   );
   sendRef.current = send;
 
-  // Photo in, outlined assessment and draft quote out. Every AI step goes through the gateway.
+  // Step one: read the file (photo or video frame), run the capture checks, and show the frame first.
   const onPhoto = useCallback(
     async (file) => {
       if (!caseId || busy) return;
-      setBusy(true);
       setFailure(null);
-      let photo;
       try {
-        photo = await readPhoto(file);
+        const photo = await readPhoto(file);
+        setPending(photo);
       } catch (e) {
         setFailure({ message: e.message, retry: null });
-        setBusy(false);
-        return;
       }
-      updateCase(caseId, { photo });
+    },
+    [caseId, busy]
+  );
+
+  // Step two: outlined assessment and draft quote. Every AI step goes through the gateway.
+  const acceptPhoto = useCallback(
+    async (photo) => {
+      if (!caseId || busy) return;
+      setPending(null);
+      setBusy(true);
+      setFailure(null);
+      updateCase(caseId, { photo: { dataUrl: photo.dataUrl, width: photo.width, height: photo.height, name: photo.name, fromVideo: photo.fromVideo, quality: photo.quality } });
       appendMessage(caseId, { role: "user", content: "Here's a photo of the damage.", photo: true });
       const run = async () => {
         setBusy(true);
@@ -128,7 +139,7 @@ export default function Chat() {
         try {
           const cur = getCase(caseId);
           setProgress("Outlining the damage…");
-          const seg = await gateway.segmentDamage({ photoName: photo.name, width: photo.width, height: photo.height });
+          const seg = await gateway.segmentDamage({ photoName: photo.name, width: photo.width, height: photo.height, dataUrl: photo.dataUrl });
           const region = seg.regions[0];
           const m = region ? measure({ polygon: region.polygon, reference: seg.reference, tiltDeg: seg.tiltDeg }) : null;
           updateCase(caseId, { segmentation: seg, measurement: m });
@@ -139,6 +150,8 @@ export default function Chat() {
             urgency: cur.urgency,
             segmentation: seg,
             measurement: m,
+            dataUrl: photo.dataUrl,
+            tenant,
           });
           setProgress("Drafting your price range…");
           const q = {
@@ -179,7 +192,7 @@ export default function Chat() {
 
   if (!c) return null;
   const bookedSlot = c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null;
-  const showGuide = !c.photo && c.lastQuestion === "ask_photo" && !busy;
+  const showGuide = !c.photo && c.lastQuestion === "ask_photo" && !busy && !pending;
   const showSlots = c.assessment && !c.bookingSlotId;
 
   return (
@@ -250,6 +263,7 @@ export default function Chat() {
             </div>
           )}
 
+          {pending && <PhotoCheck photo={pending} onRetake={onPhoto} onUse={() => acceptPhoto(pending)} />}
           {showGuide && <CaptureGuide onPhoto={onPhoto} busy={busy} />}
           {showSlots && <SlotPicker caseId={c.id} address={c.customer.address} onBooked={onBooked} />}
           <div ref={endRef} />

@@ -17,7 +17,7 @@
 //
 // Coordinates are normalised 0-1000 on both axes.
 
-import { areaPercent } from "@/lib/eye";
+import { areaPercent } from "../../lib/eye.js";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

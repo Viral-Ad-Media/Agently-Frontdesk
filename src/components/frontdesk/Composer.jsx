@@ -13,7 +13,7 @@ export default function Composer({ value, onChange, onSend, onPhoto, voice, busy
         }}
         className="mx-auto flex max-w-2xl items-center gap-1.5 rounded-xl border border-border bg-card p-1.5 pl-1.5 transition-colors duration-200 focus-within:border-foreground"
       >
-        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => e.target.files[0] && onPhoto(e.target.files[0])} />
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" hidden onChange={(e) => e.target.files[0] && onPhoto(e.target.files[0])} />
         <button type="button" disabled={busy} onClick={() => fileRef.current.click()} aria-label="Attach photo" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-200 hover:bg-secondary hover:text-primary disabled:opacity-40">
           <Camera className="h-5 w-5" />
         </button>
