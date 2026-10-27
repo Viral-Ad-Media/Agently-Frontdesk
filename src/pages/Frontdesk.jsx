@@ -9,6 +9,8 @@ import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
 import Severity from "@/components/frontdesk/Severity";
 import AssessmentCard from "@/components/frontdesk/AssessmentCard";
 import ReactivationPanel from "@/components/frontdesk/ReactivationPanel";
+import CallPanel from "@/components/frontdesk/CallPanel";
+import DailySummary from "@/components/frontdesk/DailySummary";
 import ReportButton from "@/components/frontdesk/ReportButton";
 import OutlineEditor from "@/components/frontdesk/OutlineEditor";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
@@ -79,6 +81,10 @@ export default function Frontdesk() {
           ))}
         </div>
 
+        <div className="mt-6">
+          <DailySummary tenant={tenant} cases={cases} slots={slots} leads={leads.filter((l) => l.tenantId === tenant.id)} />
+        </div>
+
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
           <section>
             <h2 className="text-lg">Leads <span className="text-muted-foreground">· newest first</span></h2>
@@ -127,6 +133,7 @@ export default function Frontdesk() {
               </div>
             </section>
 
+            <CallPanel tenant={tenant} />
             <ReactivationPanel tenant={tenant} />
           </div>
         </div>
@@ -160,11 +167,11 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
         {c.photo ? (
           <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="h-24 w-32 shrink-0 [&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>span]:hidden" showReference={false} />
         ) : (
-          <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-secondary px-2 text-center font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "From a re-opener" : "No photo yet"}</div>
+          <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-secondary px-2 text-center font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "From a re-opener" : c.source === "call" ? "Phone call" : "No photo yet"}</div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            {c.assessment ? <Severity value={c.assessment.severity} spa={spa} /> : <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "Reactivated" : "In conversation"}</span>}
+            {c.assessment ? <Severity value={c.assessment.severity} spa={spa} /> : <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "Reactivated" : c.source === "call" ? "Phone call · needs photo" : "In conversation"}</span>}
             {q && <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase">{STATUS_LABEL[status]}</span>}
             {spa && c.consent && <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">Photo consent</span>}
             <span className="ml-auto font-spec text-[11px] uppercase text-muted-foreground">{new Date(c.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>

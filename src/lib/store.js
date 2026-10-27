@@ -108,6 +108,24 @@ export function createCase({ tenantId, source = "chat" } = {}) {
   });
 }
 
+// A call lands in the same case record as a chat: transcript as the first message, source "call".
+export function createCaseFromCall({ tenantId, transcript, extracted = {}, reply = "", provider = null }) {
+  const id = createCase({ tenantId, source: "call" });
+  update((s) => {
+    const c = s.cases.find((x) => x.id === id);
+    if (!c) return;
+    c.description = extracted.description || transcript;
+    c.urgency = extracted.urgency || null;
+    c.intent = extracted.intent || null;
+    c.customer.address = extracted.address || "";
+    c.lastQuestion = extracted.address ? "ask_photo" : "ask_address";
+    c.provider = provider;
+    c.messages.push({ at: new Date().toISOString(), role: "user", content: transcript, channel: "call" });
+    if (reply) c.messages.push({ at: new Date().toISOString(), role: "assistant", content: reply });
+  });
+  return id;
+}
+
 export function getCase(id) {
   return state.cases.find((c) => c.id === id) || null;
 }
