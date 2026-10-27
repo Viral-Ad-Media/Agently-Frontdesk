@@ -2,7 +2,8 @@
 // Persisted in localStorage for the demo; synthetic data only.
 import { useSyncExternalStore } from "react";
 import { seedState } from "@/lib/seed";
-import { QUOTE_STATUSES } from "@/lib/quote";
+import { QUOTE_STATUSES, draftQuote } from "@/lib/quote";
+import { measure, bboxOf, areaPercent } from "@/lib/eye";
 
 const KEY = "frontdesk.v2";
 const listeners = new Set();
@@ -156,6 +157,27 @@ export function editQuoteRange(id, low, high) {
     c.quote.low = Math.round(low);
     c.quote.high = Math.round(high);
     c.quote.editedByOwner = true;
+  });
+}
+
+// Owner corrects a weak outline by dragging points. Measurement and quote recompute from the maths;
+// the status and its history stay as they are. A sent quote is never changed.
+export function correctOutline(id, polygon) {
+  return update((s) => {
+    const c = s.cases.find((x) => x.id === id);
+    if (!c?.segmentation?.regions?.[0] || !c.assessment) return null;
+    if (c.quote?.status === "sent") return null;
+    const region = c.segmentation.regions[0];
+    region.polygon = polygon.map(([x, y]) => [x, y]);
+    region.bbox = bboxOf(region.polygon);
+    region.areaPercent = Math.round(areaPercent(region.polygon) * 10) / 10;
+    c.segmentation.correctedByOwner = true;
+    if (c.trade !== "roofing") return c.segmentation;
+    const t = s.tenants[c.tenantId];
+    c.measurement = measure({ polygon: region.polygon, reference: c.segmentation.reference, tiltDeg: c.segmentation.tiltDeg });
+    const fresh = draftQuote({ material: c.assessment.material.name, measurement: c.measurement, rateCard: t.rateCard });
+    c.quote = { ...fresh, status: c.quote?.status || "draft", history: c.quote?.history || [], editedByOwner: false };
+    return c.measurement;
   });
 }
 
