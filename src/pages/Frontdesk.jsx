@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarCheck, Check, Inbox, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
-import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant } from "@/lib/store";
+import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
 import Logo from "@/components/shared/Logo";
 import ProviderBadge from "@/components/shared/ProviderBadge";
@@ -10,6 +10,7 @@ import Severity from "@/components/frontdesk/Severity";
 import AssessmentCard from "@/components/frontdesk/AssessmentCard";
 import ReactivationPanel from "@/components/frontdesk/ReactivationPanel";
 import ReportButton from "@/components/frontdesk/ReportButton";
+import OutlineEditor from "@/components/frontdesk/OutlineEditor";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 
 const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -137,6 +138,7 @@ export default function Frontdesk() {
 
 function LeadCard({ c, tenant, slot, open, onToggle }) {
   const [editing, setEditing] = useState(false);
+  const [outlining, setOutlining] = useState(false);
   const [low, setLow] = useState(c.quote?.low ?? "");
   const [high, setHigh] = useState(c.quote?.high ?? "");
   const q = c.quote;
@@ -228,8 +230,22 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
       )}
 
       {open && c.assessment && (
-        <div className="border-t border-border p-4">
-          <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} />
+        <div className="space-y-4 border-t border-border p-4">
+          {c.photo && c.segmentation?.regions?.[0] && status !== "sent" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {!outlining && (
+                <button type="button" onClick={() => setOutlining(true)} className="fd-btn-outline">
+                  Correct the outline
+                </button>
+              )}
+              {c.segmentation.correctedByOwner && <span className="font-spec text-[11px] uppercase text-muted-foreground">Outline corrected by the {tenant.words.approver}</span>}
+            </div>
+          )}
+          {outlining ? (
+            <OutlineEditor photo={c.photo.dataUrl} segmentation={c.segmentation} onSave={(poly) => { correctOutline(c.id, poly); setOutlining(false); }} onCancel={() => setOutlining(false)} />
+          ) : (
+            <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} />
+          )}
         </div>
       )}
     </article>
