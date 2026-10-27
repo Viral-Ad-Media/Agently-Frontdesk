@@ -1,28 +1,33 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarCheck, Check, Inbox, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
-import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo } from "@/lib/store";
+import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
 import Logo from "@/components/shared/Logo";
 import ProviderBadge from "@/components/shared/ProviderBadge";
 import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
 import Severity from "@/components/frontdesk/Severity";
 import AssessmentCard from "@/components/frontdesk/AssessmentCard";
+import ReactivationPanel from "@/components/frontdesk/ReactivationPanel";
+import ReportButton from "@/components/frontdesk/ReportButton";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 
 const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 
-// The owner's one screen: three numbers, lead cards with one-tap approve / edit / send, and the calendar.
+// The owner's one screen: three numbers, lead cards with one-tap approve / edit / send, the calendar, and reactivation.
 export default function Frontdesk() {
-  const { cases, slots, tenant, leads } = useStore();
+  const { cases: allCases, slots: allSlots, tenant, tenants, leads } = useStore();
   const [openId, setOpenId] = useState(null);
+  const cases = allCases.filter((c) => c.tenantId === tenant.id);
+  const slots = allSlots.filter((s) => s.tenantId === tenant.id);
+  const spa = tenant.trade === "medspa";
 
   const answered = cases.filter((c) => c.messages.some((m) => m.role === "assistant")).length;
   const booked = cases.filter((c) => c.bookingSlotId).length;
-  const reactivated = leads.filter((l) => l.recovered).length;
+  const reactivated = leads.filter((l) => l.tenantId === tenant.id && l.recovered).length;
   const schedule = slots
     .filter((s) => s.caseId)
-    .map((s) => ({ ...s, case: cases.find((c) => c.id === s.caseId) }))
+    .map((s) => ({ ...s, case: allCases.find((c) => c.id === s.caseId) }))
     .sort((a, b) => a.start.localeCompare(b.start));
 
   return (
@@ -32,7 +37,17 @@ export default function Frontdesk() {
           <Logo word={tenant.name} />
           <div className="flex items-center gap-2">
             <ProviderBadge className="hidden sm:inline-flex" />
-            <Link to="/chat" className="fd-btn-outline h-9 px-3 text-[13px]">
+            <label className="hidden items-center gap-2 text-[13px] text-muted-foreground sm:flex">
+              Tenant
+              <select value={tenant.id} onChange={(e) => setActiveTenant(e.target.value)} className="h-9 rounded-xl border border-border bg-card px-2 text-[13px] text-foreground outline-none focus:border-foreground" aria-label="Switch demo tenant">
+                {Object.values(tenants).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} · {t.trade === "medspa" ? "med spa" : t.trade}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Link to={`/chat?tenant=${tenant.id}`} className="fd-btn-outline h-9 px-3 text-[13px]">
               <MessageSquare className="h-4 w-4" /> Customer view
             </Link>
           </div>
@@ -42,14 +57,10 @@ export default function Frontdesk() {
       <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-spec text-[11px] uppercase text-primary">Front desk</p>
+            <p className="font-spec text-[11px] uppercase text-primary">Front desk · {spa ? "med spa" : "roofing"}</p>
             <h1 className="mt-1 text-3xl">Today at the desk</h1>
           </div>
-          <button
-            type="button"
-            onClick={() => window.confirm("Clear every demo case and booking and start fresh?") && resetDemo()}
-            className="fd-btn-outline h-9 px-3 text-[13px] text-muted-foreground"
-          >
+          <button type="button" onClick={() => window.confirm("Clear every demo case, booking and re-opener and start fresh?") && resetDemo()} className="fd-btn-outline h-9 px-3 text-[13px] text-muted-foreground">
             <RefreshCw className="h-4 w-4" /> Reset demo data
           </button>
         </div>
@@ -57,8 +68,8 @@ export default function Frontdesk() {
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           {[
             ["Enquiries answered", answered, MessageSquare],
-            ["Appointments booked", booked, CalendarCheck],
-            ["Jobs reactivated", reactivated, Inbox],
+            [spa ? "Consultations booked" : "Appointments booked", booked, CalendarCheck],
+            [spa ? "Clients reactivated" : "Jobs reactivated", reactivated, Inbox],
           ].map(([label, n, Icon]) => (
             <div key={label} className="fd-card p-5">
               <Icon className="h-5 w-5 text-primary" strokeWidth={1.6} />
@@ -75,57 +86,62 @@ export default function Frontdesk() {
               {cases.length === 0 && (
                 <p className="rounded-lg border border-dashed border-border p-6 text-[15px] text-muted-foreground">
                   No enquiries yet. Open the{" "}
-                  <Link to="/chat" className="text-primary underline">
+                  <Link to={`/chat?tenant=${tenant.id}`} className="text-primary underline">
                     customer view
                   </Link>{" "}
-                  and describe a roof problem to see a lead land here.
+                  and start a case to see a lead land here.
                 </p>
               )}
               {cases.map((c) => (
-                <LeadCard key={c.id} c={c} slot={c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} />
+                <LeadCard key={c.id} c={c} tenant={tenant} slot={c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} />
               ))}
             </div>
           </section>
 
-          <section>
-            <h2 className="font-spec text-[11px] uppercase text-muted-foreground">Calendar · inspections</h2>
-            <div className="mt-4 space-y-3">
-              {schedule.length === 0 && (
-                <p className="rounded-lg border border-dashed border-border p-6 text-[15px] text-muted-foreground">Nothing booked yet. A booking made in chat appears here instantly.</p>
-              )}
-              {schedule.map((s) => (
-                <div key={s.id} className="fd-card flex gap-4 p-4">
-                  <div className="shrink-0 border-r border-border pr-4 text-center">
-                    <p className="font-heading text-2xl leading-none">{new Date(s.start).getDate()}</p>
-                    <p className="mt-1 font-spec text-[10px] uppercase text-muted-foreground">{new Date(s.start).toLocaleDateString("en-US", { month: "short" })}</p>
+          <div className="space-y-10">
+            <section>
+              <h2 className="font-spec text-[11px] uppercase text-muted-foreground">Calendar · {tenant.words.visit}s</h2>
+              <div className="mt-4 space-y-3">
+                {schedule.length === 0 && <p className="rounded-lg border border-dashed border-border p-6 text-[15px] text-muted-foreground">Nothing booked yet. A booking made in chat appears here instantly.</p>}
+                {schedule.map((s) => (
+                  <div key={s.id} className="fd-card flex gap-4 p-4">
+                    <div className="shrink-0 border-r border-border pr-4 text-center">
+                      <p className="font-heading text-2xl leading-none">{new Date(s.start).getDate()}</p>
+                      <p className="mt-1 font-spec text-[10px] uppercase text-muted-foreground">{new Date(s.start).toLocaleDateString("en-US", { month: "short" })}</p>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px]">
+                        {fmtTime(s.start)}–{fmtTime(s.end)} · {s.case?.customer?.name || (spa ? "Client" : "Homeowner")}
+                      </p>
+                      <p className="truncate text-[14px] text-muted-foreground">{spa ? s.case?.description || "Consultation" : s.case?.customer?.address || "Address unknown"}</p>
+                      <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">
+                        {s.case?.source === "reactivation" ? "Reactivated lead" : s.case?.assessment?.failedPart || "Assessment pending"}
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => cancelBooking(s.caseId)} aria-label="Cancel booking" className="self-start text-muted-foreground hover:text-destructive">
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[15px]">
-                      {fmtTime(s.start)}–{fmtTime(s.end)} · {s.case?.customer?.name || "Homeowner"}
-                    </p>
-                    <p className="truncate text-[14px] text-muted-foreground">{s.case?.customer?.address || "Address unknown"}</p>
-                    <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">{s.case?.assessment?.failedPart || "Assessment pending"}</p>
-                  </div>
-                  <button type="button" onClick={() => cancelBooking(s.caseId)} aria-label="Cancel booking" className="self-start text-muted-foreground hover:text-destructive">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-              <p className="text-[12px] text-muted-foreground">Slots offered in chat and this list read the same calendar. A taken slot is never offered twice.</p>
-            </div>
-          </section>
+                ))}
+                <p className="text-[12px] text-muted-foreground">Slots offered in chat and this list read the same calendar. A taken slot is never offered twice.</p>
+              </div>
+            </section>
+
+            <ReactivationPanel tenant={tenant} />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function LeadCard({ c, slot, open, onToggle }) {
+function LeadCard({ c, tenant, slot, open, onToggle }) {
   const [editing, setEditing] = useState(false);
   const [low, setLow] = useState(c.quote?.low ?? "");
   const [high, setHigh] = useState(c.quote?.high ?? "");
   const q = c.quote;
   const status = q?.status;
+  const spa = tenant.trade === "medspa";
   const canApprove = q && q.low !== null && (status === "draft" || status === "awaiting_approval");
   const canSend = q && status === "approved";
 
@@ -143,15 +159,19 @@ function LeadCard({ c, slot, open, onToggle }) {
         {c.photo ? (
           <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="h-24 w-32 shrink-0 [&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>span]:hidden" showReference={false} />
         ) : (
-          <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-secondary font-spec text-[11px] uppercase text-muted-foreground">No photo yet</div>
+          <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-secondary px-2 text-center font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "From a re-opener" : "No photo yet"}</div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            {c.assessment ? <Severity value={c.assessment.severity} /> : <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">In conversation</span>}
+            {c.assessment ? <Severity value={c.assessment.severity} spa={spa} /> : <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "Reactivated" : "In conversation"}</span>}
             {q && <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase">{STATUS_LABEL[status]}</span>}
+            {spa && c.consent && <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">Photo consent</span>}
             <span className="ml-auto font-spec text-[11px] uppercase text-muted-foreground">{new Date(c.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
           </div>
-          <h3 className="mt-2 truncate text-lg">{c.customer.name || "Homeowner"}{c.customer.address ? ` · ${c.customer.address}` : ""}</h3>
+          <h3 className="mt-2 truncate text-lg">
+            {c.customer.name || (spa ? "Client" : "Homeowner")}
+            {c.customer.address && !spa ? ` · ${c.customer.address}` : ""}
+          </h3>
           <p className="truncate text-[14px] text-muted-foreground">{c.assessment?.failedPart || c.description || "Waiting for the customer's description."}</p>
           {q && (
             <p className="mt-1 text-[15px]">
@@ -160,13 +180,13 @@ function LeadCard({ c, slot, open, onToggle }) {
                   Draft {money(q.low)} – {money(q.high)} <span className="text-muted-foreground">· confidence {Math.round((c.assessment?.confidence || 0) * 100)}%</span>
                 </>
               ) : (
-                <span className="text-[hsl(var(--primary-deep))]">No total: no scale reference. Site visit to confirm.</span>
+                <span className="text-[hsl(var(--primary-deep))]">{spa ? "No published match: clinician advises at consultation." : "No total: no scale reference. Site visit to confirm."}</span>
               )}
             </p>
           )}
           {slot && (
             <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">
-              Inspection {fmtDay(slot.start)} {fmtTime(slot.start)}
+              {tenant.words.visit} {fmtDay(slot.start)} {fmtTime(slot.start)}
             </p>
           )}
         </div>
@@ -185,8 +205,9 @@ function LeadCard({ c, slot, open, onToggle }) {
               <button type="button" disabled={!canSend} onClick={() => moveQuote(c.id, "sent")} className="fd-btn-ink">
                 <Send className="h-4 w-4" /> Send
               </button>
-              {status === "sent" && <span className="text-[13px] text-muted-foreground">Sent to the customer. Their chat shows the confirmed range.</span>}
-              {status === "awaiting_approval" && <span className="text-[13px] text-muted-foreground">Customer booked. Approve the range, then send it.</span>}
+              <ReportButton c={c} tenant={tenant} />
+              {status === "sent" && <span className="text-[13px] text-muted-foreground">Sent. The customer's chat shows the confirmed range.</span>}
+              {status === "awaiting_approval" && <span className="text-[13px] text-muted-foreground">{spa ? "Client booked. Clinician approves the plan, then sends it." : "Customer booked. Approve the range, then send it."}</span>}
             </>
           ) : (
             <>
@@ -208,7 +229,7 @@ function LeadCard({ c, slot, open, onToggle }) {
 
       {open && c.assessment && (
         <div className="border-t border-border p-4">
-          <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} />
+          <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} />
         </div>
       )}
     </article>

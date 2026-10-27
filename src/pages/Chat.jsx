@@ -1,23 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { LayoutDashboard, RotateCcw } from "lucide-react";
+import { LayoutDashboard, Mic, MicOff, RotateCcw } from "lucide-react";
 import { gateway } from "@/gateway";
-import { appendMessage, createCase, getCase, updateCase, useStore } from "@/lib/store";
+import { appendMessage, createCase, getCase, setActiveTenant, updateCase, useStore } from "@/lib/store";
 import { measure } from "@/lib/eye";
-import { draftQuote, STATUS_LABEL } from "@/lib/quote";
+import { draftQuote, draftServiceQuote, STATUS_LABEL } from "@/lib/quote";
 import { readPhoto } from "@/lib/photo";
 import useVoice from "@/hooks/useVoice";
 import Logo from "@/components/shared/Logo";
 import ProviderBadge from "@/components/shared/ProviderBadge";
 import Composer from "@/components/frontdesk/Composer";
 import CaptureGuide from "@/components/frontdesk/CaptureGuide";
+import ConsentCard from "@/components/frontdesk/ConsentCard";
 import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
 import AssessmentCard from "@/components/frontdesk/AssessmentCard";
 import EmergencyBanner from "@/components/frontdesk/EmergencyBanner";
 import SlotPicker, { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 import PhotoCheck from "@/components/frontdesk/PhotoCheck";
+import VoiceOrb from "@/components/frontdesk/VoiceOrb";
+import ReportButton from "@/components/frontdesk/ReportButton";
 
-// The homeowner's front desk: one case, from first message to booked inspection.
+// The customer's front desk: one case, from first message to booked visit. Chat or voice, same case.
 export default function Chat() {
   const [params, setParams] = useSearchParams();
   const [caseId, setCaseId] = useState(() => {
@@ -25,22 +28,30 @@ export default function Chat() {
     return id && getCase(id) ? id : null;
   });
   const c = useStore((s) => s.cases.find((x) => x.id === caseId));
-  const tenant = useStore((s) => s.tenant);
-  const rateCard = useStore((s) => s.rateCard);
+  const tenants = useStore((s) => s.tenants);
+  const activeTenant = useStore((s) => s.tenant);
+  const tenant = (c && tenants[c.tenantId]) || activeTenant;
   const slots = useStore((s) => s.slots);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(null); // a photo waiting for the customer's "use it" tap
+  const [voiceMode, setVoiceMode] = useState(false);
   const endRef = useRef(null);
   const sendRef = useRef(null);
+  const voiceModeRef = useRef(false);
+  voiceModeRef.current = voiceMode;
   const voice = useVoice({ onFinal: (t) => sendRef.current(t) });
+  const spa = tenant.trade === "medspa";
 
-  // Open a case and get the first question. A ?q= from the home page becomes the first message.
+  // Open a case for the requested tenant and get the first question. A ?q= from the home page becomes the first message.
   useEffect(() => {
     if (caseId) return;
-    const id = createCase({ trade: "roofing", source: "chat" });
+    const wanted = params.get("tenant");
+    if (wanted && tenants[wanted]) setActiveTenant(wanted);
+    const t = (wanted && tenants[wanted]) || activeTenant;
+    const id = createCase({ tenantId: t.id, source: "chat" });
     setCaseId(id);
     setParams({ case: id }, { replace: true });
     (async () => {
@@ -48,10 +59,7 @@ export default function Chat() {
       if (q) {
         await converseWith(id, q);
       } else {
-        appendMessage(id, {
-          role: "assistant",
-          content: `Hi, this is the front desk at ${tenant.name}. Tell me what's going on with the roof, and where the water is getting in.`,
-        });
+        appendMessage(id, { role: "assistant", content: `Hi, this is the front desk at ${t.name}. ${t.words.greeting}` });
         updateCase(id, { lastQuestion: "ask_description" });
       }
     })();
@@ -60,43 +68,60 @@ export default function Chat() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [c?.messages?.length, progress, busy]);
+  }, [c?.messages?.length, progress, busy, pending]);
 
-  const converseWith = useCallback(async (id, text) => {
-    const cur = getCase(id);
-    if (!cur) return;
-    appendMessage(id, { role: "user", content: text });
-    setBusy(true);
-    setFailure(null);
-    try {
-      const after = getCase(id);
-      const res = await gateway.converse({
-        trade: after.trade,
-        messages: after.messages.map(({ role, content }) => ({ role, content })),
-        tenant,
-        caseState: {
-          description: after.description,
-          address: after.customer.address,
-          photo: !!after.photo,
-          lastQuestion: after.lastQuestion,
-        },
+  // Voice mode: speak each reply, then listen for the next turn.
+  const say = useCallback(
+    (text) => {
+      if (!voiceModeRef.current) return;
+      voice.speak(text, () => {
+        if (voiceModeRef.current) voice.start();
       });
-      const ex = res.extracted || {};
-      updateCase(id, (prev) => ({
-        description: ex.description || prev.description,
-        urgency: ex.urgency || prev.urgency,
-        intent: ex.intent || prev.intent,
-        customer: { ...prev.customer, address: ex.address || prev.customer.address },
-        lastQuestion: res.nextAction,
-        provider: res.provider,
-      }));
-      appendMessage(id, { role: "assistant", content: res.reply });
-    } catch (e) {
-      setFailure({ message: e.message, retry: () => converseWith(id, text) });
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+    },
+    [voice]
+  );
+
+  const converseWith = useCallback(
+    async (id, text) => {
+      const cur = getCase(id);
+      if (!cur) return;
+      appendMessage(id, { role: "user", content: text });
+      setBusy(true);
+      setFailure(null);
+      try {
+        const after = getCase(id);
+        const t = tenants[after.tenantId];
+        const res = await gateway.converse({
+          trade: after.trade,
+          messages: after.messages.map(({ role, content }) => ({ role, content })),
+          tenant: t,
+          caseState: {
+            description: after.description,
+            address: after.customer.address,
+            consent: !!after.consent,
+            photo: !!after.photo,
+            lastQuestion: after.lastQuestion,
+          },
+        });
+        const ex = res.extracted || {};
+        updateCase(id, (prev) => ({
+          description: ex.description || prev.description,
+          urgency: ex.urgency || prev.urgency,
+          intent: ex.intent || prev.intent,
+          customer: { ...prev.customer, address: ex.address || prev.customer.address },
+          lastQuestion: res.nextAction,
+          provider: res.provider,
+        }));
+        appendMessage(id, { role: "assistant", content: res.reply });
+        say(res.reply);
+      } catch (e) {
+        setFailure({ message: e.message, retry: () => converseWith(id, text) });
+      } finally {
+        setBusy(false);
+      }
+    },
+    [tenants, say]
+  );
 
   const send = useCallback(
     async (override) => {
@@ -132,41 +157,33 @@ export default function Chat() {
       setBusy(true);
       setFailure(null);
       updateCase(caseId, { photo: { dataUrl: photo.dataUrl, width: photo.width, height: photo.height, name: photo.name, fromVideo: photo.fromVideo, quality: photo.quality } });
-      appendMessage(caseId, { role: "user", content: "Here's a photo of the damage.", photo: true });
+      appendMessage(caseId, { role: "user", content: spa ? "Here's a photo of the area." : "Here's a photo of the damage.", photo: true });
       const run = async () => {
         setBusy(true);
         setFailure(null);
         try {
           const cur = getCase(caseId);
-          setProgress("Outlining the damage…");
-          const seg = await gateway.segmentDamage({ photoName: photo.name, width: photo.width, height: photo.height, dataUrl: photo.dataUrl });
+          const t = tenants[cur.tenantId];
+          setProgress(spa ? "Noting the area…" : "Outlining the damage…");
+          const seg = await gateway.segmentDamage({ trade: cur.trade, photoName: photo.name, width: photo.width, height: photo.height, dataUrl: photo.dataUrl });
           const region = seg.regions[0];
-          const m = region ? measure({ polygon: region.polygon, reference: seg.reference, tiltDeg: seg.tiltDeg }) : null;
+          const m = !spa && region ? measure({ polygon: region.polygon, reference: seg.reference, tiltDeg: seg.tiltDeg }) : null;
           updateCase(caseId, { segmentation: seg, measurement: m });
-          setProgress("Working out what failed…");
-          const a = await gateway.assess({
-            trade: cur.trade,
-            description: cur.description,
-            urgency: cur.urgency,
-            segmentation: seg,
-            measurement: m,
-            dataUrl: photo.dataUrl,
-            tenant,
-          });
-          setProgress("Drafting your price range…");
-          const q = {
-            ...draftQuote({ material: a.material.name, measurement: m, rateCard }),
-            status: "draft",
-            history: [{ status: "draft", at: new Date().toISOString(), by: "ai" }],
-          };
+          setProgress(spa ? "Matching to our services…" : "Working out what failed…");
+          const a = await gateway.assess({ trade: cur.trade, description: cur.description, urgency: cur.urgency, segmentation: seg, measurement: m, dataUrl: photo.dataUrl, tenant: t });
+          setProgress(spa ? "Looking up the published price…" : "Drafting your price range…");
+          const base = spa
+            ? draftServiceQuote({ service: (t.services || []).find((s) => s.id === a.serviceMatch?.[0]?.serviceId), disclaimer: t.disclaimer })
+            : draftQuote({ material: a.material.name, measurement: m, rateCard: t.rateCard });
+          const q = { ...base, status: "draft", history: [{ status: "draft", at: new Date().toISOString(), by: "ai" }] };
           updateCase(caseId, { assessment: a, quote: q, status: "assessed", lastQuestion: "none", provider: seg.provider });
-          appendMessage(caseId, {
-            role: "assistant",
-            kind: "assessment",
-            content: a.emergency?.isEmergency
-              ? "Make it safe first. Once you have, here is what I can see and a draft range."
-              : "Here's what I can see, with a draft range. A roofer confirms the price on site, so pick an inspection time below.",
-          });
+          const reply = a.emergency?.isEmergency
+            ? "Make it safe first. Once you have, here is what I can see and a draft range."
+            : spa
+              ? `Here's what we've noted and the published range for the matched service. A clinician reviews it before anything is recommended. Pick a ${t.words.visit} time below.`
+              : `Here's what I can see, with a draft range. A ${t.words.pro} confirms the price on site, so pick an ${t.words.visit} time below.`;
+          appendMessage(caseId, { role: "assistant", kind: "assessment", content: reply });
+          say(reply);
         } catch (e) {
           setFailure({ message: e.message, retry: run });
         } finally {
@@ -176,24 +193,48 @@ export default function Chat() {
       };
       await run();
     },
-    [caseId, busy, rateCard]
+    [caseId, busy, tenants, spa, say]
   );
+
+  const onConsent = () => {
+    updateCase(caseId, { consent: { at: new Date().toISOString(), scope: "photo for service match and consultation" }, lastQuestion: "ask_photo" });
+    appendMessage(caseId, { role: "assistant", content: "Thank you. Add a photo of the area when you're ready: natural light, no filters." });
+  };
+
+  const onSkipPhoto = () => {
+    updateCase(caseId, { lastQuestion: "none", status: "assessed" });
+    appendMessage(caseId, { role: "assistant", kind: "assessment", content: "No problem. A clinician will go through it with you in person. Pick a consultation time below." });
+  };
 
   const onBooked = (slot) => {
     updateCase(caseId, (prev) => ({
       quote: prev.quote ? { ...prev.quote, status: "awaiting_approval", history: [...(prev.quote.history || []), { status: "awaiting_approval", at: new Date().toISOString(), by: "customer" }] } : prev.quote,
     }));
-    appendMessage(caseId, {
-      role: "assistant",
-      kind: "booking",
-      content: `You're booked for ${fmtDay(slot.start)} at ${fmtTime(slot.start)}. The front desk is reviewing your draft quote and will send the confirmed range before the visit.`,
-    });
+    const text = spa
+      ? `You're booked for ${fmtDay(slot.start)} at ${fmtTime(slot.start)}. A clinician is reviewing your notes and will confirm the plan at your consultation.`
+      : `You're booked for ${fmtDay(slot.start)} at ${fmtTime(slot.start)}. The front desk is reviewing your draft quote and will send the confirmed range before the visit.`;
+    appendMessage(caseId, { role: "assistant", kind: "booking", content: text });
+    say(text);
+  };
+
+  const toggleVoice = () => {
+    if (!voice.supported) return;
+    if (voiceMode) {
+      setVoiceMode(false);
+      voice.stop();
+      voice.stopSpeaking();
+    } else {
+      setVoiceMode(true);
+      voice.start();
+    }
   };
 
   if (!c) return null;
   const bookedSlot = c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null;
+  const showConsent = spa && !c.consent && c.lastQuestion === "ask_consent" && !busy && !pending;
   const showGuide = !c.photo && c.lastQuestion === "ask_photo" && !busy && !pending;
-  const showSlots = c.assessment && !c.bookingSlotId;
+  const showSlots = (c.assessment || (spa && c.status === "assessed")) && !c.bookingSlotId;
+  const orbState = voice.listening ? "listening" : busy ? "thinking" : voice.speaking ? "speaking" : "idle";
 
   return (
     <div className="flex h-[100svh] flex-col bg-background">
@@ -201,11 +242,23 @@ export default function Chat() {
         <Logo word={tenant.name} />
         <div className="flex items-center gap-2">
           <ProviderBadge className="hidden sm:inline-flex" />
+          {voice.supported && (
+            <button type="button" onClick={toggleVoice} className={voiceMode ? "fd-btn-primary h-9 px-3 text-[13px]" : "fd-btn-outline h-9 px-3 text-[13px]"} aria-pressed={voiceMode}>
+              {voiceMode ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />} {voiceMode ? "End call" : "Talk instead"}
+            </button>
+          )}
           <Link to="/frontdesk" className="fd-btn-outline h-9 px-3 text-[13px]">
             <LayoutDashboard className="h-4 w-4" /> Front desk
           </Link>
         </div>
       </header>
+
+      {voiceMode && (
+        <div className="flex flex-col items-center gap-1 border-b border-border bg-card py-4">
+          <VoiceOrb state={orbState} size={104} onClick={() => (voice.listening ? voice.stop() : voice.start())} disabled={busy} />
+          <p className="font-spec text-[11px] uppercase text-muted-foreground">Browser voice · Muse Voice Transcribe at the Meta swap</p>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 md:px-8">
         <div className="mx-auto max-w-2xl space-y-5 py-6">
@@ -220,23 +273,26 @@ export default function Chat() {
                 <div className="space-y-4">
                   <p className="font-spec text-[11px] uppercase text-primary">{tenant.name}</p>
                   <p className="text-[17px] leading-relaxed">{m.content}</p>
-                  {m.kind === "assessment" && (
+                  {m.kind === "assessment" && c.assessment && (
                     <>
                       <EmergencyBanner emergency={c.assessment?.emergency} />
-                      <AssessmentCard segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} compact />
+                      <AssessmentCard segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} compact />
                     </>
                   )}
                   {m.kind === "booking" && bookedSlot && (
                     <div className="fd-card p-5">
-                      <p className="font-spec text-[11px] uppercase text-muted-foreground">Inspection booked</p>
+                      <p className="font-spec text-[11px] uppercase text-muted-foreground">{tenant.words.visit} booked</p>
                       <p className="mt-1 text-lg">
                         {fmtDay(bookedSlot.start)} · {fmtTime(bookedSlot.start)}–{fmtTime(bookedSlot.end)}
                       </p>
-                      <p className="text-[15px] text-muted-foreground">{c.customer.address}</p>
-                      <p className="mt-3 text-[14px]">
-                        Quote status: <span className="font-medium">{STATUS_LABEL[c.quote?.status] || "Draft"}</span>
-                        {c.quote?.status === "sent" && <span className="text-muted-foreground"> · confirmed range ${c.quote.low}–${c.quote.high}</span>}
-                      </p>
+                      <p className="text-[15px] text-muted-foreground">{spa ? `${tenant.name}, ${tenant.serviceArea}` : c.customer.address}</p>
+                      {c.quote && (
+                        <p className="mt-3 text-[14px]">
+                          {spa ? "Plan status" : "Quote status"}: <span className="font-medium">{STATUS_LABEL[c.quote.status] || "Draft"}</span>
+                          {c.quote.status === "sent" && c.quote.low !== null && <span className="text-muted-foreground"> · confirmed range ${c.quote.low}–${c.quote.high}</span>}
+                        </p>
+                      )}
+                      <ReportButton c={c} tenant={tenant} className="mt-3" />
                     </div>
                   )}
                 </div>
@@ -244,6 +300,7 @@ export default function Chat() {
             </div>
           ))}
 
+          {voice.listening && voice.interim && <p className="text-[15px] italic text-muted-foreground">{voice.interim}…</p>}
           {progress && (
             <div className="flex items-center gap-3 text-[15px] text-muted-foreground" aria-live="polite">
               <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
@@ -264,13 +321,14 @@ export default function Chat() {
           )}
 
           {pending && <PhotoCheck photo={pending} onRetake={onPhoto} onUse={() => acceptPhoto(pending)} />}
-          {showGuide && <CaptureGuide onPhoto={onPhoto} busy={busy} />}
-          {showSlots && <SlotPicker caseId={c.id} address={c.customer.address} onBooked={onBooked} />}
+          {showConsent && <ConsentCard tenant={tenant} onConsent={onConsent} onSkip={onSkipPhoto} />}
+          {showGuide && <CaptureGuide onPhoto={onPhoto} busy={busy} spa={spa} />}
+          {showSlots && <SlotPicker caseId={c.id} tenant={tenant} address={c.customer.address} onBooked={onBooked} />}
           <div ref={endRef} />
         </div>
       </div>
 
-      <Composer value={input} onChange={setInput} onSend={() => send()} onPhoto={onPhoto} voice={voice} busy={busy} />
+      <Composer value={input} onChange={setInput} onSend={() => send()} onPhoto={onPhoto} voice={voice} busy={busy} placeholder={spa ? "Tell us what you've noticed…" : "Describe the problem…"} />
     </div>
   );
 }
