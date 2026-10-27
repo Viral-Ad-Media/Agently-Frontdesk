@@ -26,11 +26,11 @@ export default function CaptureGuide({ onPhoto, busy }) {
           </li>
         ))}
       </ul>
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={(e) => e.target.files[0] && onPhoto(e.target.files[0])} />
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" capture="environment" hidden onChange={(e) => e.target.files[0] && onPhoto(e.target.files[0])} />
       <button type="button" disabled={busy} onClick={() => fileRef.current.click()} className="fd-btn-primary mt-4 w-full sm:w-auto">
-        <Camera className="h-4 w-4" /> Take or choose a photo
+        <Camera className="h-4 w-4" /> Take a photo or short video
       </button>
-      <p className="mt-2 text-[13px] text-muted-foreground">One photo is enough to start. You can add more after the assessment.</p>
+      <p className="mt-2 text-[13px] text-muted-foreground">One photo is enough to start. A short video works too: we pick a clear frame and show it to you first.</p>
     </section>
   );
 }
