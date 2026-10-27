@@ -31,10 +31,13 @@ test("homeowner: describe, address, photo, outlined assessment, draft range, thr
 
 test("owner: approve then send, and the customer's chat shows the sent range", async ({ page }) => {
   await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("Shingles blew off in the wind")}`);
+  await expect(page.getByText(/address of the property/i)).toBeVisible();
   await page.getByLabel("Message").fill("7 Cedar Court, Longmont");
   await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible();
   await page.locator('input[type=file]').first().setInputFiles(photo);
   await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/Draft quote/i)).toBeVisible({ timeout: 15000 });
   await page.getByRole("button", { name: "11:30 AM" }).first().click();
   await page.getByRole("button", { name: /Confirm booking/ }).click();
   const chatUrl = page.url();
@@ -52,8 +55,10 @@ test("owner: approve then send, and the customer's chat shows the sent range", a
 
 test("no reference in frame: percent only, no square metres, no dollar total", async ({ page }) => {
   await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("Some tiles slipped")}`);
+  await expect(page.getByText(/address of the property/i)).toBeVisible();
   await page.getByLabel("Message").fill("22 Mill Road, Boulder");
   await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible();
   await page.locator('input[type=file]').first().setInputFiles(path.resolve("public/demo/roof-noref.jpg"));
   await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
   await expect(page.getByText(/no square-metre figure/i)).toBeVisible({ timeout: 15000 });
