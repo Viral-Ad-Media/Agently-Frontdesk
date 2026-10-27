@@ -271,7 +271,7 @@ export default function Chat() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="font-spec text-[11px] uppercase text-primary">{tenant.name}</p>
+                  <p className="text-[13px] text-muted-foreground">{tenant.name}</p>
                   <p className="text-[17px] leading-relaxed">{m.content}</p>
                   {m.kind === "assessment" && c.assessment && (
                     <>

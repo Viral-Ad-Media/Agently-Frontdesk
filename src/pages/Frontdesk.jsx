@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarCheck, Check, Inbox, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { Check, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
 import Logo from "@/components/shared/Logo";
@@ -58,8 +58,8 @@ export default function Frontdesk() {
       <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-spec text-[11px] uppercase text-primary">Front desk · {spa ? "med spa" : "roofing"}</p>
-            <h1 className="mt-1 text-3xl">Today at the desk</h1>
+            <h1 className="text-2xl">Today at the desk</h1>
+            <p className="mt-1 text-[15px] text-muted-foreground">{tenant.name} · {spa ? "med spa" : "roofing"}</p>
           </div>
           <button type="button" onClick={() => window.confirm("Clear every demo case, booking and re-opener and start fresh?") && resetDemo()} className="fd-btn-outline h-9 px-3 text-[13px] text-muted-foreground">
             <RefreshCw className="h-4 w-4" /> Reset demo data
@@ -68,21 +68,20 @@ export default function Frontdesk() {
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           {[
-            ["Enquiries answered", answered, MessageSquare],
-            [spa ? "Consultations booked" : "Appointments booked", booked, CalendarCheck],
-            [spa ? "Clients reactivated" : "Jobs reactivated", reactivated, Inbox],
-          ].map(([label, n, Icon]) => (
-            <div key={label} className="fd-card p-5">
-              <Icon className="h-5 w-5 text-primary" strokeWidth={1.6} />
-              <p className="mt-4 font-heading text-4xl">{n}</p>
-              <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">{label}</p>
+            ["Enquiries answered", answered],
+            [spa ? "Consultations booked" : "Appointments booked", booked],
+            [spa ? "Clients reactivated" : "Jobs reactivated", reactivated],
+          ].map(([label, n]) => (
+            <div key={label} className="border-t border-foreground pt-3">
+              <p className="font-heading text-4xl tabular-nums">{n}</p>
+              <p className="mt-1 text-[14px] text-muted-foreground">{label}</p>
             </div>
           ))}
         </div>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
           <section>
-            <h2 className="font-spec text-[11px] uppercase text-muted-foreground">Leads · newest first</h2>
+            <h2 className="text-lg">Leads <span className="text-muted-foreground">· newest first</span></h2>
             <div className="mt-4 space-y-4">
               {cases.length === 0 && (
                 <p className="rounded-lg border border-dashed border-border p-6 text-[15px] text-muted-foreground">
@@ -101,7 +100,7 @@ export default function Frontdesk() {
 
           <div className="space-y-10">
             <section>
-              <h2 className="font-spec text-[11px] uppercase text-muted-foreground">Calendar · {tenant.words.visit}s</h2>
+              <h2 className="text-lg">Calendar <span className="text-muted-foreground">· {tenant.words.visit}s</span></h2>
               <div className="mt-4 space-y-3">
                 {schedule.length === 0 && <p className="rounded-lg border border-dashed border-border p-6 text-[15px] text-muted-foreground">Nothing booked yet. A booking made in chat appears here instantly.</p>}
                 {schedule.map((s) => (
@@ -244,7 +243,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
           {outlining ? (
             <OutlineEditor photo={c.photo.dataUrl} segmentation={c.segmentation} onSave={(poly) => { correctOutline(c.id, poly); setOutlining(false); }} onCancel={() => setOutlining(false)} />
           ) : (
-            <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} />
+            <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} flat />
           )}
         </div>
       )}

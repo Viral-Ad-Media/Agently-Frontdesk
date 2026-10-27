@@ -8,13 +8,13 @@ const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 
 // The hero element: annotated photo, finding, severity, next steps, measurement basis (roofing),
 // service match and clinician flags (med spa), draft quote with the maths and disclaimer, confidence always visible.
-export default function AssessmentCard({ photo, segmentation, measurement, assessment, quote, tenant, compact = false }) {
+export default function AssessmentCard({ photo, segmentation, measurement, assessment, quote, tenant, compact = false, flat = false }) {
   if (!assessment) return null;
   const spa = tenant?.trade === "medspa";
   const words = tenant?.words || {};
   const m = assessment.material;
   return (
-    <section className="fd-card overflow-hidden" aria-label="Assessment">
+    <section className={flat ? "overflow-hidden" : "fd-card overflow-hidden"} aria-label="Assessment">
       {photo && !compact && <OutlinedPhoto src={photo} segmentation={segmentation} className="rounded-none border-0 border-b" />}
 
       <div className="space-y-5 p-5">
@@ -94,7 +94,7 @@ export default function AssessmentCard({ photo, segmentation, measurement, asses
         </div>
 
         {quote && (
-          <div className="rounded-lg border border-border bg-background p-4">
+          <div className="rounded-lg bg-secondary p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-spec text-[11px] uppercase text-muted-foreground">{spa ? "Draft treatment range · USD" : "Draft quote · USD"}</p>
               <span className="rounded-full border border-border bg-card px-2.5 py-1 font-spec text-[11px] uppercase">{STATUS_LABEL[quote.status]}</span>
