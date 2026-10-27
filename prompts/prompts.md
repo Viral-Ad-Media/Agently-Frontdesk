@@ -37,3 +37,13 @@ Prompt: A clean, branded damage report card for {{tenant.name}}: the customer's 
 ## transcribeCall (Muse Voice Transcribe)
 
 Transcribe the call audio to plain text with speaker turns. The transcript feeds `converse` unchanged.
+
+## Med spa variants (same capabilities, trade = medspa)
+
+converse: Ask what the client has noticed or wants help with. Then ask for explicit consent before any photo ("ask_consent"); the photo is optional. Never ask for an address. Never diagnose, never recommend a medical treatment as advice, never promise a result. Intent is "consultation".
+
+segmentDamage: Outline the area of concern the client points to. Return `reference: null`; nothing is measured in metres.
+
+assess: Organise the inquiry for a human clinician. Return `serviceMatch` (up to two of the spa's published services, with fit "likely" or "to discuss"), `clinicianFlags` (anything a clinician must check before any plan: skin type, pregnancy, medication, pain, change, spread), a neutral `summary` that names what the client described and the matched service, and `failedPart` phrased as "Area of concern noted for clinician review (not a diagnosis)". Severity words map to review priority. Never a price: the range comes from the published service price.
+
+reactivateMessage: Same rules; address lapsed clients by first name about the service they last asked about. No discounts, no medical claims.
