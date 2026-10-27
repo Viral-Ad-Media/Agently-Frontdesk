@@ -1,0 +1,29 @@
+{
+  "_readme": "Golden set for the Eye. Each entry is a rehearsed photo with a hand-checked expected outline (normalised 0-1000), the reference object in frame, and the expected material. Pass bar (brief, Phase 5): area within 20 percent when a reference is present; material right on most; outline IoU reported. Add the 12 real photos here: 3 materials x 2 damage types x 2 angles.",
+  "photos": [
+    {
+      "id": "synthetic-shingle-wide",
+      "file": "public/demo/roof-test.jpg",
+      "synthetic": true,
+      "material": "asphalt shingle",
+      "damage": "missing shingle",
+      "angle": "wide",
+      "expectedPolygon": [[372, 318], [604, 296], [648, 412], [612, 486], [455, 502], [386, 430]],
+      "reference": { "label": "standard 3-tab shingle tab (305 mm)", "bbox": [690, 560, 782, 586], "knownWidthM": 0.305 },
+      "tiltDeg": 24,
+      "expectedAreaM2": 0.53
+    },
+    {
+      "id": "synthetic-shingle-noref",
+      "file": "public/demo/roof-noref.jpg",
+      "synthetic": true,
+      "material": "asphalt shingle",
+      "damage": "missing shingle",
+      "angle": "wide",
+      "expectedPolygon": [[372, 318], [604, 296], [648, 412], [612, 486], [455, 502], [386, 430]],
+      "reference": null,
+      "tiltDeg": 24,
+      "expectedAreaM2": null
+    }
+  ]
+}
