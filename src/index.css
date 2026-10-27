@@ -148,7 +148,7 @@
     }
 
     .fd-btn-primary {
-        @apply fd-btn bg-primary text-primary-foreground hover:bg-[hsl(var(--primary-deep))];
+        @apply fd-btn bg-[hsl(var(--primary-deep))] text-primary-foreground hover:bg-primary;
     }
 
     .fd-btn-ink {

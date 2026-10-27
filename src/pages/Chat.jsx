@@ -239,7 +239,7 @@ export default function Chat() {
   return (
     <div className="flex h-[100svh] flex-col bg-background">
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-8">
-        <Logo word={tenant.name} />
+        <Logo word={tenant.name} as="h1" />
         <div className="flex items-center gap-2">
           <ProviderBadge className="hidden sm:inline-flex" />
           {voice.supported && (

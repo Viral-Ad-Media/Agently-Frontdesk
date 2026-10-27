@@ -23,15 +23,15 @@ export default function HowItWorks() {
       <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[1fr_1.3fr] lg:gap-16">
         <Reveal>
           <h2 className="text-[clamp(2rem,4.5vw,3.4rem)] leading-[1.05]">How it works</h2>
-          <p className="mt-4 max-w-md text-lg text-muted-foreground">
+          <p className="mt-4 max-w-md text-lg text-foreground">
             {spa ? "From a question to a booked consultation, in minutes, with a person deciding every step that matters." : "From a leak to a booked inspection, in minutes, with a person approving every price before you see it."}
           </p>
         </Reveal>
-        <ol className="divide-y divide-border">
+        <ol className="space-y-2">
           {steps.map(([title, text], i) => (
-            <Reveal key={title} delay={i * 0.06} className="grid gap-2 py-6 sm:grid-cols-[1fr_1.6fr] sm:gap-8">
+            <Reveal key={title} delay={i * 0.06} className="grid gap-2 py-5 sm:grid-cols-[1fr_1.6fr] sm:gap-8">
               <h3 className="text-xl">{title}</h3>
-              <p className="text-[16px] text-muted-foreground">{text}</p>
+              <p className="text-[16px] text-foreground">{text}</p>
             </Reveal>
           ))}
         </ol>
