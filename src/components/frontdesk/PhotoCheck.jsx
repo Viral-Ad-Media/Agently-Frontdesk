@@ -10,6 +10,7 @@ export default function PhotoCheck({ photo, onRetake, onUse }) {
     <section className="fd-card p-5" aria-label="Check your photo">
       <h3 className="text-lg">{photo.fromVideo ? "We picked this frame from your video" : issues.length ? "This photo may not be clear enough" : "Use this photo?"}</h3>
       <img src={photo.dataUrl} alt="Your photo" className="mt-3 w-full rounded-lg border border-border" />
+      {photo.sensor?.sensors && <p className="mt-2 text-[13px] text-muted-foreground">Captured with the Live Eye: tilt {photo.sensor.deviceTiltDeg ?? "–"}° from your phone's sensors{photo.sensor.referenceInFrame ? ", reference object in frame" : ""}.</p>}
       {issues.length > 0 && (
         <ul className="mt-3 space-y-1 text-[14px] text-[hsl(var(--primary-deep))]">
           {issues.map((i) => (

@@ -67,7 +67,7 @@ export default function AssessmentCard({ photo, segmentation, measurement, asses
               <dd className="mt-1 text-[15px]">
                 {measurement?.basis === "reference" ? (
                   <>
-                    {measurement.areaM2} m² from the outline, scaled by a {measurement.reference.label} in frame, tilt-corrected {measurement.tiltDeg}°.
+                    {measurement.areaM2} m² from the outline, scaled by a {measurement.reference.label} in frame, tilt-corrected {measurement.tiltDeg}°{measurement.tiltSource ? ` (${measurement.tiltSource})` : ""}.
                     <span className="block text-[13px] text-muted-foreground">{measurement.areaPercent}% of the {words.surface || "visible roof"}.</span>
                   </>
                 ) : (
