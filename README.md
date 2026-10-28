@@ -11,6 +11,8 @@ The AI front desk that turns a photo of a problem into an assessed job, a draft 
 3. The customer books a real inspection slot in three taps.
 4. The owner sees the lead on the dashboard (`/frontdesk`), taps Approve, then Send. Status moves one way: draft → awaiting approval → approved → sent. The customer's chat shows the sent range.
 
+**Live demo (mock provider):** https://agently-frontdesk.vercel.app
+
 ## Run locally
 
 ```bash
