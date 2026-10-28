@@ -17,7 +17,7 @@ const spaShots = [
 ];
 
 // Guided capture: tells the customer what to shoot and takes the photo. Retake prompts arrive in Phase 1.
-export default function CaptureGuide({ onPhoto, busy, spa = false }) {
+export default function CaptureGuide({ onPhoto, onLiveEye, busy, spa = false }) {
   const fileRef = useRef(null);
   return (
     <section className="fd-card p-5" aria-label="Add a photo">
@@ -34,10 +34,17 @@ export default function CaptureGuide({ onPhoto, busy, spa = false }) {
         ))}
       </ul>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" capture="environment" hidden onChange={(e) => e.target.files[0] && onPhoto(e.target.files[0])} />
-      <button type="button" disabled={busy} onClick={() => fileRef.current.click()} className="fd-btn-primary mt-4 w-full sm:w-auto">
-        <Camera className="h-4 w-4" /> Take a photo or short video
-      </button>
-      <p className="mt-2 text-[13px] text-muted-foreground">One photo is enough to start. A short video works too: we pick a clear frame and show it to you first.</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {onLiveEye && (
+          <button type="button" disabled={busy} onClick={onLiveEye} className="fd-btn-primary">
+            <Camera className="h-4 w-4" /> Open the Live Eye
+          </button>
+        )}
+        <button type="button" disabled={busy} onClick={() => fileRef.current.click()} className={onLiveEye ? "fd-btn-outline" : "fd-btn-primary"}>
+          Choose a photo or short video
+        </button>
+      </div>
+      <p className="mt-2 text-[13px] text-muted-foreground">The Live Eye uses your camera with a level and your phone's tilt sensor, and captures when the shot is steady. One photo is enough; a short video works too.</p>
     </section>
   );
 }

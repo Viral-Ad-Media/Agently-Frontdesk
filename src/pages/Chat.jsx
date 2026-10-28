@@ -11,6 +11,7 @@ import Logo from "@/components/shared/Logo";
 import ProviderBadge from "@/components/shared/ProviderBadge";
 import Composer from "@/components/frontdesk/Composer";
 import CaptureGuide from "@/components/frontdesk/CaptureGuide";
+import LiveEye from "@/components/frontdesk/LiveEye";
 import ConsentCard from "@/components/frontdesk/ConsentCard";
 import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
 import AssessmentCard from "@/components/frontdesk/AssessmentCard";
@@ -37,6 +38,7 @@ export default function Chat() {
   const [progress, setProgress] = useState(null);
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(null); // a photo waiting for the customer's "use it" tap
+  const [liveEye, setLiveEye] = useState(false); // camera capture open
   const [voiceMode, setVoiceMode] = useState(false);
   const endRef = useRef(null);
   const sendRef = useRef(null);
@@ -136,11 +138,14 @@ export default function Chat() {
 
   // Step one: read the file (photo or video frame), run the capture checks, and show the frame first.
   const onPhoto = useCallback(
-    async (file) => {
+    async (file, sensor = null) => {
       if (!caseId || busy) return;
       setFailure(null);
+      setLiveEye(false);
       try {
         const photo = await readPhoto(file);
+        // Tilt measured by the phone's sensors travels with the photo into the Eye maths.
+        if (sensor) photo.sensor = sensor;
         setPending(photo);
       } catch (e) {
         setFailure({ message: e.message, retry: null });
@@ -156,7 +161,7 @@ export default function Chat() {
       setPending(null);
       setBusy(true);
       setFailure(null);
-      updateCase(caseId, { photo: { dataUrl: photo.dataUrl, width: photo.width, height: photo.height, name: photo.name, fromVideo: photo.fromVideo, quality: photo.quality } });
+      updateCase(caseId, { photo: { dataUrl: photo.dataUrl, width: photo.width, height: photo.height, name: photo.name, fromVideo: photo.fromVideo, quality: photo.quality, sensor: photo.sensor || null } });
       appendMessage(caseId, { role: "user", content: spa ? "Here's a photo of the area." : "Here's a photo of the damage.", photo: true });
       const run = async () => {
         setBusy(true);
@@ -167,7 +172,8 @@ export default function Chat() {
           setProgress(spa ? "Noting the area…" : "Outlining the damage…");
           const seg = await gateway.segmentDamage({ trade: cur.trade, photoName: photo.name, width: photo.width, height: photo.height, dataUrl: photo.dataUrl });
           const region = seg.regions[0];
-          const m = !spa && region ? measure({ polygon: region.polygon, reference: seg.reference, tiltDeg: seg.tiltDeg }) : null;
+          const sensorTilt = Number.isFinite(photo.sensor?.deviceTiltDeg) ? photo.sensor.deviceTiltDeg : null;
+          const m = !spa && region ? { ...measure({ polygon: region.polygon, reference: seg.reference, tiltDeg: sensorTilt ?? seg.tiltDeg }), tiltSource: sensorTilt !== null ? "phone sensors" : "estimated from the photo" } : null;
           updateCase(caseId, { segmentation: seg, measurement: m });
           setProgress(spa ? "Matching to our services…" : "Working out what failed…");
           const a = await gateway.assess({ trade: cur.trade, description: cur.description, urgency: cur.urgency, segmentation: seg, measurement: m, dataUrl: photo.dataUrl, tenant: t });
@@ -232,7 +238,8 @@ export default function Chat() {
   if (!c) return null;
   const bookedSlot = c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null;
   const showConsent = spa && !c.consent && c.lastQuestion === "ask_consent" && !busy && !pending;
-  const showGuide = !c.photo && c.lastQuestion === "ask_photo" && !busy && !pending;
+  const showGuide = !c.photo && c.lastQuestion === "ask_photo" && !busy && !pending && !liveEye;
+  const showLiveEye = liveEye && !c.photo && !busy && !pending;
   const showSlots = (c.assessment || (spa && c.status === "assessed")) && !c.bookingSlotId;
   const orbState = voice.listening ? "listening" : busy ? "thinking" : voice.speaking ? "speaking" : "idle";
 
@@ -323,7 +330,8 @@ export default function Chat() {
 
           {pending && <PhotoCheck photo={pending} onRetake={onPhoto} onUse={() => acceptPhoto(pending)} />}
           {showConsent && <ConsentCard tenant={tenant} onConsent={onConsent} onSkip={onSkipPhoto} />}
-          {showGuide && <CaptureGuide onPhoto={onPhoto} busy={busy} spa={spa} />}
+          {showLiveEye && <LiveEye onCapture={onPhoto} onClose={() => setLiveEye(false)} spa={spa} />}
+          {showGuide && <CaptureGuide onPhoto={onPhoto} onLiveEye={() => setLiveEye(true)} busy={busy} spa={spa} />}
           {showSlots && <SlotPicker caseId={c.id} tenant={tenant} address={c.customer.address} onBooked={onBooked} />}
           <div ref={endRef} />
         </div>
