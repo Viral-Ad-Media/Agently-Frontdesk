@@ -42,7 +42,7 @@ Timing is for a 3:00 cut. Record at 1440×900 for the desktop shots and 390×844
 ## Checklist before recording
 
 - [ ] `VITE_AI_PROVIDER=meta`, contract and golden tests green on it, provider badge reads "Meta models".
-- [ ] Demo data reset; tenant names and rate card confirmed by the owner.
+- [x] Tenant names (Summit Ridge Roofing, Luma Skin Studio) and rate card locked by the owner, 30 Oct.
 - [ ] The 12 rehearsed photos in `tests/golden/manifest.json`; the one used on camera scored within 20 percent.
 - [ ] Synthetic names and numbers only on screen.
 - [ ] Repo public, clean clone builds, `.env.example` has key names only.
