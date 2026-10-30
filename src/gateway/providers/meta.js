@@ -11,8 +11,11 @@ import { renderReportVisual as composeReport } from "./mock.js";
 
 export const LABEL = "Meta models";
 
+// Credit rationing: the heavy model only where it matters (assessing a photo); the light one for
+// conversation turns and re-openers; SAM only on photos, at most three concepts per photo.
 const MODELS = {
   spark: import.meta.env.VITE_META_SPARK_MODEL || "muse-spark-1.3",
+  sparkLight: import.meta.env.VITE_META_SPARK_LIGHT_MODEL || "muse-spark-1.1",
   sam: "sam-3.1",
   image: "muse-image-1.0",
   voice: "muse-voice-transcribe-1.0",
@@ -52,11 +55,11 @@ const fill = (text, vars) => text.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, p) => 
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, Number(n) || 0));
 
 // Muse Spark with a JSON schema (OpenAI-compatible chat completions, response_format json_schema).
-async function sparkJson({ system, user, image = null, schema, name }) {
+async function sparkJson({ system, user, image = null, schema, name, model = MODELS.spark }) {
   const content = [{ type: "text", text: user }];
   if (image) content.push({ type: "image_url", image_url: { url: image } });
   const text = await post("chat/completions", {
-    model: MODELS.spark,
+    model,
     messages: [
       { role: "system", content: `${system}\n\n${sharedRules()}` },
       { role: "user", content },
@@ -109,7 +112,7 @@ async function sam(concept, dataUrl) {
 
 const norm = (v, size) => clamp(Math.round((v / size) * 1000), 0, 1000);
 
-const ROOF_CONCEPTS = ["missing shingle", "lifted shingle", "damaged roof covering", "cracked roof tile", "failed flashing", "exposed underlay"];
+const ROOF_CONCEPTS = ["missing shingle", "damaged roof covering", "cracked roof tile"];
 const REFERENCE_CONCEPTS = [
   { concept: "shingle tab", label: "standard 3-tab shingle tab (305 mm)", knownWidthM: 0.305 },
   { concept: "brick", label: "standard brick (215 mm)", knownWidthM: 0.215 },
@@ -237,6 +240,7 @@ export async function converse({ trade = "roofing", messages = [], caseState = {
     user: JSON.stringify({ conversation: messages, caseState }),
     schema: CONVERSE_SCHEMA,
     name: "turn",
+    model: MODELS.sparkLight,
   });
   const extracted = {};
   for (const k of ["description", "address", "urgency", "intent"]) if (out.extracted?.[k]) extracted[k] = String(out.extracted[k]);
@@ -249,6 +253,7 @@ export async function reactivateMessage({ lead = {}, tenant = { name: "the busin
     user: JSON.stringify({ lead: { firstName: lead.firstName, name: lead.name, history: lead.history || [], serviceType: lead.serviceType } }),
     schema: { type: "object", additionalProperties: false, properties: { message: { type: "string" }, generic: { type: "boolean" } }, required: ["message", "generic"] },
     name: "reopener",
+    model: MODELS.sparkLight,
   });
   const generic = !Array.isArray(lead.history) || lead.history.length === 0 || out.generic === true;
   return { message: String(out.message || ""), generic };
