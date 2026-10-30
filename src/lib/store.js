@@ -183,8 +183,9 @@ export function editQuoteRange(id, low, high) {
 export function correctOutline(id, polygon) {
   return update((s) => {
     const c = s.cases.find((x) => x.id === id);
-    if (!c?.segmentation?.regions?.[0] || !c.assessment) return null;
+    if (!c?.segmentation || !c.assessment) return null;
     if (c.quote?.status === "sent") return null;
+    if (!c.segmentation.regions?.length) c.segmentation.regions = [{ label: "damage (drawn by the front desk)", bbox: [0, 0, 0, 0], polygon: [], areaPercent: 0 }];
     const region = c.segmentation.regions[0];
     region.polygon = polygon.map(([x, y]) => [x, y]);
     region.bbox = bboxOf(region.polygon);

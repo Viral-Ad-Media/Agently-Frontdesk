@@ -238,11 +238,11 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
 
       {open && c.assessment && (
         <div className="space-y-4 border-t border-border p-4">
-          {c.photo && c.segmentation?.regions?.[0] && status !== "sent" && (
+          {c.photo && c.segmentation && status !== "sent" && (
             <div className="flex flex-wrap items-center gap-2">
               {!outlining && (
                 <button type="button" onClick={() => setOutlining(true)} className="fd-btn-outline">
-                  Correct the outline
+                  {c.segmentation.regions?.length ? "Correct the outline" : "Draw the outline"}
                 </button>
               )}
               {c.segmentation.correctedByOwner && <span className="font-spec text-[11px] uppercase text-muted-foreground">Outline corrected by the {tenant.words.approver}</span>}
