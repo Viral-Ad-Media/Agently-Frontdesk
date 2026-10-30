@@ -278,7 +278,7 @@ export default function Chat() {
                   {m.photo && c.photo && <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="mt-2 border-0" />}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4" data-testid="assistant-message">
                   <p className="text-[13px] text-muted-foreground">{tenant.name}</p>
                   <p className="text-[17px] leading-relaxed">{m.content}</p>
                   {m.kind === "assessment" && c.assessment && (

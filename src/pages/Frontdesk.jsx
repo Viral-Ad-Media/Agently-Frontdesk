@@ -189,7 +189,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
                   Draft {money(q.low)} – {money(q.high)} <span className="text-muted-foreground">· confidence {Math.round((c.assessment?.confidence || 0) * 100)}%</span>
                 </>
               ) : (
-                <span className="text-[hsl(var(--primary-deep))]">{spa ? "No published match: clinician advises at consultation." : "No total: no scale reference. Site visit to confirm."}</span>
+                <span className="text-[hsl(var(--primary-deep))]">{q.reason || (spa ? "No published match: clinician advises at consultation." : "No total yet. Enter the range after the inspection.")}</span>
               )}
             </p>
           )}
@@ -208,7 +208,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
               <button type="button" disabled={!canApprove} onClick={() => moveQuote(c.id, "approved")} className="fd-btn-primary">
                 <Check className="h-4 w-4" /> Approve
               </button>
-              <button type="button" disabled={status === "sent" || q.low === null} onClick={() => setEditing(true)} className="fd-btn-outline">
+              <button type="button" disabled={status === "sent"} onClick={() => setEditing(true)} className="fd-btn-outline">
                 <Pencil className="h-4 w-4" /> Edit
               </button>
               <button type="button" disabled={!canSend} onClick={() => moveQuote(c.id, "sent")} className="fd-btn-ink">
@@ -216,7 +216,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
               </button>
               <ReportButton c={c} tenant={tenant} />
               {status === "sent" && <span className="text-[13px] text-muted-foreground">Sent. The customer's chat shows the confirmed range.</span>}
-              {status === "awaiting_approval" && <span className="text-[13px] text-muted-foreground">{spa ? "Client booked. Clinician approves the plan, then sends it." : "Customer booked. Approve the range, then send it."}</span>}
+              {status === "awaiting_approval" && <span className="text-[13px] text-muted-foreground">{q.low === null ? "Customer booked. Enter a range with Edit, then approve and send it." : spa ? "Client booked. Clinician approves the plan, then sends it." : "Customer booked. Approve the range, then send it."}</span>}
             </>
           ) : (
             <>
