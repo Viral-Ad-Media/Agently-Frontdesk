@@ -43,7 +43,7 @@ Rehearsal photos: `public/demo/roof-test.jpg` (reference object in frame) and `p
 - `src/gateway/` — the AI Gateway: `segmentDamage`, `assess`, `converse`, `reactivateMessage`, `renderReportVisual`, `transcribeCall`. Providers: `mock` (deterministic), `initial` (Phase 1), `meta` (Phase 4). Every call is logged with capability, latency and provider.
 - `prompts/prompts.md` — every prompt, versioned.
 - `src/lib/store.js` — the case record, calendar slots and gateway log (localStorage, synthetic data only).
-- `src/lib/seed.js` — demo tenant (placeholder name), placeholder rate card, inspection slots.
+- `src/lib/seed.js` — demo tenants (fictional, names locked), placeholder rate card, inspection slots.
 - `src/lib/eye.js`, `src/lib/quote.js` — measurement and quote maths, pure functions.
 - `src/pages/Chat.jsx`, `src/pages/Frontdesk.jsx`, `src/pages/Home.jsx` — the three screens.
 - `docs/BASE44_INVENTORY.md` — what the starting build contained and what was replaced.
