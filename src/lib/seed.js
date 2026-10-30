@@ -1,9 +1,9 @@
 // Synthetic seed data only. Nothing here is a real business, person, address or phone number.
 import leadsJson from "./leads.json" with { type: "json" };
 
-// PLACEHOLDER demo rate card (brief, page 8). The owner locks real demo values before any external showing.
+// Demo rate card, locked by the owner on 30 Oct 2026 (the brief's figures).
 export const RATE_CARD = {
-  placeholder: true,
+  placeholder: false,
   currency: "USD",
   materials: {
     "asphalt shingle": 45,
@@ -19,12 +19,12 @@ export const RATE_CARD = {
 export const MATERIALS = Object.keys(RATE_CARD.materials);
 
 // Two launch tenants on one spine. Vocabulary, services and rates live here; the flow does not change.
-// PLACEHOLDER names: the owner confirms or replaces them before any external showing.
+// Demo tenant names locked by the owner on 30 Oct 2026. Both businesses are fictional.
 export const TENANTS = {
   "summit-ridge": {
     id: "summit-ridge",
     name: "Summit Ridge Roofing",
-    namePlaceholder: true,
+    namePlaceholder: false,
     trade: "roofing",
     serviceArea: "Central Texas",
     currency: "USD",
@@ -47,7 +47,7 @@ export const TENANTS = {
   "luma-skin": {
     id: "luma-skin",
     name: "Luma Skin Studio",
-    namePlaceholder: true,
+    namePlaceholder: false,
     trade: "medspa",
     serviceArea: "Austin, TX",
     currency: "USD",
