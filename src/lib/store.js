@@ -174,6 +174,9 @@ export function editQuoteRange(id, low, high) {
     if (c.quote.status === "sent") return;
     c.quote.low = Math.round(low);
     c.quote.high = Math.round(high);
+    c.quote.total = Math.round((low + high) / 2);
+    c.quote.reason = null;
+    if (!c.quote.lines?.length) c.quote.lines = [{ label: "Range entered by the front desk", detail: "manual", amount: null }];
     c.quote.editedByOwner = true;
   });
 }
