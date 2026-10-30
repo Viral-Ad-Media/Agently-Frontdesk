@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
+import { clearGatewayCache } from "@/gateway";
 import { STATUS_LABEL } from "@/lib/quote";
 import Logo from "@/components/shared/Logo";
 import ProviderBadge from "@/components/shared/ProviderBadge";
@@ -63,7 +64,7 @@ export default function Frontdesk() {
             <h1 className="text-2xl">Today at the desk</h1>
             <p className="mt-1 text-[15px] text-muted-foreground">{tenant.name} · {spa ? "med spa" : "roofing"}</p>
           </div>
-          <button type="button" onClick={() => window.confirm("Clear every demo case, booking and re-opener and start fresh?") && resetDemo()} className="fd-btn-outline h-9 px-3 text-[13px] text-muted-foreground">
+          <button type="button" onClick={() => window.confirm("Clear every demo case, booking and re-opener and start fresh? (Cached AI results are kept so re-runs stay free; hold Shift to clear those too.)") && (resetDemo(), window.event?.shiftKey && clearGatewayCache())} className="fd-btn-outline h-9 px-3 text-[13px] text-muted-foreground">
             <RefreshCw className="h-4 w-4" /> Reset demo data
           </button>
         </div>

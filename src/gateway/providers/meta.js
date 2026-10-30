@@ -11,11 +11,12 @@ import { renderReportVisual as composeReport } from "./mock.js";
 
 export const LABEL = "Meta models";
 
-// Credit rationing: the heavy model only where it matters (assessing a photo); the light one for
-// conversation turns and re-openers; SAM only on photos, at most three concepts per photo.
+// Credit rationing: the Contributor tier (same model, ~95% cheaper; inputs may train Meta models,
+// which is fine because every input here is synthetic demo data) by default; SAM only on photos,
+// at most three concepts per photo; results cached by the gateway. Override with VITE_META_SPARK_MODEL.
 const MODELS = {
-  spark: import.meta.env.VITE_META_SPARK_MODEL || "muse-spark-1.3",
-  sparkLight: import.meta.env.VITE_META_SPARK_LIGHT_MODEL || "muse-spark-1.1",
+  spark: import.meta.env.VITE_META_SPARK_MODEL || "muse-spark-1.3-contributor",
+  sparkLight: import.meta.env.VITE_META_SPARK_LIGHT_MODEL || "muse-spark-1.3-contributor",
   sam: "sam-3.1",
   image: "muse-image-1.0",
   voice: "muse-voice-transcribe-1.0",
