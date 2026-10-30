@@ -290,7 +290,9 @@ export async function renderReportVisual(input) {
   const data = JSON.parse(text);
   const item = (data.output || []).find((o) => o.type === "image_generation_call" && o.result);
   if (!item) throw new Error("Muse Image returned no image.");
-  return { imageDataUrl: `data:image/png;base64,${item.result}` };
+  // Muse Image returns WebP today; sniff the magic bytes so the data URL has the right type.
+  const mime = item.result.startsWith("UklGR") ? "image/webp" : item.result.startsWith("/9j/") ? "image/jpeg" : "image/png";
+  return { imageDataUrl: `data:${mime};base64,${item.result}` };
 }
 
 // ----- Muse Voice Transcribe -----

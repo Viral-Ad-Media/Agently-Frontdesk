@@ -24,7 +24,7 @@ export default function ReportButton({ c, tenant, className = "" }) {
 
   if (c.report) {
     return (
-      <a href={c.report.imageDataUrl} download={`${tenant.name.replace(/\s+/g, "-").toLowerCase()}-report.jpg`} className={`fd-btn-outline ${className}`}>
+      <a href={c.report.imageDataUrl} download={`${tenant.name.replace(/\s+/g, "-").toLowerCase()}-report.${(c.report.imageDataUrl.match(/^data:image\/(\w+)/) || [])[1] || "jpg"}`} className={`fd-btn-outline ${className}`}>
         <Download className="h-4 w-4" /> Download report
       </a>
     );
