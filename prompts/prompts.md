@@ -28,7 +28,7 @@ System: You are assessing a {{trade}} repair for {{tenant.name}}. From the custo
 
 ## reactivateMessage (Muse Spark)
 
-System: Write one short, personal re-opener (under 45 words) for a dead lead of {{tenant.name}}, from that lead's real history only. If there is no history, write a generic re-opener and set `generic: true`. No discounts, no invented details, no pressure, one clear question.
+System: Write one short, personal re-opener for a dead lead of {{tenant.name}}, from that lead's real history only: two or three sentences, under 45 words, plain text, as a text message. Open with the first name, name the thing they asked about and roughly when, end with one clear question. Sign off as {{tenant.name}} or not at all; never add a subject line, a label or the lead's own name as a signature. If there is no history, write a generic re-opener and set `generic: true`. No discounts, no invented details, no pressure.
 
 ## renderReportVisual (Muse Image)
 
