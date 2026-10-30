@@ -24,15 +24,20 @@ export default function ReactivationPanel({ tenant }) {
     setRunning(true);
     let drafted = 0;
     let generic = 0;
-    for (const lead of toDraft) {
-      try {
-        const r = await gateway.reactivateMessage({ lead, tenant });
-        setLeadMessage(lead.id, { message: r.message, generic: r.generic, provider: r.providerLabel });
-        drafted++;
-        if (r.generic) generic++;
-      } catch (e) {
-        console.warn("reactivateMessage failed", lead.id, e);
-      }
+    // Four at a time: fast on a real provider, gentle on its rate limits.
+    for (let i = 0; i < toDraft.length; i += 4) {
+      await Promise.all(
+        toDraft.slice(i, i + 4).map(async (lead) => {
+          try {
+            const r = await gateway.reactivateMessage({ lead, tenant });
+            setLeadMessage(lead.id, { message: r.message, generic: r.generic, provider: r.providerLabel });
+            drafted++;
+            if (r.generic) generic++;
+          } catch (e) {
+            console.warn("reactivateMessage failed", lead.id, e);
+          }
+        })
+      );
     }
     setLastRun({ drafted, generic, excluded: optedOut.length, at: new Date() });
     setRunning(false);
