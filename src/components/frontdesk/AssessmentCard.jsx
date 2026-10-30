@@ -65,7 +65,12 @@ export default function AssessmentCard({ photo, segmentation, measurement, asses
             <div>
               <dt className="font-spec text-[11px] uppercase text-muted-foreground">Measurement basis</dt>
               <dd className="mt-1 text-[15px]">
-                {measurement?.basis === "reference" ? (
+                {!segmentation?.regions?.length ? (
+                  <>
+                    The damage could not be outlined automatically in this photo, so there is no measurement.
+                    <span className="block text-[13px] text-[hsl(var(--primary-deep))]">The {words.pro || "roofer"} marks it at the {words.visit || "inspection"}; the {words.approver || "front desk"} can also draw it on the dashboard.</span>
+                  </>
+                ) : measurement?.basis === "reference" ? (
                   <>
                     {measurement.areaM2} m² from the outline, scaled by a {measurement.reference.label} in frame, tilt-corrected {measurement.tiltDeg}°{measurement.tiltSource ? ` (${measurement.tiltSource})` : ""}.
                     <span className="block text-[13px] text-muted-foreground">{measurement.areaPercent}% of the {words.surface || "visible roof"}.</span>

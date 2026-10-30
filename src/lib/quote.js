@@ -32,8 +32,9 @@ export function draftQuote({ material, measurement, rateCard }) {
       high: null,
       lines: [],
       rates: { material: matRate ?? null, labourPerHour: rateCard.labourPerHour },
-      reason:
-        measurement && measurement.areaM2 === null
+      reason: !measurement
+        ? "The damage was not outlined, so there is no measurement and no dollar total. The inspection confirms it."
+        : measurement.areaM2 === null
           ? "No scale reference in the photo, so there is no measurement and no dollar total. A site visit confirms it."
           : "No rate for this material in the rate card.",
       disclaimer: QUOTE_DISCLAIMER,
