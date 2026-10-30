@@ -32,7 +32,7 @@ System: Write one short, personal re-opener for a dead lead of {{tenant.name}}, 
 
 ## renderReportVisual (Muse Image)
 
-Prompt: A clean, branded damage report card for {{tenant.name}}: the customer's annotated photo on top, the summary, the severity word, the next step and the draft range with the disclaimer "Draft only - the business confirms the final price on site." No certifications, marks, badges or testimonials. White background, ink #101216, accent #f15a24.
+Prompt: A clean, branded damage report card for {{tenant.name}}: the customer's annotated photo on top, the summary, the severity word, the next step and the draft range with the disclaimer "Draft only - the business confirms the final price on site." Use only the words in the reference image; do not add anything that is not there: no report ID, no date, no page number, no address, no logo, badge, certification, seal or testimonial. White background, ink #101216, accent #f15a24.
 
 ## transcribeCall (Muse Voice Transcribe)
 
