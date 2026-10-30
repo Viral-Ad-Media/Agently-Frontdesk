@@ -5,7 +5,13 @@ import { Check, RotateCcw } from "lucide-react";
 // Coordinates stay normalised 0-1000; the measurement and quote recompute live on save.
 export default function OutlineEditor({ photo, segmentation, onSave, onCancel }) {
   const svgRef = useRef(null);
-  const [polygon, setPolygon] = useState(() => segmentation.regions[0].polygon.map((p) => [...p]));
+  const seed = segmentation.regions?.[0]?.polygon || [
+    [350, 350],
+    [650, 350],
+    [650, 650],
+    [350, 650],
+  ];
+  const [polygon, setPolygon] = useState(() => seed.map((p) => [...p]));
   const [drag, setDrag] = useState(null);
   const ref = segmentation.reference;
 
@@ -49,7 +55,7 @@ export default function OutlineEditor({ photo, segmentation, onSave, onCancel })
         <button type="button" onClick={() => onSave(polygon)} className="fd-btn-primary">
           <Check className="h-4 w-4" /> Save corrected outline
         </button>
-        <button type="button" onClick={() => setPolygon(segmentation.regions[0].polygon.map((p) => [...p]))} className="fd-btn-outline">
+        <button type="button" onClick={() => setPolygon(seed.map((p) => [...p]))} className="fd-btn-outline">
           <RotateCcw className="h-4 w-4" /> Reset
         </button>
         <button type="button" onClick={onCancel} className="fd-btn-outline">

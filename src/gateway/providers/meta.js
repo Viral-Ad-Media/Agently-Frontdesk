@@ -56,11 +56,12 @@ const fill = (text, vars) => text.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, p) => 
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, Number(n) || 0));
 
 // Muse Spark with a JSON schema (OpenAI-compatible chat completions, response_format json_schema).
-async function sparkJson({ system, user, image = null, schema, name, model = MODELS.spark }) {
+async function sparkJson({ system, user, image = null, schema, name, model = MODELS.spark, effort = "low" }) {
   const content = [{ type: "text", text: user }];
   if (image) content.push({ type: "image_url", image_url: { url: image } });
   const text = await post("chat/completions", {
     model,
+    reasoning_effort: effort,
     messages: [
       { role: "system", content: `${system}\n\n${sharedRules()}` },
       { role: "user", content },
@@ -127,13 +128,10 @@ export async function segmentDamage({ trade = "roofing", dataUrl } = {}) {
   if (!dataUrl) throw new Error("segmentDamage needs the photo.");
   const concepts = trade === "medspa" ? ["area of skin concern"] : ROOF_CONCEPTS;
   let best = null;
-  for (const concept of concepts) {
-    const boxes = await sam(concept, dataUrl);
-    for (const b of boxes) {
-      const score = b.confidence ?? 0.5;
-      if (!best || score > best.score) best = { ...b, score, concept };
-    }
-    if (best && best.score >= 0.85) break;
+  const perConcept = await Promise.all(concepts.map((concept) => sam(concept, dataUrl).then((boxes) => boxes.map((b) => ({ ...b, concept })))));
+  for (const b of perConcept.flat()) {
+    const score = b.confidence ?? 0.5;
+    if (!best || score > best.score) best = { ...b, score };
   }
   if (!best) return { regions: [], reference: null, tiltDeg: 0, confidence: 0 };
   const { w, h } = best;
@@ -146,10 +144,11 @@ export async function segmentDamage({ trade = "roofing", dataUrl } = {}) {
   const areaPercent = Math.round((((best.x2 - best.x1) * (best.y2 - best.y1)) / (w * h)) * 1000) / 10;
   let reference = null;
   if (trade !== "medspa") {
-    for (const r of REFERENCE_CONCEPTS) {
-      if (!r.knownWidthM) continue;
-      const boxes = (await sam(r.concept, dataUrl)).filter((b) => (b.x2 - b.x1) * (b.y2 - b.y1) < 0.05 * b.w * b.h);
-      const top = boxes.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
+    const refs = REFERENCE_CONCEPTS.filter((r) => r.knownWidthM);
+    const found = await Promise.all(refs.map((r) => sam(r.concept, dataUrl).then((boxes) => ({ r, boxes }))));
+    for (const { r, boxes } of found) {
+      const small = boxes.filter((b) => (b.x2 - b.x1) * (b.y2 - b.y1) < 0.05 * b.w * b.h);
+      const top = small.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
       if (top && (top.confidence ?? 0) >= 0.6) {
         reference = { label: r.label, bbox: [norm(top.x1, top.w), norm(top.y1, top.h), norm(top.x2, top.w), norm(top.y2, top.h)], knownWidthM: r.knownWidthM };
         break;
@@ -205,6 +204,7 @@ export async function assess({ trade = "roofing", description = "", urgency = nu
     image: dataUrl,
     schema: ASSESS_SCHEMA,
     name: "assessment",
+    effort: "medium",
   });
   return {
     summary: String(out.summary || ""),
@@ -235,11 +235,20 @@ const CONVERSE_SCHEMA = {
   required: ["reply", "extracted", "nextAction"],
 };
 
+// Roofing never asks for consent; med spa never asks for an address. The schema enforces it per trade.
+const converseSchemaFor = (trade) => ({
+  ...CONVERSE_SCHEMA,
+  properties: {
+    ...CONVERSE_SCHEMA.properties,
+    nextAction: { type: "string", enum: trade === "medspa" ? ["ask_description", "ask_consent", "ask_photo", "assess", "none"] : ["ask_description", "ask_address", "ask_photo", "assess", "none"] },
+  },
+});
+
 export async function converse({ trade = "roofing", messages = [], caseState = {}, tenant = { name: "the business" } } = {}) {
   const out = await sparkJson({
     system: fill(section("converse"), { trade, tenant }) + (trade === "medspa" ? `\n\nMed spa rules:\n${medspaRules()}` : ""),
-    user: JSON.stringify({ conversation: messages, caseState }),
-    schema: CONVERSE_SCHEMA,
+    user: JSON.stringify({ conversation: messages, caseState, rule: trade === "medspa" ? "Order: ask_description, then ask_consent (photo optional), then ask_photo, then assess. Never ask for an address." : "Order: ask_description, then ask_address, then ask_photo, then assess. If caseState.address is filled and there is no photo, nextAction is ask_photo. Never ask for consent." }),
+    schema: converseSchemaFor(trade),
     name: "turn",
     model: MODELS.sparkLight,
   });
