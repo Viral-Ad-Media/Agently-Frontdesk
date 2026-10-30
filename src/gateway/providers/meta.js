@@ -281,7 +281,7 @@ export async function renderReportVisual(input) {
         type: "message",
         role: "user",
         content: [
-          { type: "input_text", text: fill(section("renderReportVisual"), { tenant: input.tenant || {} }) + " Keep every word and the outlined photo exactly as in the reference; change only the layout and finish." },
+          { type: "input_text", text: fill(section("renderReportVisual"), { tenant: input.tenant || {} }) + " Keep every word and the outlined photo exactly as in the reference; change only the layout and finish. Invent nothing: no IDs, dates, page numbers or marks." },
           { type: "input_image", image_url: composed.imageDataUrl },
         ],
       },
