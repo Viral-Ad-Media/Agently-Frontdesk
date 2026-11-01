@@ -65,19 +65,7 @@ test("scene 4: the owner's one screen", async ({ page }) => {
 
   await page.goto(`${BASE}/frontdesk`);
   await beat(page, 3000);
-  if (await page.getByRole("button", { name: "Approve" }).first().isDisabled()) {
-    await page.getByRole("button", { name: "Edit" }).first().click();
-    await beat(page, 800);
-    await page.getByLabel(/Low/).pressSequentially("450", { delay: 80 });
-    await page.getByLabel(/High/).pressSequentially("650", { delay: 80 });
-    await beat(page, 600);
-    await page.getByRole("button", { name: "Save range" }).click();
-    await beat(page, 1200);
-  }
-  await page.getByRole("button", { name: "Approve" }).first().click();
-  await beat(page, 1500);
-  await page.getByRole("button", { name: "Send" }).first().click();
-  await beat(page, 2000);
+  // Correct the outline first (a sent quote is never changed), then approve and send.
   await page.getByRole("button", { name: "Show assessment" }).first().click();
   await beat(page, 2500);
   await page.getByRole("button", { name: /Correct the outline|Draw the outline/ }).click();
@@ -93,6 +81,21 @@ test("scene 4: the owner's one screen", async ({ page }) => {
   await beat(page, 1200);
   await page.getByRole("button", { name: /Save corrected outline/ }).click();
   await beat(page, 3000);
+  await page.getByRole("button", { name: "Hide assessment" }).first().click();
+  await beat(page, 1500);
+  if (await page.getByRole("button", { name: "Approve" }).first().isDisabled()) {
+    await page.getByRole("button", { name: "Edit" }).first().click();
+    await beat(page, 800);
+    await page.getByLabel(/Low/).pressSequentially("450", { delay: 80 });
+    await page.getByLabel(/High/).pressSequentially("650", { delay: 80 });
+    await beat(page, 600);
+    await page.getByRole("button", { name: "Save range" }).click();
+    await beat(page, 1200);
+  }
+  await page.getByRole("button", { name: "Approve" }).first().click();
+  await beat(page, 1500);
+  await page.getByRole("button", { name: "Send" }).first().click();
+  await beat(page, 2500);
   await page.goto(chatUrl);
   await beat(page, 3500);
 });
