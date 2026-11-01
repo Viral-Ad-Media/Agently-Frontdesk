@@ -40,3 +40,4 @@ dist-ssr
 base44/.app.jsonc
 test-results/
 playwright-report/
+footage/
