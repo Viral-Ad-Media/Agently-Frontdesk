@@ -4,6 +4,7 @@ import { CalendarDays, Check, FlaskConical, CircleCheck, Inbox, MessageCircle, S
 import { useStore, moveQuote, rejectQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { jobStatus } from "@/lib/verify";
 import VerificationPanel, { VerifyPill } from "@/components/frontdesk/VerificationPanel";
+import AgentTrace from "@/components/frontdesk/AgentTrace";
 import { clearGatewayCache } from "@/gateway";
 import { STATUS_LABEL } from "@/lib/quote";
 import Logo from "@/components/shared/Logo";
@@ -329,6 +330,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
       {open && c.assessment && (
         <div className="pop space-y-4 border-t border-border p-4">
           <VerificationPanel c={c} js={js} />
+          <AgentTrace c={c} />
           {c.photo && c.segmentation && status !== "sent" && (
             <div className="flex flex-wrap items-center gap-2">
               {!outlining && (
