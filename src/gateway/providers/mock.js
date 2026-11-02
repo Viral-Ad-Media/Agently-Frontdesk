@@ -21,6 +21,7 @@
 
 import { areaPercent } from "../../lib/eye.js";
 import { readUtterance } from "../../lib/desk.js";
+import { QUESTION, NEEDS, DAY_WORD, THOUGHT } from "../../lib/agent.js";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -464,19 +465,10 @@ export async function judgeAssessment({ trade = "roofing", description = "", seg
 //   -> { action: "tool", tool, args, thought } | { action: "answer", reply, extracted, nextAction, thought }
 // Mock: picks tools from the question's wording, then answers only from what the tools returned,
 // and carries on qualifying the job with the same questions as converse().
-const QUESTION = /\?|^\s*(do|does|did|can|could|are|is|how|what|when|where|will|would|any|have|got)\b/i;
-const NEEDS = [
-  ["customer_history", /\b(last time|before|again|already|earlier|previous|still waiting|follow(?:ing)? up)\b/i],
-  ["check_calendar", /\b(available|availability|slots?|appointment|come (?:out|over|by)|today|tomorrow|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|when can)\b/i],
-  ["rate_card", /\b(how much|cost|costs|price|prices|pricing|rates?|charge|expensive|cheap)\b/i],
-  ["business_facts", /\b(area|serve|cover|near|insured|insurance|licen[cs]ed|warranty|guarantee|hours|open on|located|who are you)\b/i],
-  ["storm_reports", /\b(was there a storm|storm (?:last|yesterday|this)|hail (?:last|yesterday|this))\b/i],
-];
 const DAMAGE = {
   roofing: /\b(leak|leaking|drip|dripping|water|shingles?|tiles?|hail damage|damage|missing|crack|hole|gutter|flashing|stain|ceiling|attic|blown|lifted)\b/i,
   medspa: /\b(skin|acne|breakouts?|spots|dull|dry|wrinkles?|lines|tone|pores|scars?|redness)\b/i,
 };
-const DAY_WORD = /\b(today|tomorrow|mon|tue|wed|thu|fri|sat|sun)[a-z]*\b/i;
 
 function qualifyOnly(trade, caseState) {
   if (trade === "medspa") {
@@ -529,13 +521,6 @@ function answerFrom(o, tenant, trade, text = "") {
   return "";
 }
 
-const THOUGHT = {
-  check_calendar: "They asked about timing. Check real open slots before offering any.",
-  rate_card: "They asked about price. Read the published rates; never invent a total.",
-  business_facts: "They asked about the business. Read what is on record; anything else is unknown.",
-  customer_history: "They referred to an earlier contact. Look up enquiries from this address.",
-  storm_reports: "They asked about the storm. Read the weather-service reports on record.",
-};
 
 export async function agentStep({ trade = "roofing", tenant = {}, messages = [], caseState = {}, observations = [], mustAnswer = false } = {}) {
   const text = ([...messages].reverse().find((m) => m.role === "user")?.content || "").trim();

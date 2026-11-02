@@ -97,3 +97,16 @@ test("a roofer's website prices answer a question that names the service", async
   assert.notEqual(r.extracted.description, "How much is leak detection?");
   assert.deepEqual(TOOLS.rate_card.run({ tenant: site, args: { topic: "shingle repair" } }).servicePrices, [{ name: "Shingle repair", from: 350, to: 900 }]);
 });
+
+test("fast path: the lookups a question needs run first, so the model is called once", async () => {
+  let calls = 0;
+  const counting = { ...mock, agentStep: (a) => (calls++, mock.agentStep(a)) };
+  const r = await turn("How much is it, and can you come tomorrow?", {}, { ai: counting });
+  assert.equal(calls, 1);
+  assert.deepEqual(r.trace.steps.filter((s) => s.tool).map((s) => s.tool).sort(), ["check_calendar", "rate_card"]);
+  assert.ok(r.trace.steps.every((s) => !s.tool || s.prefetched));
+  assert.equal(r.trace.grounded, true);
+  calls = 0;
+  await turn("How much is it?", {}, { ai: counting, data: { ...data, prefetch: false } });
+  assert.equal(calls, 2, "without the fast path the model asks for the lookup first");
+});
