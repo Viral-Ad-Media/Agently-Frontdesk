@@ -22,14 +22,40 @@ const MODELS = {
   voice: "muse-voice-transcribe-1.0",
 };
 
+// Router tiers -> model id. Without overrides every tier is the configured Muse Spark model and only the
+// reasoning effort changes; set VITE_META_TIER_{SMALL,MEDIUM,LARGE}_MODEL to route to different models.
+const TIER_MODEL = {
+  small: import.meta.env.VITE_META_TIER_SMALL_MODEL || MODELS.sparkLight,
+  medium: import.meta.env.VITE_META_TIER_MEDIUM_MODEL || MODELS.spark,
+  large: import.meta.env.VITE_META_TIER_LARGE_MODEL || MODELS.spark,
+};
+const routed = (route, fallback) => ({ model: (route && TIER_MODEL[route.tier]) || fallback.model, effort: route?.effort || fallback.effort });
+const usageOf = (out, model, effort) => ({ model, effort, tokens: out.__usage ? { input: out.__usage.prompt_tokens ?? null, output: out.__usage.completion_tokens ?? null, reasoning: out.__usage.completion_tokens_details?.reasoning_tokens ?? null } : null });
+
 // ----- plumbing -----
 
-async function post(path, body, extra = {}) {
-  const res = await fetch("/api/ai/meta", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ path, body, ...extra }),
-  });
+// A dropped connection or a busy upstream (proxy 502/503/504, 429) is retried twice with a short backoff;
+// any other error (bad request, auth) fails at once. Seen on a home network: parallel connects to the API
+// timing out now and then while a retry a second later succeeds.
+const RETRYABLE = new Set([429, 502, 503, 504]);
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function post(path, body, extra = {}, attempt = 0) {
+  let res;
+  try {
+    res = await fetch("/api/ai/meta", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path, body, ...extra }),
+    });
+  } catch (e) {
+    if (attempt < 2) return pause(700 * (attempt + 1)).then(() => post(path, body, extra, attempt + 1));
+    throw e;
+  }
+  if (RETRYABLE.has(res.status) && attempt < 2) {
+    await pause(700 * (attempt + 1));
+    return post(path, body, extra, attempt + 1);
+  }
   const text = await res.text();
   if (!res.ok) {
     let msg = `Meta API returned ${res.status}`;
@@ -45,7 +71,9 @@ async function post(path, body, extra = {}) {
 }
 
 function section(name) {
-  const re = new RegExp(`^## ${name}[^\\n]*\\n([\\s\\S]*?)(?=^## |\\s*$)`, "m");
+  // Section body up to the next "## " heading or the end of the file. (A bare `\s*$` here used to stop at
+  // the first blank line in multiline mode, which sent every section as an empty string.)
+  const re = new RegExp(`^## ${name}[^\\n]*\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, "m");
   const m = promptsMd.match(re);
   if (!m) throw new Error(`prompts.md has no section "${name}"`);
   return m[1].trim();
@@ -70,11 +98,15 @@ async function sparkJson({ system, user, image = null, schema, name, model = MOD
   });
   const data = JSON.parse(text);
   const raw = data.choices?.[0]?.message?.content ?? "";
+  let parsed;
   try {
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch {
     throw new Error("Muse Spark returned something that was not JSON.");
   }
+  // Token usage rides along (non-enumerable) so each capability can report it to the gateway log.
+  Object.defineProperty(parsed, "__usage", { value: data.usage || null });
+  return parsed;
 }
 
 // ----- SAM 3.1 -----
@@ -128,8 +160,11 @@ export async function segmentDamage({ trade = "roofing", dataUrl } = {}) {
   if (!dataUrl) throw new Error("segmentDamage needs the photo.");
   const concepts = trade === "medspa" ? ["area of skin concern"] : ROOF_CONCEPTS;
   let best = null;
-  const perConcept = await Promise.all(concepts.map((concept) => sam(concept, dataUrl).then((boxes) => boxes.map((b) => ({ ...b, concept })))));
-  for (const b of perConcept.flat()) {
+  // One failed concept no longer sinks the photo: use whichever concepts came back, and fail only if none did.
+  const settled = await Promise.allSettled(concepts.map((concept) => sam(concept, dataUrl).then((boxes) => boxes.map((b) => ({ ...b, concept })))));
+  const ok = settled.filter((r) => r.status === "fulfilled");
+  if (!ok.length) throw settled[0].reason;
+  for (const b of ok.flatMap((r) => r.value)) {
     const score = b.confidence ?? 0.5;
     if (!best || score > best.score) best = { ...b, score };
   }
@@ -145,7 +180,8 @@ export async function segmentDamage({ trade = "roofing", dataUrl } = {}) {
   let reference = null;
   if (trade !== "medspa") {
     const refs = REFERENCE_CONCEPTS.filter((r) => r.knownWidthM);
-    const found = await Promise.all(refs.map((r) => sam(r.concept, dataUrl).then((boxes) => ({ r, boxes }))));
+    // A reference lookup that fails just means no scale reference (percent only), never a failed photo.
+    const found = await Promise.all(refs.map((r) => sam(r.concept, dataUrl).then((boxes) => ({ r, boxes }), () => ({ r, boxes: [] }))));
     for (const { r, boxes } of found) {
       const small = boxes.filter((b) => (b.x2 - b.x1) * (b.y2 - b.y1) < 0.05 * b.w * b.h);
       const top = small.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
@@ -196,15 +232,17 @@ const ASSESS_SCHEMA = {
   required: ["summary", "severity", "material", "failedPart", "workNeeded", "emergency", "serviceMatch", "clinicianFlags", "confidence"],
 };
 
-export async function assess({ trade = "roofing", description = "", urgency = null, segmentation = null, measurement = null, dataUrl = null, tenant = { name: "the business" } } = {}) {
+export async function assess({ trade = "roofing", description = "", urgency = null, segmentation = null, measurement = null, dataUrl = null, tenant = { name: "the business" }, route = null, feedback = null } = {}) {
   const spa = trade === "medspa";
+  const r = routed(route, { model: MODELS.spark, effort: "medium" });
   const out = await sparkJson({
     system: fill(section("assess"), { trade, tenant }) + (spa ? `\n\nMed spa rules:\n${medspaRules()}\nPublished services: ${JSON.stringify((tenant.services || []).map((s) => ({ id: s.id, name: s.name, concerns: s.concerns })))}` : ""),
-    user: JSON.stringify({ description, urgency, segmentation, measurement }),
+    user: JSON.stringify({ description, urgency, segmentation, measurement, ...(feedback?.length ? { reviewerFeedback: feedback, rule: "A separate reviewer rejected your last card for these reasons. Fix each one from the evidence, or say the evidence is missing. Do not just reword." } : {}) }),
     image: dataUrl,
     schema: ASSESS_SCHEMA,
     name: "assessment",
-    effort: "medium",
+    model: r.model,
+    effort: r.effort,
   });
   return {
     summary: String(out.summary || ""),
@@ -216,7 +254,32 @@ export async function assess({ trade = "roofing", description = "", urgency = nu
     serviceMatch: spa ? (out.serviceMatch || []).filter((s) => (tenant.services || []).some((t) => t.id === s.serviceId)) : undefined,
     clinicianFlags: spa ? (out.clinicianFlags || []).map(String) : undefined,
     confidence: clamp(out.confidence, 0, 1),
+    usage: usageOf(out, r.model, r.effort),
   };
+}
+
+// Layer 2: a separate Muse Spark pass that only reads the evidence and the drafted card, and never writes one.
+export async function judgeAssessment({ trade = "roofing", description = "", segmentation = null, measurement = null, assessment = null, quote = null, dataUrl = null, tenant = { name: "the business" }, route = null } = {}) {
+  const r = routed(route, { model: MODELS.spark, effort: "medium" });
+  const out = await sparkJson({
+    system: fill(section("judgeAssessment"), { trade, tenant }),
+    user: JSON.stringify({ evidence: { description, segmentation, measurement }, card: { assessment, quote: quote && { low: quote.low, high: quote.high, lines: quote.lines, reason: quote.reason } } }),
+    image: dataUrl,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        verdict: { type: "string", enum: ["PASS", "FAIL"] },
+        issues: { type: "array", items: { type: "object", additionalProperties: false, properties: { type: { type: "string", enum: ["contradiction", "unsupported", "missing"] }, detail: { type: "string" } }, required: ["type", "detail"] } },
+      },
+      required: ["verdict", "issues"],
+    },
+    name: "judge",
+    model: r.model,
+    effort: r.effort,
+  });
+  const issues = (out.issues || []).map((i) => ({ type: i.type, detail: String(i.detail || "") })).filter((i) => i.detail);
+  return { verdict: out.verdict === "PASS" && issues.length === 0 ? "PASS" : "FAIL", issues, usage: usageOf(out, r.model, r.effort) };
 }
 
 const CONVERSE_SCHEMA = {
@@ -244,29 +307,135 @@ const converseSchemaFor = (trade) => ({
   },
 });
 
-export async function converse({ trade = "roofing", messages = [], caseState = {}, tenant = { name: "the business" } } = {}) {
+export async function converse({ trade = "roofing", messages = [], caseState = {}, tenant = { name: "the business" }, route = null } = {}) {
+  const r = routed(route, { model: MODELS.sparkLight, effort: "low" });
   const out = await sparkJson({
     system: fill(section("converse"), { trade, tenant }) + (trade === "medspa" ? `\n\nMed spa rules:\n${medspaRules()}` : ""),
     user: JSON.stringify({ conversation: messages, caseState, rule: trade === "medspa" ? "Order: ask_description, then ask_consent (photo optional), then ask_photo, then assess. Never ask for an address." : "Order: ask_description, then ask_address, then ask_photo, then assess. If caseState.address is filled and there is no photo, nextAction is ask_photo. Never ask for consent." }),
     schema: converseSchemaFor(trade),
     name: "turn",
-    model: MODELS.sparkLight,
+    model: r.model,
+    effort: r.effort,
   });
   const extracted = {};
   for (const k of ["description", "address", "urgency", "intent"]) if (out.extracted?.[k]) extracted[k] = String(out.extracted[k]);
-  return { reply: String(out.reply || ""), extracted, nextAction: out.nextAction || "none" };
+  return { reply: String(out.reply || ""), extracted, nextAction: out.nextAction || "none", usage: usageOf(out, r.model, r.effort) };
 }
 
-export async function reactivateMessage({ lead = {}, tenant = { name: "the business" } } = {}) {
+// The desk agent: one plan-act-observe step. Returns a tool call or the answer (see prompts.md#agentStep).
+const TOOL_NAMES = ["check_calendar", "rate_card", "business_facts", "customer_history", "storm_reports"];
+export async function agentStep({ trade = "roofing", tenant = { name: "the business" }, messages = [], caseState = {}, observations = [], tools = [], mustAnswer = false, route = null } = {}) {
+  const r = routed(route, { model: MODELS.sparkLight, effort: "low" });
+  const base = converseSchemaFor(trade);
   const out = await sparkJson({
-    system: fill(section("reactivateMessage"), { tenant }),
-    user: JSON.stringify({ lead: { firstName: lead.firstName, name: lead.name, history: lead.history || [], serviceType: lead.serviceType } }),
+    system: fill(section("agentStep"), { trade, tenant }) + "\n\nQualifying rules:\n" + fill(section("converse"), { trade, tenant }) + (trade === "medspa" ? `\n\nMed spa rules:\n${medspaRules()}` : ""),
+    user: JSON.stringify({ conversation: messages, caseState, tools, observations, mustAnswer }),
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        thought: { type: "string" },
+        action: { type: "string", enum: mustAnswer ? ["answer"] : ["tool", "answer"] },
+        tool: { type: ["string", "null"], enum: [...TOOL_NAMES, null] },
+        args: { type: "object", additionalProperties: false, properties: { day: { type: ["string", "null"] }, topic: { type: ["string", "null"] } }, required: ["day", "topic"] },
+        reply: { type: "string" },
+        extracted: base.properties.extracted,
+        nextAction: base.properties.nextAction,
+      },
+      required: ["thought", "action", "tool", "args", "reply", "extracted", "nextAction"],
+    },
+    name: "agent_step",
+    model: r.model,
+    effort: r.effort,
+  });
+  const extracted = {};
+  for (const k of ["description", "address", "urgency", "intent"]) if (out.extracted?.[k]) extracted[k] = String(out.extracted[k]);
+  return { action: out.action === "tool" && out.tool ? "tool" : "answer", tool: out.tool, args: out.args || {}, thought: String(out.thought || ""), reply: String(out.reply || ""), extracted, nextAction: out.nextAction || "none", usage: usageOf(out, r.model, r.effort) };
+}
+
+export async function reactivateMessage({ lead = {}, tenant = { name: "the business" }, storm = null } = {}) {
+  const out = await sparkJson({
+    system: fill(section("reactivateMessage"), { tenant }) + (storm ? `\n\nStorm check-in:\n${section("stormCheckin")}` : ""),
+    user: JSON.stringify({ lead: { firstName: lead.firstName, name: lead.name, history: lead.history || [], serviceType: lead.serviceType }, ...(storm ? { storm } : {}) }),
     schema: { type: "object", additionalProperties: false, properties: { message: { type: "string" }, generic: { type: "boolean" } }, required: ["message", "generic"] },
     name: "reopener",
     model: MODELS.sparkLight,
   });
-  const generic = !Array.isArray(lead.history) || lead.history.length === 0 || out.generic === true;
+  const generic = !storm && (!Array.isArray(lead.history) || lead.history.length === 0 || out.generic === true);
   return { message: String(out.message || ""), generic };
+}
+
+// ----- Talk to your desk -----
+
+export async function deskCommand({ utterance = "", snapshot = {}, tenant = { name: "the business" } } = {}) {
+  const ids = [...(snapshot.quotes || []), ...(snapshot.reopeners || [])].map((x) => x.id);
+  const out = await sparkJson({
+    system: fill(section("deskCommand"), { tenant }),
+    user: JSON.stringify({ owner_said: utterance, desk: snapshot }),
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        intent: { type: "string", enum: ["brief", "approve_quote", "send_quote", "approve_reopener", "send_reopener", "none"] },
+        targetId: { type: ["string", "null"] },
+        reply: { type: "string" },
+      },
+      required: ["intent", "targetId", "reply"],
+    },
+    name: "desk",
+    model: MODELS.sparkLight,
+  });
+  // The model may only point at something that is on the desk.
+  const targetId = ids.includes(out.targetId) ? out.targetId : null;
+  return { intent: out.intent || "none", targetId, reply: String(out.reply || "") };
+}
+
+// ----- Instant setup -----
+
+const NULLABLE_NUM = { type: ["number", "null"] };
+const SETUP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    name: { type: "string" },
+    trade: { type: "string", enum: ["roofing", "medspa", "unsupported"] },
+    tradeLabel: { type: "string" },
+    serviceArea: { type: ["string", "null"] },
+    summary: { type: "string" },
+    services: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { name: { type: "string" }, priceLow: NULLABLE_NUM, priceHigh: NULLABLE_NUM, keywords: { type: "array", items: { type: "string" } }, evidence: { type: "string" } },
+        required: ["name", "priceLow", "priceHigh", "keywords", "evidence"],
+      },
+    },
+    greeting: { type: "string" },
+    heroTitle: { type: "string" },
+    heroText: { type: "string" },
+    placeholder: { type: "string" },
+    evidence: { type: "array", items: { type: "object", additionalProperties: false, properties: { field: { type: "string" }, quote: { type: "string" } }, required: ["field", "quote"] } },
+    confidence: { type: "number" },
+  },
+  required: ["name", "trade", "tradeLabel", "serviceArea", "summary", "services", "greeting", "heroTitle", "heroText", "placeholder", "evidence", "confidence"],
+};
+
+export async function setupTenant({ site = {} } = {}) {
+  const out = await sparkJson({
+    system: section("setupTenant"),
+    user: JSON.stringify({ url: site.url, title: site.title, siteName: site.siteName, description: site.description, text: String(site.text || "").slice(0, 9000) }),
+    schema: SETUP_SCHEMA,
+    name: "tenant",
+  });
+  // Keep only prices that actually appear in the site text: a number the model wrote that the site never printed is dropped.
+  const printed = new Set((String(site.text || "").match(/\$\s?\d[\d,]*/g) || []).map((p) => Number(p.replace(/[^\d]/g, ""))));
+  const services = (out.services || []).slice(0, 10).map((sv) => ({
+    ...sv,
+    priceLow: printed.has(Number(sv.priceLow)) ? Number(sv.priceLow) : null,
+    priceHigh: printed.has(Number(sv.priceHigh)) ? Number(sv.priceHigh) : printed.has(Number(sv.priceLow)) ? Number(sv.priceLow) : null,
+  }));
+  return { ...out, services, confidence: clamp(out.confidence, 0, 1) };
 }
 
 // ----- Muse Image -----
@@ -291,6 +460,30 @@ export async function renderReportVisual(input) {
   const item = (data.output || []).find((o) => o.type === "image_generation_call" && o.result);
   if (!item) throw new Error("Muse Image returned no image.");
   // Muse Image returns WebP today; sniff the magic bytes so the data URL has the right type.
+  const mime = item.result.startsWith("UklGR") ? "image/webp" : item.result.startsWith("/9j/") ? "image/jpeg" : "image/png";
+  return { imageDataUrl: `data:${mime};base64,${item.result}` };
+}
+
+// "See it fixed": Muse Image edits the customer's own photo to show the roof after the repair.
+// Roofing only; the UI labels the result as an illustration, never a promise.
+export async function previewRepair({ photoDataUrl, segmentation, tenant }) {
+  const area = (segmentation?.regions || []).map((r) => r.label).filter(Boolean).join(", ") || "the outlined damage";
+  const text = await post("responses", {
+    model: MODELS.image,
+    input: [
+      {
+        type: "message",
+        role: "user",
+        content: [
+          { type: "input_text", text: fill(section("previewRepair"), { tenant: tenant || {}, area }) },
+          { type: "input_image", image_url: photoDataUrl },
+        ],
+      },
+    ],
+  });
+  const data = JSON.parse(text);
+  const item = (data.output || []).find((o) => o.type === "image_generation_call" && o.result);
+  if (!item) throw new Error("Muse Image returned no image.");
   const mime = item.result.startsWith("UklGR") ? "image/webp" : item.result.startsWith("/9j/") ? "image/jpeg" : "image/png";
   return { imageDataUrl: `data:${mime};base64,${item.result}` };
 }

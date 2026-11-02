@@ -6,7 +6,7 @@ Timing is for a 3:00 cut. Record at 1440×900 for the desktop shots and 390×844
 
 ## 0:00–0:20 · The leak
 
-**Screen:** home page on a phone, then the chat.
+**Screen:** the roofer site at `/site` on a phone, then the chat. (The main URL `/` is now the Agently product page; open it at the start or the end of the video.)
 **Voice:** "Small trade businesses lose the work they already paid to win, in the first five minutes. A homeowner's roof is leaking after a storm. The roofer is on a roof. This is Agently Front Desk: the AI front desk that answers now, assesses the damage from a photo, drafts a price range, books the visit, and never sends a price without a human."
 
 ## 0:20–1:05 · Photo to assessment
@@ -21,8 +21,8 @@ Timing is for a 3:00 cut. Record at 1440×900 for the desktop shots and 390×844
 
 ## 1:25–1:55 · The owner's one screen
 
-**Screen:** the Front desk. The lead card, "Awaiting approval". Tap Approve, tap Send. Switch to the customer chat: "Sent · confirmed range". Then "Correct the outline": drag a point, save, the range recomputes.
-**Voice:** "Everything lands on one screen. The owner approves, edits or sends with one tap; nothing goes to the customer without it. If the outline is weak, the owner drags it right and the measurement and price recompute from the maths."
+**Screen:** the Front desk. The lead card shows "Verified" and "Awaiting approval". Open "Assessment": the Verification panel shows the milestone chips, Layer 1 checks, the 6/6 checklist against the 80% bar, the Muse Spark reviewer's PASS, and the router line with each AI call. Tap Approve, tap Send. Switch to the customer chat: "Sent · confirmed range". Optional cut: the rehearsed "gutter" job is red, "Escalated to you", shows "Review 3: FAIL", and needs a written reason to approve.
+**Voice:** "Everything lands on one screen, and it shows its working. Coded checks, a checklist proven only by the photo, and a second Muse Spark pass that reviews the first. When the photo and the story disagree, it retries, then hands the job to a person instead of guessing. Nothing reaches the customer without the owner's sign-off."
 
 ## 1:55–2:25 · Dead leads back to revenue
 

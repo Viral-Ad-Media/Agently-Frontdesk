@@ -83,9 +83,9 @@ export const TENANTS = {
 export const DEFAULT_TENANT = "summit-ridge";
 
 // Slots for the next five working days, three per day, per tenant. Each slot books at most one case.
-export function seedSlots(now = new Date()) {
+export function seedSlots(now = new Date(), tenants = TENANTS) {
   const slots = [];
-  for (const tenantId of Object.keys(TENANTS)) {
+  for (const tenantId of Object.keys(tenants)) {
     const d = new Date(now);
     d.setHours(0, 0, 0, 0);
     let days = 0;
@@ -107,7 +107,7 @@ export function seedSlots(now = new Date()) {
           tenantId,
           start: start.toISOString(),
           end: end.toISOString(),
-          kind: TENANTS[tenantId].words.visit,
+          kind: tenants[tenantId].words.visit,
           caseId: null,
         });
       }
@@ -160,6 +160,7 @@ export function seedState() {
     cases: [],
     slots: seedSlots(),
     leads: seedLeads(),
+    stormRuns: [],
     gatewayLog: [],
   };
 }

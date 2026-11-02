@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. No keys are needed for the mock provider. Copy `.env.example` to `.env.local` to change `VITE_AI_PROVIDER`.
+Open http://localhost:5173. No keys are needed for the mock provider. Set `VITE_AI_PROVIDER` (and the optional router and price variables above) in `.env.local`.
 
 On Windows PowerShell with script execution disabled, use `npm.cmd` instead of `npm`.
 
@@ -38,6 +38,73 @@ Rehearsal photos: `public/demo/roof-test.jpg` (reference object in frame) and `p
 
 "Reset demo data" on the Front desk clears everything.
 
+## Verification, routing and the eval set (Meta workshop lessons)
+
+Built on 2 Nov 2026 from the Agents 101, Agents 102 and Fireworks sessions. Everything below shows on the job's **Assessment** view on `/frontdesk`.
+
+**Plan, act, verify** (`src/lib/pipeline.js`, shared by the chat and the eval):
+1. The router picks a tier and effort, and Muse Spark drafts the assessment card. The price always comes from the rate card, never from the model.
+2. A **separate reviewer pass** (`judgeAssessment`, Muse Spark) reads only the evidence and the card. It returns PASS, or FAIL with typed issues: contradiction, unsupported or missing.
+3. On FAIL, the issues are fed back and the draft is retried one tier up. After 3 failed reviews the job is **escalated to a person** instead of looping.
+
+**Three layers, visible on screen** (`src/lib/verify.js`):
+- **Layer 1, coded checks.** Each one has its exact reason, and they run at four milestones: capture, assessment, quote and booking. The checks:
+  - details present
+  - usable photo
+  - damage outlined, or "segmentation failed, escalate"
+  - no area claimed without a reference object
+  - quote lines add up and the rates are on the rate card
+  - slot real, free and in the future
+  - no banned content
+- **Checklist vs evidence.** There is one checklist per trade in `src/config/policy.js`. Each item is PROVEN, NOT PROVEN (with the gap named) or ESCALATED, and items are compared with a tunable coverage bar (80% for roofing). Items the quote rests on (damage, material) or the consent rests on are required whatever the bar. The reference is the evidence itself: photo, description, rate card and slot list. There is no hidden answer key.
+- **Layer 2:** the reviewer pass above.
+- **Layer 3, human sign-off.**
+  - Approve works directly only on a verified job. Any other job needs "Review & approve" with a written reason.
+  - Reject also needs a reason.
+  - Every step, edit and reason goes into the audit trail on the job.
+  - The customer's range is held until the job verifies or a person signs it off.
+
+**Router** (`src/lib/router.js`):
+
+| Task | Tier | Effort | Human review |
+|---|---|---|---|
+| Chat turns, re-openers, voice desk | small | low | no |
+| Clear single-problem assessment, reviewer pass | medium | low (was medium; a medium-effort review took 34 s on Meta) | no |
+| Safety hazard, photo vs description conflict, several problems | large | high | forced |
+| Retry after a failed review | next tier up | higher | after 3 failures |
+
+Model ids come from env (`VITE_META_TIER_SMALL_MODEL`, `_MEDIUM_`, `_LARGE_`). Without them, every tier uses the configured Muse Spark model and only the reasoning effort changes; nothing invents a model name. Every call is logged per job with model, tier, effort, tokens, latency and router reason. Cost appears only when `VITE_META_PRICE_IN_PER_M` and `VITE_META_PRICE_OUT_PER_M` are set. It is never estimated.
+
+**Eval set** (`src/eval/jobs.js`) has 14 synthetic jobs:
+- 3 clear roofing jobs.
+- 8 edge cases: blurry photo, no reference, missing address, description contradicts photo, price off the rate card, sparks near water, unsure material, two problems in one photo.
+- 3 med spa jobs, one with no consent recorded.
+
+To run it:
+- `npm run eval` runs the mock and writes [docs/EVAL.md](docs/EVAL.md), currently 14/14.
+- `/eval` runs the same jobs live through the gateway, so on Meta it records real tokens and time.
+
+Plumbing, carpentry and bricklaying are not built in this submission.
+
+**Rehearse the failure on purpose:** start a chat with "The gutter is hanging off the front of the house and water pours down the wall", then add `public/demo/roof-test.jpg`. Here is what happens:
+1. The reviewer flags the contradiction 3 times.
+2. The customer is told a person is checking it.
+3. The job shows "Escalated to you" on the dashboard and needs a reason to approve.
+
+## The desk agent: plan, look up, answer
+
+Each customer message runs a short plan-act-observe loop (`src/lib/agent.js`, at most 3 lookups). Muse Spark either calls one tool or answers:
+
+| Tool | Reads |
+|---|---|
+| `check_calendar` | Real open slots for the next 7 days, optionally on a named day |
+| `rate_card` | Published roofing rates per m², labour per hour and service prices printed on the business's website (never a job total), or the med spa menu |
+| `business_facts` | Name, service area, first visit, the setup summary and the quotes read from the business's own website at setup. Anything else is "not on my record" |
+| `customer_history` | Earlier enquiries from the same address |
+| `storm_reports` | Weather-service storm reports on record |
+
+Fast path: the lookups a question plainly needs (picked from its wording by `planLookups`) run in code before the model is called, so a question like "how much, and can you come tomorrow?" takes one Muse Spark call instead of two or three. The model can still ask for a lookup the planner missed. The answer may state only facts a tool returned. A coded grounding check holds back any clock time or dollar figure that no lookup, no earlier message and no approved quote contains. The customer sees small "Checked the calendar" chips under a reply. The owner sees "How the desk answered" on the lead: each plan, each lookup and what it found, and whether the reply passed grounding. A question is never taken as the job description or the address, and the desk carries on qualifying the job after answering. Tests: `tests/agent.test.js` (10) and the "smart desk" e2e journey.
+
 ## Layout
 
 - `src/gateway/` — the AI Gateway: `segmentDamage`, `assess`, `converse`, `reactivateMessage`, `renderReportVisual`, `transcribeCall`. Providers: `mock` (deterministic), `initial` (Phase 1), `meta` (Phase 4). Every call is logged with capability, latency and provider.
@@ -51,7 +118,8 @@ Rehearsal photos: `public/demo/roof-test.jpg` (reference object in frame) and `p
 ## Checks
 
 ```bash
-npm test        # Eye maths, quote rules, gateway contract against the mock provider
+npm test        # Eye maths, quote rules, verification, router, gateway contract against the mock provider
+npm run eval    # the 14-job eval set on the mock; writes docs/EVAL.md
 npm run lint
 npm run build
 ```
