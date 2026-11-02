@@ -15,6 +15,7 @@ import LiveEye from "@/components/frontdesk/LiveEye";
 import ConsentCard from "@/components/frontdesk/ConsentCard";
 import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
 import AssessmentCard from "@/components/frontdesk/AssessmentCard";
+import RepairPreview from "@/components/frontdesk/RepairPreview";
 import EmergencyBanner from "@/components/frontdesk/EmergencyBanner";
 import SlotPicker, { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 import PhotoCheck from "@/components/frontdesk/PhotoCheck";
@@ -287,6 +288,7 @@ export default function Chat() {
                     <>
                       <EmergencyBanner emergency={c.assessment?.emergency} />
                       <AssessmentCard segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} compact />
+                      <RepairPreview c={c} tenant={tenant} />
                     </>
                   )}
                   {m.kind === "booking" && bookedSlot && (

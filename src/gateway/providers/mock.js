@@ -365,3 +365,54 @@ export async function setupTenant({ site = {} } = {}) {
     confidence: trade === "unsupported" ? 0.3 : 0.6,
   };
 }
+
+// "See it fixed" (rehearsal): paints matching new shingles over the outlined damage on the customer's own
+// photo, so the before/after flow can be rehearsed offline. Muse Image does the real edit on the meta provider.
+export async function previewRepair({ photoDataUrl, segmentation } = {}) {
+  await wait(1400);
+  const img = await loadImage(photoDataUrl);
+  const W = Math.min(1200, img.width);
+  const H = Math.round(img.height * (W / img.width));
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, W, H);
+
+  // Average tone of the whole photo, darkened, as the new-shingle colour.
+  const sample = ctx.getImageData(0, 0, W, H).data;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < sample.length; i += 4 * 97) {
+    r += sample[i];
+    g += sample[i + 1];
+    b += sample[i + 2];
+    n++;
+  }
+  const base = [r / n, g / n, b / n].map((v) => Math.round(v * 0.55));
+
+  for (const region of segmentation?.regions || []) {
+    const pts = (region.polygon || []).map(([x, y]) => [(x / 1000) * W, (y / 1000) * H]);
+    if (pts.length < 3) continue;
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.clip();
+    const row = Math.max(8, Math.round(H / 60));
+    const tab = row * 2.4;
+    for (let y = y0 - row, k = 0; y < y1 + row; y += row, k++) {
+      for (let x = x0 - tab + (k % 2) * (tab / 2); x < x1 + tab; x += tab) {
+        const j = ((Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1) * 14;
+        ctx.fillStyle = `rgb(${base[0] + j},${base[1] + j},${base[2] + j})`;
+        ctx.fillRect(x, y, tab - 1.5, row - 1.5);
+      }
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.fillRect(x0 - tab, y + row - 1.5, x1 - x0 + tab * 2, 1.5);
+    }
+    ctx.restore();
+  }
+  return { imageDataUrl: canvas.toDataURL("image/jpeg", 0.85) };
+}

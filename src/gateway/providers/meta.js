@@ -345,6 +345,30 @@ export async function renderReportVisual(input) {
   return { imageDataUrl: `data:${mime};base64,${item.result}` };
 }
 
+// "See it fixed": Muse Image edits the customer's own photo to show the roof after the repair.
+// Roofing only; the UI labels the result as an illustration, never a promise.
+export async function previewRepair({ photoDataUrl, segmentation, tenant }) {
+  const area = (segmentation?.regions || []).map((r) => r.label).filter(Boolean).join(", ") || "the outlined damage";
+  const text = await post("responses", {
+    model: MODELS.image,
+    input: [
+      {
+        type: "message",
+        role: "user",
+        content: [
+          { type: "input_text", text: fill(section("previewRepair"), { tenant: tenant || {}, area }) },
+          { type: "input_image", image_url: photoDataUrl },
+        ],
+      },
+    ],
+  });
+  const data = JSON.parse(text);
+  const item = (data.output || []).find((o) => o.type === "image_generation_call" && o.result);
+  if (!item) throw new Error("Muse Image returned no image.");
+  const mime = item.result.startsWith("UklGR") ? "image/webp" : item.result.startsWith("/9j/") ? "image/jpeg" : "image/png";
+  return { imageDataUrl: `data:${mime};base64,${item.result}` };
+}
+
 // ----- Muse Voice Transcribe -----
 
 // audio: { base64, mimeType } of a mono 16-bit WAV. The proxy turns it into the multipart request.
