@@ -161,7 +161,7 @@ export default function Chat() {
       setPending(null);
       setBusy(true);
       setFailure(null);
-      updateCase(caseId, { photo: { dataUrl: photo.dataUrl, width: photo.width, height: photo.height, name: photo.name, fromVideo: photo.fromVideo, quality: photo.quality, sensor: photo.sensor || null } });
+      updateCase(caseId, { photo: { dataUrl: photo.dataUrl, width: photo.width, height: photo.height, name: photo.name, fromVideo: photo.fromVideo, quality: photo.quality, sensor: photo.sensor || null, at: new Date().toISOString() } });
       appendMessage(caseId, { role: "user", content: spa ? "Here's a photo of the area." : "Here's a photo of the damage.", photo: true });
       const run = async () => {
         setBusy(true);

@@ -13,7 +13,7 @@
 //   converse({ trade, messages, caseState, tenant })
 //     -> { reply, extracted: { description?, address?, urgency?, intent? },
 //          nextAction: "ask_description"|"ask_address"|"ask_consent"|"ask_photo"|"assess"|"none" }
-//   reactivateMessage({ lead, tenant }) -> { message, generic: boolean }
+//   reactivateMessage({ lead, tenant, storm? }) -> { message, generic: boolean }   (storm: { event, area, when, hailIn, windMph })
 //   renderReportVisual({ photoDataUrl, segmentation, assessment, quote, tenant }) -> { imageDataUrl }
 //   transcribeCall({ audio }) -> { transcript, segments: [] }
 //
@@ -216,9 +216,17 @@ export async function converse({ trade = "roofing", messages = [], caseState = {
   return { reply: "I've got everything I need. Here is the assessment.", extracted, nextAction: "assess" };
 }
 
-export async function reactivateMessage({ lead = {}, tenant = {} } = {}) {
+export async function reactivateMessage({ lead = {}, tenant = {}, storm = null } = {}) {
   await wait(500);
   const who = tenant.name || "the team";
+  if (storm) {
+    // Storm check-in: name the storm the weather service reported, offer a free photo check, never claim damage.
+    const facts = [storm.hailIn ? `${storm.hailIn} in hail` : "", storm.windMph ? `${storm.windMph} mph gusts` : ""].filter(Boolean).join(" and ");
+    return {
+      message: `Hi ${lead.firstName || lead.name}, it's ${who}. The weather service reported ${facts || "a severe storm"} over ${storm.area || "your area"} ${storm.when || "recently"}. Want a free photo check of your roof? Reply YES and we'll book a time.`,
+      generic: false,
+    };
+  }
   const hasHistory = Array.isArray(lead.history) && lead.history.length > 0;
   if (!hasHistory) {
     return { message: `Hi${lead.firstName ? ` ${lead.firstName}` : ""}, it's ${who}. Is this still on your list? Happy to book a quick look whenever suits.`, generic: true };
