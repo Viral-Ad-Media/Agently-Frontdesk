@@ -103,7 +103,7 @@ Each customer message runs a short plan-act-observe loop (`src/lib/agent.js`, at
 | `customer_history` | Earlier enquiries from the same address |
 | `storm_reports` | Weather-service storm reports on record |
 
-The answer may state only facts a tool returned. A coded grounding check holds back any clock time or dollar figure that no lookup, no earlier message and no approved quote contains. The customer sees small "Checked the calendar" chips under a reply. The owner sees "How the desk answered" on the lead: each plan, each lookup and what it found, and whether the reply passed grounding. A question is never taken as the job description or the address, and the desk carries on qualifying the job after answering. Tests: `tests/agent.test.js` (9) and the "smart desk" e2e journey.
+Fast path: the lookups a question plainly needs (picked from its wording by `planLookups`) run in code before the model is called, so a question like "how much, and can you come tomorrow?" takes one Muse Spark call instead of two or three. The model can still ask for a lookup the planner missed. The answer may state only facts a tool returned. A coded grounding check holds back any clock time or dollar figure that no lookup, no earlier message and no approved quote contains. The customer sees small "Checked the calendar" chips under a reply. The owner sees "How the desk answered" on the lead: each plan, each lookup and what it found, and whether the reply passed grounding. A question is never taken as the job description or the address, and the desk carries on qualifying the job after answering. Tests: `tests/agent.test.js` (10) and the "smart desk" e2e journey.
 
 ## Layout
 
