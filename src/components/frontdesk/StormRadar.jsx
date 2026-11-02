@@ -6,6 +6,7 @@ import { STATUS_LABEL } from "@/lib/quote";
 import { fetchLiveStorms, rehearsalStorm, customersInStorm, stormWhen, leadArea } from "@/lib/storm";
 import ProviderBadge from "@/components/shared/ProviderBadge";
 import StormMap from "@/components/frontdesk/StormMap";
+import Panel from "@/components/frontdesk/Panel";
 
 const fmtClock = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" }) : "unknown");
@@ -13,7 +14,7 @@ const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString("en-US", { weekday:
 // Storm Radar: live severe-weather alerts on a map with the roofer's customers. When a storm path covers
 // customers, one tap drafts a personal check-in for each; opt-outs are excluded and counted; the owner
 // approves and sends; a reply that books lands on the calendar carrying the storm for the claim pack.
-export default function StormRadar({ tenant }) {
+export default function StormRadar({ tenant, className = "" }) {
   const allLeads = useStore((s) => s.leads);
   const runs = useStore((s) => s.stormRuns);
   const leads = allLeads.filter((l) => l.tenantId === tenant.id);
@@ -79,23 +80,23 @@ export default function StormRadar({ tenant }) {
   };
 
   return (
-    <section aria-label="Storm radar">
-      <div className="fd-section-head">
-        <div className="min-w-0">
-          <h2 className="fd-section-title">Storm radar</h2>
-          <p className="fd-section-meta mt-0.5">
-            {live.state === "loading" && "Checking the National Weather Service for Texas…"}
-            {live.state === "ok" && (live.storms.length ? `${live.storms.length} live storm alert${live.storms.length === 1 ? "" : "s"} with a path in Texas` : "No live storm warnings with a path in Texas right now")}
-            {live.state === "error" && `Live alerts unavailable: ${live.error}`}
-            {live.at && ` · checked ${fmtClock(live.at)}`}
-          </p>
-        </div>
+    <Panel
+      title="Storm radar"
+      className={className}
+      meta={
+        <>
+          {live.state === "loading" && "Checking the National Weather Service for Texas…"}
+          {live.state === "ok" && (live.storms.length ? `${live.storms.length} live storm alert${live.storms.length === 1 ? "" : "s"} with a path in Texas` : "No live storm warnings in Texas right now")}
+          {live.state === "error" && `Live alerts unavailable: ${live.error}`}
+          {live.at && ` · checked ${fmtClock(live.at)}`}
+        </>
+      }
+      action={
         <button type="button" onClick={load} disabled={live.state === "loading"} className="fd-btn-outline fd-btn-sm">
-          <RefreshCw className={`h-4 w-4 ${live.state === "loading" ? "animate-spin" : ""}`} strokeWidth={1.75} /> Check now
+          <RefreshCw className={`h-4 w-4 ${live.state === "loading" ? "animate-spin" : ""}`} strokeWidth={1.75} /> <span className="hidden sm:inline">Check now</span>
         </button>
-      </div>
-
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      }
+    >
       <div className="no-scrollbar flex gap-2 overflow-x-auto p-3" role="radiogroup" aria-label="Pick a storm">
         {options.map((s) => {
           const on = s.id === storm.id;
@@ -182,8 +183,7 @@ export default function StormRadar({ tenant }) {
           </ul>
         </div>
       )}
-      </div>
-    </section>
+    </Panel>
   );
 }
 
