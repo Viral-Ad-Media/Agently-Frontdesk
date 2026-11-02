@@ -179,7 +179,7 @@ export default function DeskAssistant() {
                   <p className="text-[15px] leading-relaxed text-foreground/80">Ask out loud or type, between jobs. I can brief you and approve or send what's waiting. Nothing is approved or sent until you say yes.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {chips.map((c) => (
-                      <button key={c} type="button" onClick={() => handle(c)} className="max-w-full truncate rounded-full bg-secondary px-3.5 py-2 text-[14px] font-medium text-foreground transition-colors duration-200 ease-ios hover:bg-[hsl(240_9%_90%)] active:scale-[0.97]">
+                      <button key={c} type="button" onClick={() => handle(c)} className="max-w-full truncate rounded-full bg-secondary px-3.5 py-2 text-[14px] font-medium text-foreground transition-colors duration-200 ease-ios hover:bg-[hsl(var(--secondary-hover))] active:scale-[0.97]">
                         {c}
                       </button>
                     ))}
@@ -234,7 +234,7 @@ export default function DeskAssistant() {
                   disabled={busy && !listening}
                   aria-label={listening ? "Stop listening" : "Talk"}
                   aria-pressed={listening}
-                  className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors duration-200 ease-ios active:scale-95 disabled:opacity-50 ${listening ? "bg-[hsl(var(--ios-red))] text-white" : "bg-secondary text-foreground hover:bg-[hsl(240_9%_90%)]"}`}
+                  className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full transition-colors duration-200 ease-ios active:scale-95 disabled:opacity-50 ${listening ? "bg-[hsl(var(--ios-red))] text-white" : "bg-secondary text-foreground hover:bg-[hsl(var(--secondary-hover))]"}`}
                 >
                   {listening && <span className="absolute inset-0 rounded-full bg-[hsl(var(--ios-red)/0.35)]" style={{ transform: `scale(${1 + level * 0.6})`, transition: "transform 100ms linear" }} aria-hidden />}
                   {listening ? <Square className="relative h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
