@@ -23,6 +23,7 @@ import EmergencyBanner from "@/components/frontdesk/EmergencyBanner";
 import SlotPicker, { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 import PhotoCheck from "@/components/frontdesk/PhotoCheck";
 import VoiceOrb from "@/components/frontdesk/VoiceOrb";
+import TypingDots from "@/components/shared/TypingDots";
 import ReportButton from "@/components/frontdesk/ReportButton";
 
 // The customer's front desk: one case, from first message to booked visit. Chat or voice, same case.
@@ -324,7 +325,7 @@ export default function Chat() {
               {progress}
             </div>
           )}
-          {busy && !progress && <p className="font-spec text-[11px] uppercase text-muted-foreground animate-pulse">Typing…</p>}
+          {busy && !progress && <TypingDots className="w-fit rounded-[18px] rounded-bl-md bg-secondary px-3.5 py-3" />}
 
           {failure && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-[15px]">
