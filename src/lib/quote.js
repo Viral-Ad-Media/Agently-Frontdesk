@@ -16,6 +16,7 @@ export const STATUS_LABEL = {
   awaiting_approval: "Awaiting approval",
   approved: "Approved",
   sent: "Sent",
+  rejected: "Rejected",
 };
 
 // Labour hours scale with the repair area; a small repair still needs a minimum call.

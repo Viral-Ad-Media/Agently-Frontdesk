@@ -136,3 +136,27 @@ test("talk to your desk: brief, then a spoken send waits for yes and moves the q
   await expect(desk.getByText(/^Sent\. 14 Larkspur Lane/)).toBeVisible();
   await expect(page.locator(".fd-pill-ok", { hasText: "Sent" }).first()).toBeVisible();
 });
+
+test("verification: a job whose photo contradicts the description fails review 3 times, is held from the customer and needs a reason to approve", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("The gutter is hanging off the front of the house and water pours down the wall")}`);
+  await replied(page, 1);
+  await page.getByLabel("Message").fill("9 Aspen Court, Lyons");
+  await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible({ timeout: AI });
+  await page.locator('input[type=file]').first().setInputFiles(photo);
+  await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/is checking this one before a range is shared/).first()).toBeVisible({ timeout: AI });
+  await expect(page.getByText(/\$\d+ – \$\d+/)).toHaveCount(0);
+
+  await page.goto(`${BASE}/frontdesk`);
+  await expect(page.getByText("Escalated to you").first()).toBeVisible();
+  await page.getByRole("button", { name: /^Assessment/ }).first().click();
+  await expect(page.getByText(/Review 3: FAIL/)).toBeVisible();
+  await expect(page.getByText(/describes the gutter/).first()).toBeVisible();
+  await page.getByRole("button", { name: /Review & approve/ }).click();
+  const approve = page.getByRole("button", { name: /Approve with reason/ });
+  await expect(approve).toBeDisabled();
+  await page.getByPlaceholder(/Why approve/).fill("Checked by phone: gutter and eave shingles both need work");
+  await approve.click();
+  await expect(page.getByText(/Approved over failed checks: Checked by phone/).first()).toBeVisible();
+});

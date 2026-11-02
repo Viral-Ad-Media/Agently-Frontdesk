@@ -160,22 +160,36 @@ export function appendMessage(id, message) {
 
 // ----- Quote status: one-way, human-tapped only -----
 
-function forward(obj, target, by) {
+function forward(obj, target, by, note = null) {
   const from = QUOTE_STATUSES.indexOf(obj.status);
   const to = QUOTE_STATUSES.indexOf(target);
   if (to <= from) return null;
   if (target === "sent" && obj.status !== "approved") return null;
   obj.status = target;
-  obj.history = [...(obj.history || []), { status: target, at: new Date().toISOString(), by }];
+  obj.history = [...(obj.history || []), { status: target, at: new Date().toISOString(), by, ...(note ? { note } : {}) }];
   return target;
 }
 
 // Moves a quote forward to `target`. Backward moves are refused; the AI never calls this.
-export function moveQuote(id, target) {
+// `override` is the owner's reason for approving a job that has not verified (Layer 3 sign-off with a reason).
+export function moveQuote(id, target, { override = null } = {}) {
   return update((s) => {
     const c = s.cases.find((x) => x.id === id);
     if (!c || !c.quote) return null;
-    return forward(c.quote, target, "owner");
+    const r = forward(c.quote, target, "owner", override ? `Approved over failed checks: ${override}` : null);
+    if (r && override) c.quote.override = { reason: override, at: new Date().toISOString(), by: "owner" };
+    return r;
+  });
+}
+
+// Owner rejects the draft with a reason. The customer is not told a range; the job stays open for a re-draft.
+export function rejectQuote(id, reason) {
+  return update((s) => {
+    const c = s.cases.find((x) => x.id === id);
+    if (!c?.quote || c.quote.status === "sent" || !String(reason || "").trim()) return null;
+    c.quote.status = "rejected";
+    c.quote.history = [...(c.quote.history || []), { status: "rejected", at: new Date().toISOString(), by: "owner", note: String(reason).trim() }];
+    return "rejected";
   });
 }
 
@@ -184,6 +198,7 @@ export function editQuoteRange(id, low, high) {
     const c = s.cases.find((x) => x.id === id);
     if (!c || !c.quote) return;
     if (c.quote.status === "sent") return;
+    c.quote.history = [...(c.quote.history || []), { status: c.quote.status, at: new Date().toISOString(), by: "owner", note: `Range edited from ${c.quote.low == null ? "none" : `$${c.quote.low}–$${c.quote.high}`} to $${Math.round(low)}–$${Math.round(high)}` }];
     c.quote.low = Math.round(low);
     c.quote.high = Math.round(high);
     c.quote.total = Math.round((low + high) / 2);
