@@ -1,5 +1,5 @@
-/* iPhone type: SF Pro on Apple devices (system font), Inter elsewhere as the closest match. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+/* Type: Instrument Serif (self-hosted, imported in main.jsx) is the brand face for large display headlines only.
+   UI text stays the platform's own system font: SF Pro on Apple devices, Segoe UI / Roboto elsewhere. No Inter. */
 
 @tailwind base;
 @tailwind components;
@@ -47,9 +47,9 @@
         --chart-4: 38 70% 55%;
         --chart-5: 27 60% 50%;
         --radius: 18px;
-        --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
-        --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
-        --font-display: var(--font-heading);
+        --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Roboto, sans-serif;
+        --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+        --font-display: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
         --font-accent: var(--font-heading);
         --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
         --sidebar-background: 0 0% 100%;
@@ -196,6 +196,122 @@
     .no-scrollbar {
         scrollbar-width: none;
     }
+}
+
+/* ---- UI/CSS skill techniques (Ania Kubow tips). CSS first; every one has a plain fallback and a reduced-motion path. ---- */
+
+/* Display headline: the brand serif, slightly tightened. Real text, no images of text. */
+.font-display-tight {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+}
+
+/* #21 Scroll-driven entrance: no IntersectionObserver, no JS. Unsupported browsers and reduced motion
+   simply show the content in place, so nothing ever waits to be readable. */
+@supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+        .reveal {
+            animation: reveal-in linear both;
+            animation-timeline: view();
+            animation-range: entry 0% entry 55%;
+        }
+        /* The CSS-only 3D moment: the dashboard screenshot starts tilted back in perspective and lays
+           flat as it scrolls into view. No three.js; desktop widths only. */
+        @media (min-width: 768px) {
+            .tilt-in {
+                transform-origin: 50% 0;
+                animation: tilt-flat linear both;
+                animation-timeline: view();
+                animation-range: entry 0% cover 40%;
+            }
+        }
+    }
+}
+
+@keyframes reveal-in {
+    from { opacity: 0; translate: 0 var(--reveal-y, 20px); }
+    to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes tilt-flat {
+    from { transform: perspective(1600px) rotateX(16deg) scale(0.94); opacity: 0.55; }
+    to { transform: none; opacity: 1; }
+}
+
+/* #8 Premium card shine: one slow, soft light sweep on hover or keyboard focus. */
+.card-shine {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+}
+.card-shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.07) 48%, rgba(255, 255, 255, 0.02) 56%, transparent 70%);
+    translate: -110% 0;
+    transition: translate 1.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.card-shine:hover::after,
+.card-shine:focus-within::after {
+    translate: 110% 0;
+}
+
+/* #25 AI voice orb: two stacked conic gradients, blurred, turning at different speeds.
+   Brand orange family only (no blue/purple wash). data-state speeds it up while listening or speaking. */
+.ai-orb {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: 9999px;
+    background: hsl(var(--primary-deep));
+}
+.ai-orb::before,
+.ai-orb::after {
+    content: "";
+    position: absolute;
+    inset: -30%;
+    border-radius: 9999px;
+    filter: blur(5px);
+    animation: orb-spin var(--orb-speed, 7s) linear infinite;
+}
+.ai-orb::before {
+    background: conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--ios-orange)), hsl(var(--ios-red)), hsl(var(--primary)));
+}
+.ai-orb::after {
+    background: conic-gradient(from 90deg, transparent 0 25%, rgba(255, 255, 255, 0.55) 40%, transparent 55% 75%, rgba(255, 214, 160, 0.5) 88%, transparent);
+    mix-blend-mode: screen;
+    animation-direction: reverse;
+    animation-duration: calc(var(--orb-speed, 7s) * 1.6);
+}
+.ai-orb[data-state="listening"] { --orb-speed: 1.6s; }
+.ai-orb[data-state="thinking"] { --orb-speed: 2.4s; }
+.ai-orb[data-state="speaking"] { --orb-speed: 1.1s; }
+
+/* #18 Typing dots: scale and opacity only, staggered delays, no timers. */
+.typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.typing-dots > span {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: typing-dot 1.2s ease-in-out infinite;
+}
+.typing-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots > span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typing-dot {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+    40% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes shimmer {

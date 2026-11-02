@@ -52,36 +52,34 @@ export default function RepairPreview({ c, tenant, className = "" }) {
   );
 }
 
+// #16 Before/after slider, CSS first: the "now" photo is clipped with clip-path: inset() driven by one CSS
+// variable (--pos). A native range input covers the image, so drag, tap and arrow keys all work with no
+// pointer maths and no React re-render; its one job is to write --pos.
 export function BeforeAfter({ before, after, provider, className = "" }) {
-  const [pos, setPos] = useState(50);
   const ref = useRef(null);
-  const moveTo = (clientX) => {
-    const r = ref.current?.getBoundingClientRect();
-    if (!r) return;
-    setPos(Math.max(0, Math.min(100, ((clientX - r.left) / r.width) * 100)));
-  };
+  const setPos = (v) => ref.current?.style.setProperty("--pos", `${v}%`);
   return (
     <figure className={`rise ${className}`}>
-      <div
-        ref={ref}
-        className="relative touch-none select-none overflow-hidden rounded-lg border border-border bg-secondary"
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          moveTo(e.clientX);
-        }}
-        onPointerMove={(e) => e.buttons && moveTo(e.clientX)}
-      >
+      <div ref={ref} className="relative select-none overflow-hidden rounded-lg border border-border bg-secondary [--pos:50%]">
         <img src={after} alt="Illustration of the roof after the repair" className="block w-full" draggable={false} />
-        <img src={before} alt="The roof as photographed" className="absolute inset-0 h-full w-full object-cover" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }} draggable={false} />
-        <div className="pointer-events-none absolute inset-y-0" style={{ left: `${pos}%` }}>
+        <img src={before} alt="The roof as photographed" className="absolute inset-0 h-full w-full object-cover [clip-path:inset(0_calc(100%-var(--pos))_0_0)]" draggable={false} />
+        <input
+          type="range"
+          min="0"
+          max="100"
+          defaultValue="50"
+          onInput={(e) => setPos(e.currentTarget.value)}
+          aria-label="Compare the roof now and repaired"
+          className="peer absolute inset-0 z-10 h-full w-full cursor-ew-resize appearance-none bg-transparent opacity-0"
+        />
+        <div className="pointer-events-none absolute inset-y-0 left-[var(--pos)] peer-focus-visible:[&>div:last-child]:ring-4 peer-focus-visible:[&>div:last-child]:ring-[hsl(var(--primary)/0.6)]">
           <div className="absolute inset-y-0 -ml-px w-0.5 bg-white shadow-[0_0_8px_rgba(0,0,0,0.4)]" />
           <div className="absolute top-1/2 -ml-4 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-white text-black shadow-lg"><ChevronsLeftRight className="h-4 w-4" /></div>
         </div>
-        <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold text-white">Now</span>
-        <span className="absolute right-2 top-2 rounded-full bg-[hsl(var(--primary-deep))] px-2 py-0.5 text-[11px] font-semibold text-white">Repaired</span>
-        <input type="range" min="0" max="100" value={Math.round(pos)} onChange={(e) => setPos(Number(e.target.value))} aria-label="Compare before and after" className="sr-only" />
+        <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold leading-none text-white">Now</span>
+        <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-[hsl(var(--primary-deep))] px-2.5 py-1 text-[11px] font-semibold leading-none text-white">Repaired</span>
       </div>
-      <figcaption className="mt-2 text-[12px] text-muted-foreground">Illustration by {provider === "Mock provider" ? "the mock provider (rehearsal)" : "Muse Image"} from your own photo. The real repair and price are confirmed at the free inspection. Drag to compare.</figcaption>
+      <figcaption className="mt-2 text-[12px] text-muted-foreground">Illustration by {provider === "Mock provider" ? "the mock provider (rehearsal)" : "Muse Image"} from your own photo. The real repair and price are confirmed at the free inspection. Drag or use the arrow keys to compare.</figcaption>
     </figure>
   );
 }

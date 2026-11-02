@@ -8,6 +8,7 @@ import { deskSnapshot, planAction, confirmWord, readUtterance } from "@/lib/desk
 import { jobStatus } from "@/lib/verify";
 import { summarise } from "@/components/frontdesk/DailySummary";
 import useVoice from "@/hooks/useVoice";
+import TypingDots from "@/components/shared/TypingDots";
 
 const spring = { type: "spring", stiffness: 420, damping: 34 };
 
@@ -141,8 +142,8 @@ export default function DeskAssistant() {
             className="fixed bottom-5 right-5 z-30 inline-flex h-12 items-center gap-2.5 rounded-full bg-foreground pl-1.5 pr-4 text-[15px] font-semibold text-background shadow-[0_12px_32px_-10px_rgba(0,0,0,0.55)] active:scale-[0.96]"
             style={{ marginBottom: "env(safe-area-inset-bottom)" }}
           >
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[hsl(var(--ios-indigo))] to-[hsl(var(--ios-blue))]">
-              <AudioLines className="h-[18px] w-[18px] text-white" strokeWidth={2.25} />
+            <span className="ai-orb grid h-9 w-9 place-items-center" aria-hidden>
+              <AudioLines className="relative z-10 h-[18px] w-[18px] text-white" strokeWidth={2.25} />
             </span>
             Ask your desk
           </motion.button>
@@ -163,8 +164,8 @@ export default function DeskAssistant() {
             style={{ transformOrigin: "bottom right" }}
           >
             <header className="flex h-[60px] shrink-0 items-center gap-3 border-b border-border px-4">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-gradient-to-br from-[hsl(var(--ios-indigo))] to-[hsl(var(--ios-blue))] text-white">
-                <AudioLines className="h-[18px] w-[18px]" strokeWidth={2.25} />
+              <span className="ai-orb grid h-9 w-9 shrink-0 place-items-center" data-state={listening ? "listening" : busy ? "thinking" : "idle"} aria-hidden>
+                <AudioLines className="relative z-10 h-[18px] w-[18px] text-white" strokeWidth={2.25} />
               </span>
               <div className="min-w-0 flex-1">
                 <h2 className="text-[17px] font-semibold leading-tight">Your desk</h2>
@@ -206,11 +207,7 @@ export default function DeskAssistant() {
                 </motion.p>
               ))}
               {busy && (
-                <p className="flex w-fit gap-1 rounded-[18px] rounded-bl-md bg-secondary px-3.5 py-3" aria-label="Thinking">
-                  {[0, 1, 2].map((d) => (
-                    <span key={d} className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: `${d * 120}ms` }} />
-                  ))}
-                </p>
+                <TypingDots label="Thinking" className="w-fit rounded-[18px] rounded-bl-md bg-secondary px-3.5 py-3" />
               )}
             </div>
 
