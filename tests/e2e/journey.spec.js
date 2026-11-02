@@ -87,7 +87,7 @@ test("reactivation: opt-outs excluded and counted, a reply that books raises the
   await page.getByRole("button", { name: "Send" }).last().click();
   await page.getByRole("button", { name: /Yes, book me in/ }).click();
   await expect(page.getByText(/1 recovered/)).toBeVisible();
-  await expect(page.getByText("Jobs reactivated").locator("..").getByText("1")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Reactivated jobs" }).getByText("1", { exact: true })).toBeVisible();
 });
 
 test("med spa: consent before photo, service match, no diagnosis, consultation booked", async ({ page }) => {
