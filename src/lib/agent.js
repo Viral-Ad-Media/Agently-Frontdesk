@@ -29,7 +29,7 @@ export const TOOLS = {
   },
   rate_card: {
     label: "Checked the price list",
-    describe: "The business's published prices. Roofing: material rate per square metre and labour per hour (never a total). Med spa: the published menu with low-high prices.",
+    describe: "The business's published prices. Roofing: prices by service printed on its website, material rate per square metre and labour per hour (never a total). Med spa: the published menu with low-high prices. args.topic: optional service the customer named.",
     run({ tenant = {}, args = {} }) {
       if (tenant.trade === "medspa") {
         const q = String(args.topic || "").toLowerCase();
@@ -38,8 +38,13 @@ export const TOOLS = {
         return { currency: tenant.currency || "USD", services: (hits.length ? hits : menu).slice(0, 4).map(({ name, from, to }) => ({ name, from, to })) };
       }
       const rc = tenant.rateCard || {};
-      if (rc.placeholder) return { currency: "USD", published: false };
-      return { currency: rc.currency || "USD", published: true, materialsPerM2: rc.materials || {}, labourPerHour: rc.labourPerHour ?? null, visit: tenant.words?.visitLong || "visit", rule: tenant.disclaimer || "" };
+      // Prices printed on the business's own website (read at setup and checked by the owner), by service.
+      const q = String(args.topic || "").toLowerCase();
+      const priced = (tenant.services || []).filter((s) => s.priceLow != null && s.priceLow > 0).map((s) => ({ name: s.name, from: s.priceLow, to: s.priceHigh ?? s.priceLow }));
+      const hits = q ? priced.filter((s) => s.name.toLowerCase().split(/\s+/).some((w) => w.length > 3 && q.includes(w))) : [];
+      const servicePrices = (hits.length ? hits : priced).slice(0, 4);
+      if (rc.placeholder) return { currency: "USD", published: servicePrices.length > 0, servicePrices };
+      return { currency: rc.currency || "USD", published: true, servicePrices, materialsPerM2: rc.materials || {}, labourPerHour: rc.labourPerHour ?? null, visit: tenant.words?.visitLong || "visit", rule: tenant.disclaimer || "" };
     },
   },
   business_facts: {

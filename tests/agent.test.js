@@ -87,3 +87,13 @@ test("business_facts includes the summary and the website quotes read at setup",
   assert.deepEqual(out.facts, ['serviceArea: "Serving the Denver metro"', 'services: "Storm damage repair"']);
   assert.deepEqual(TOOLS.business_facts.run({ tenant: { name: "X" } }).facts, []);
 });
+
+test("a roofer's website prices answer a question that names the service", async () => {
+  const site = { ...tenant, services: [{ name: "Leak detection", priceLow: 199, priceHigh: 199 }, { name: "Shingle repair", priceLow: 350, priceHigh: 900 }] };
+  const r = await runAgentTurn({ ai: mock, trade: "roofing", tenant: site, messages: [{ role: "user", content: "How much is leak detection?" }], caseState: {}, data, now });
+  assert.equal(r.trace.steps[0].tool, "rate_card");
+  assert.ok(r.reply.includes("Leak detection is $199"), r.reply);
+  assert.equal(r.trace.grounded, true);
+  assert.notEqual(r.extracted.description, "How much is leak detection?");
+  assert.deepEqual(TOOLS.rate_card.run({ tenant: site, args: { topic: "shingle repair" } }).servicePrices, [{ name: "Shingle repair", from: 350, to: 900 }]);
+});

@@ -494,7 +494,7 @@ function qualifyOnly(trade, caseState) {
 const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
 const list = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
-function answerFrom(o, tenant, trade) {
+function answerFrom(o, tenant, trade, text = "") {
   const r = o.result || {};
   if (o.tool === "check_calendar") {
     if (!r.open?.length) return r.asked ? `I don't have an open slot on ${r.asked}. ${r.totalOpenThisWeek ? "There are other times this week." : "The calendar is full this week, so I'll ask the team to call you."}` : "The calendar is full this week, so I'll ask the team to call you.";
@@ -505,6 +505,8 @@ function answerFrom(o, tenant, trade) {
   if (o.tool === "rate_card") {
     if (trade === "medspa") return `From our menu: ${list((r.services || []).map((s) => `${s.name} ${money(s.from)} to ${money(s.to)}`))}. A clinician confirms what suits you at the consultation.`;
     if (!r.published) return "Our prices aren't published yet, so the team will confirm them at the visit.";
+    const named = (r.servicePrices || []).find((s) => s.name.toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
+    if (named) return `${named.name} is ${money(named.from)}${named.to !== named.from ? ` to ${money(named.to)}` : ""} on our published price list. The final price is confirmed at the ${r.visit || "visit"}.`;
     const [mat, rate] = Object.entries(r.materialsPerM2 || {})[0] || [];
     return `Our published rates are ${mat ? `${money(rate)} per square metre for ${mat}` : "on our rate card"}${r.labourPerHour != null ? ` plus ${money(r.labourPerHour)} an hour labour` : ""}. Your draft range comes from your photo, and the final price is confirmed at the ${r.visit}.`;
   }
@@ -546,8 +548,10 @@ export async function agentStep({ trade = "roofing", tenant = {}, messages = [],
     const day = text.match(DAY_WORD)?.[1]?.toLowerCase() || null;
     return { action: "tool", tool: next, args: next === "check_calendar" ? { day } : next === "rate_card" ? { topic: trade === "medspa" ? (text.match(DAMAGE.medspa)?.[0] || null) : null } : {}, thought: THOUGHT[next] };
   }
-  const answers = observations.map((o) => answerFrom(o, tenant, trade)).filter(Boolean);
-  const pureQuestion = needed.length > 0 && !DAMAGE[trade === "medspa" ? "medspa" : "roofing"].test(text);
+  const answers = observations.map((o) => answerFrom(o, tenant, trade, text)).filter(Boolean);
+  // A price question that names a listed service ("how much is leak detection?") is a question, not a description.
+  const namesService = (tenant.services || []).some((sv) => String(sv.name).toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
+  const pureQuestion = needed.length > 0 && (!DAMAGE[trade === "medspa" ? "medspa" : "roofing"].test(text) || (needed.includes("rate_card") && namesService));
   const base = pureQuestion ? { ...qualifyOnly(trade, caseState), extracted: {} } : await converse({ trade, messages, caseState });
   return {
     action: "answer",
