@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, CloudLightning, FileText, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { Check, CloudLightning, FileText, MessageSquare, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { clearGatewayCache } from "@/gateway";
 import { STATUS_LABEL } from "@/lib/quote";
@@ -53,6 +53,9 @@ export default function Frontdesk() {
                 ))}
               </select>
             </label>
+            <Link to="/setup" className="fd-btn-outline h-9 px-3 text-[13px]">
+              <Plus className="h-4 w-4" /> Add a business
+            </Link>
             <Link to={`/chat?tenant=${tenant.id}`} className="fd-btn-outline h-9 px-3 text-[13px]">
               <MessageSquare className="h-4 w-4" /> Customer view
             </Link>
