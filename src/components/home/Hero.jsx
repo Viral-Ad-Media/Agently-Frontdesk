@@ -1,9 +1,8 @@
 import { heroSlides } from "@/lib/artisanData";
 import HeroSearch from "@/components/home/HeroSearch";
-import { Image } from "@/components/ui/image";
 import { useStore } from "@/lib/store";
 
-// PLACEHOLDER visual: a generated roofer image from the starting build, until product-matched photography exists.
+// Hero photo: an illustration made with Meta's Muse Image, served locally from public/images.
 const slide = heroSlides.find((s) => s.word === "Roofers") || heroSlides[0];
 
 export default function Hero() {
@@ -11,7 +10,7 @@ export default function Hero() {
   return (
     <section className="relative flex min-h-[92svh] flex-col justify-end overflow-hidden bg-[hsl(var(--deep))]">
       <div className="absolute inset-0">
-        <Image src={slide.src} alt="A roofer working on a tiled roof at sunrise" className="h-full w-full" fittingType="fill" />
+        <img src={slide.src} alt="A roofer working on a roof at sunrise" fetchpriority="high" decoding="async" className="h-full w-full object-cover" />
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--deep))] via-[hsl(var(--deep)/0.55)] to-[hsl(var(--deep)/0.35)]" />
 

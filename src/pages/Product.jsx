@@ -72,10 +72,10 @@ function HeroDemo() {
           <Bubble delay={0.5}>Water's coming through the bedroom ceiling since the storm last night.</Bubble>
           <Bubble from="desk" delay={1.1}>Sorry to hear that. Can you send a photo of the roof above that room?</Bubble>
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 1.7, ease: EASE }} className="flex justify-end">
-            <div className="relative h-28 w-44 overflow-hidden rounded-2xl rounded-br-md bg-gradient-to-br from-[#3a3f47] via-[#2a2e35] to-[#1c1f24]">
-              <div className="absolute inset-0 opacity-40 [background-image:repeating-linear-gradient(170deg,transparent_0_9px,rgba(255,255,255,0.08)_9px_10px)]" />
-              <svg viewBox="0 0 176 112" className="absolute inset-0 h-full w-full" aria-hidden>
-                <motion.polygon points="58,34 118,28 132,70 74,82" fill="hsl(16 88% 54% / 0.28)" stroke="hsl(16 88% 60%)" strokeWidth="2" strokeLinejoin="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.2, delay: 2.3, ease: EASE }} />
+            <div className="relative h-28 w-44 overflow-hidden rounded-2xl rounded-br-md bg-[#2a2e35]">
+              <img src="/images/roof-lifted-shingles.webp" alt="Customer's photo of a roof with lifted and missing shingles" width="176" height="112" loading="eager" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+              <svg viewBox="0 0 100 75" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
+                <motion.polygon points="47,20 76,19 78,41 49,42" fill="hsl(16 88% 54% / 0.28)" stroke="hsl(16 88% 60%)" strokeWidth="1.2" strokeLinejoin="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.2, delay: 2.3, ease: EASE }} />
               </svg>
               <span className="absolute bottom-1.5 left-2 rounded-full bg-black/50 px-2.5 py-1 font-mono text-[10px] leading-none text-white/80">SAM 3.1 outline</span>
             </div>
@@ -278,10 +278,11 @@ export default function Product() {
           <div className="mt-10 grid auto-rows-[minmax(0,auto)] gap-4 md:grid-cols-6">
             <Tile icon={Camera} title="Sees the damage" text="SAM 3.1 outlines the problem in the customer's photo and measures it, so the draft price is grounded in what is actually there." className="md:col-span-4">
               <div className="grid h-full min-h-[150px] grid-cols-3 gap-2">
-                {["Lifted shingles", "Flashing gap", "Ceiling stain"].map((t, i) => (
-                  <div key={t} className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#2b2f36] to-[#17191d]">
-                    <svg viewBox="0 0 100 80" className="absolute inset-0 h-full w-full" aria-hidden>
-                      <polygon points={["30,22 70,18 78,50 38,58", "20,30 60,26 64,40 24,46", "40,20 70,30 62,60 30,52"][i]} fill="hsl(16 88% 54% / 0.25)" stroke="hsl(16 88% 60%)" strokeWidth="1.5" />
+                {[["Lifted shingles", "roof-lifted-shingles", "Roof with lifted and missing shingles"], ["Flashing gap", "chimney-flashing", "Gap in the metal flashing around a chimney"], ["Ceiling stain", "ceiling-stain", "Water stain on a bedroom ceiling"]].map(([t, img, alt], i) => (
+                  <div key={t} className="relative min-h-[120px] overflow-hidden rounded-xl bg-[#2b2f36]">
+                    <img src={`/images/${img}.webp`} alt={alt} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+                    <svg viewBox="0 0 100 75" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
+                      <polygon points={["47,20 76,19 78,41 49,42", "30,10 70,7 82,20 62,58 28,62 20,40", "18,24 36,6 62,1 72,20 58,40 48,58 34,36"][i]} fill="hsl(16 88% 54% / 0.25)" stroke="hsl(16 88% 60%)" strokeWidth="0.9" strokeLinejoin="round" />
                     </svg>
                     <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] leading-none text-white/80">{t}</span>
                   </div>
@@ -459,7 +460,7 @@ export default function Product() {
             </div>
           ))}
         </div>
-        <div className="mx-auto max-w-[1200px] border-t border-white/[0.08] px-4 py-6 text-[12px] text-white/35 sm:px-6">© 2026 Agently · demo data is synthetic</div>
+        <div className="mx-auto max-w-[1200px] border-t border-white/[0.08] px-4 py-6 text-[12px] text-white/35 sm:px-6">© 2026 Agently · demo data is synthetic · photos are illustrations made with Meta's Muse Image</div>
       </footer>
     </div>
   );
