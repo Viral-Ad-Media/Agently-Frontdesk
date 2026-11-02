@@ -99,7 +99,7 @@ Each customer message runs a short plan-act-observe loop (`src/lib/agent.js`, at
 |---|---|
 | `check_calendar` | Real open slots for the next 7 days, optionally on a named day |
 | `rate_card` | Published roofing rates per m² and labour per hour (never a total), or the med spa menu |
-| `business_facts` | Name, service area, first visit, facts confirmed at setup. Anything else is "not on my record" |
+| `business_facts` | Name, service area, first visit, the setup summary and the quotes read from the business's own website at setup. Anything else is "not on my record" |
 | `customer_history` | Earlier enquiries from the same address |
 | `storm_reports` | Weather-service storm reports on record |
 
