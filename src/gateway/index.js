@@ -28,6 +28,7 @@ export const CAPABILITY_MODEL = {
   converse: "Muse Spark",
   reactivateMessage: "Muse Spark",
   renderReportVisual: "Muse Image",
+  previewRepair: "Muse Image",
   transcribeCall: "Muse Voice Transcribe",
   setupTenant: "Muse Spark",
 };
@@ -43,7 +44,7 @@ export class GatewayError extends Error {
 // Result cache for real providers: the same photo, description and tenant never costs twice.
 // Keyed by a hash of the input (without volatile fields), kept in localStorage, capped at 60 entries.
 const CACHE_KEY = "gateway.cache.v1";
-const CACHEABLE = new Set(["segmentDamage", "assess", "reactivateMessage", "renderReportVisual", "setupTenant"]);
+const CACHEABLE = new Set(["segmentDamage", "assess", "reactivateMessage", "renderReportVisual", "previewRepair", "setupTenant"]);
 function readCache() {
   try {
     return JSON.parse(window.localStorage.getItem(CACHE_KEY) || "{}");
@@ -125,6 +126,7 @@ export const gateway = {
   converse: (input) => call("converse", input),
   reactivateMessage: (input) => call("reactivateMessage", input),
   renderReportVisual: (input) => call("renderReportVisual", input),
+  previewRepair: (input) => call("previewRepair", input),
   transcribeCall: (input) => call("transcribeCall", input),
   setupTenant: (input) => call("setupTenant", input),
 };
