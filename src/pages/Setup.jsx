@@ -103,14 +103,14 @@ export default function Setup() {
                 {i === 0 && site ? `Read ${site.host} (${site.pages.length} page${site.pages.length === 1 ? "" : "s"})` : label}
               </li>
             ))}
-            <li className="pl-9 font-spec text-[11px] uppercase text-muted-foreground tabular-nums">{elapsed.toFixed(1)} s</li>
+            <li className="pl-9 text-[12px] font-medium text-muted-foreground tabular-nums">{elapsed.toFixed(1)} s</li>
           </ol>
         )}
 
         {tenant && (
           <section className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_1fr]" aria-label="Review the new desk">
             <div className="fd-card p-6">
-              <p className="font-spec text-[11px] uppercase text-muted-foreground">Review before launch · built in {elapsed.toFixed(1)} s · {tenant.setup.provider}</p>
+              <p className="text-[12px] font-medium text-muted-foreground">Review before launch · built in {elapsed.toFixed(1)} s · {tenant.setup.provider}</p>
               <label className="mt-4 block text-[13px] text-muted-foreground">
                 Business name
                 <input value={tenant.name} onChange={(e) => patch((t) => ((t.name = e.target.value), t))} className="mt-1 h-11 w-full rounded-xl border border-border bg-card px-3 text-[17px] text-foreground outline-none focus:border-foreground" />
@@ -168,7 +168,7 @@ export default function Setup() {
             </div>
 
             <div>
-              <p className="font-spec text-[11px] uppercase text-muted-foreground">What customers will see</p>
+              <p className="text-[12px] font-medium text-muted-foreground">What customers will see</p>
               <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
                 <div className="border-b border-border px-5 py-3 text-[15px]">{tenant.name}</div>
                 <div className="bg-[hsl(var(--deep))] px-5 py-8 text-white">
@@ -179,7 +179,7 @@ export default function Setup() {
                   </div>
                 </div>
                 <div className="px-5 py-4">
-                  <p className="font-spec text-[11px] uppercase text-muted-foreground">First message</p>
+                  <p className="text-[12px] font-medium text-muted-foreground">First message</p>
                   <p className="mt-1 text-[15px]">{tenant.words.greeting}</p>
                 </div>
               </div>
