@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { project, fitZoom, bboxOfPoints, leadPoint, pointInStorm } from "@/lib/storm";
 
-const TILE = (z, x, y) => `https://${"abcd"[(x + y) % 4]}.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}.png`;
+// OpenStreetMap standard tiles need no API key (CARTO now serves an "API key required" picture instead of a map).
+// They are light, so a CSS filter turns them dark to match the app. Attribution is shown in the corner, as OSM requires.
+const TILE = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+const DARKEN = "invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.85) saturate(0.35)";
 
-// A small slippy-map without a map library: CARTO light tiles under an SVG of the storm path and customer pins.
+// A small slippy-map without a map library: OpenStreetMap tiles under an SVG of the storm path and customer pins.
 // Fits the storm (with room around it) or, with no storm, every customer.
 export default function StormMap({ leads, storm, height = 360 }) {
   const ref = useRef(null);
@@ -52,7 +55,7 @@ export default function StormMap({ leads, storm, height = 360 }) {
   return (
     <div ref={ref} className="relative w-full overflow-hidden rounded-lg border border-border bg-secondary" style={{ height }}>
       {tiles.map((t) => (
-        <img key={t.key} src={t.src} alt="" draggable={false} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} className="pointer-events-none absolute select-none" style={{ left: t.left, top: t.top, width: size, height: size }} />
+        <img key={t.key} src={t.src} alt="" draggable={false} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} className="pointer-events-none absolute select-none" style={{ left: t.left, top: t.top, width: size, height: size, filter: DARKEN }} />
       ))}
       <svg width={width} height={height} className="absolute inset-0" role="img" aria-label={storm ? `Map of the storm path and ${pins.length} customers` : `Map of ${pins.length} customers`}>
         {storm?.rings.map((ring, i) => (
@@ -91,7 +94,7 @@ export default function StormMap({ leads, storm, height = 360 }) {
           );
         })}
       </svg>
-      <p className="absolute bottom-1 right-2 rounded bg-card/80 px-1.5 text-[10px] text-muted-foreground">© OpenStreetMap contributors © CARTO</p>
+      <p className="absolute bottom-1 right-2 rounded bg-card/80 px-1.5 text-[10px] text-muted-foreground">© OpenStreetMap contributors</p>
     </div>
   );
 }
