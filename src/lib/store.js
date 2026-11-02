@@ -1,7 +1,7 @@
 // One case record is the single source of truth. Chat, dashboard, calendar and reactivation all read and write here.
 // Persisted in localStorage for the demo; synthetic data only.
 import { useSyncExternalStore } from "react";
-import { seedState } from "@/lib/seed";
+import { seedState, seedSlots } from "@/lib/seed";
 import { QUOTE_STATUSES, draftQuote } from "@/lib/quote";
 import { measure, bboxOf, areaPercent } from "@/lib/eye";
 
@@ -26,6 +26,7 @@ function load() {
 function normalize(s) {
   s.tenant = s.tenants[s.activeTenantId] || s.tenants[Object.keys(s.tenants)[0]];
   s.rateCard = s.tenant.rateCard;
+  if (!Array.isArray(s.stormRuns)) s.stormRuns = [];
   return s;
 }
 
@@ -71,6 +72,17 @@ export function setActiveTenant(id) {
   if (!state.tenants[id]) return;
   update((s) => {
     s.activeTenantId = id;
+  });
+}
+
+// Instant setup: a tenant built from a business website joins the spine and becomes the active desk.
+// Every new tenant gets its own calendar slots, generated the same way as the demo tenants'.
+export function addTenant(tenant) {
+  update((s) => {
+    s.tenants[tenant.id] = tenant;
+    s.activeTenantId = tenant.id;
+    const mine = seedSlots(new Date(), { [tenant.id]: tenant });
+    s.slots.push(...mine);
   });
 }
 
@@ -148,22 +160,36 @@ export function appendMessage(id, message) {
 
 // ----- Quote status: one-way, human-tapped only -----
 
-function forward(obj, target, by) {
+function forward(obj, target, by, note = null) {
   const from = QUOTE_STATUSES.indexOf(obj.status);
   const to = QUOTE_STATUSES.indexOf(target);
   if (to <= from) return null;
   if (target === "sent" && obj.status !== "approved") return null;
   obj.status = target;
-  obj.history = [...(obj.history || []), { status: target, at: new Date().toISOString(), by }];
+  obj.history = [...(obj.history || []), { status: target, at: new Date().toISOString(), by, ...(note ? { note } : {}) }];
   return target;
 }
 
 // Moves a quote forward to `target`. Backward moves are refused; the AI never calls this.
-export function moveQuote(id, target) {
+// `override` is the owner's reason for approving a job that has not verified (Layer 3 sign-off with a reason).
+export function moveQuote(id, target, { override = null } = {}) {
   return update((s) => {
     const c = s.cases.find((x) => x.id === id);
     if (!c || !c.quote) return null;
-    return forward(c.quote, target, "owner");
+    const r = forward(c.quote, target, "owner", override ? `Approved over failed checks: ${override}` : null);
+    if (r && override) c.quote.override = { reason: override, at: new Date().toISOString(), by: "owner" };
+    return r;
+  });
+}
+
+// Owner rejects the draft with a reason. The customer is not told a range; the job stays open for a re-draft.
+export function rejectQuote(id, reason) {
+  return update((s) => {
+    const c = s.cases.find((x) => x.id === id);
+    if (!c?.quote || c.quote.status === "sent" || !String(reason || "").trim()) return null;
+    c.quote.status = "rejected";
+    c.quote.history = [...(c.quote.history || []), { status: "rejected", at: new Date().toISOString(), by: "owner", note: String(reason).trim() }];
+    return "rejected";
   });
 }
 
@@ -172,6 +198,7 @@ export function editQuoteRange(id, low, high) {
     const c = s.cases.find((x) => x.id === id);
     if (!c || !c.quote) return;
     if (c.quote.status === "sent") return;
+    c.quote.history = [...(c.quote.history || []), { status: c.quote.status, at: new Date().toISOString(), by: "owner", note: `Range edited from ${c.quote.low == null ? "none" : `$${c.quote.low}–$${c.quote.high}`} to $${Math.round(low)}–$${Math.round(high)}` }];
     c.quote.low = Math.round(low);
     c.quote.high = Math.round(high);
     c.quote.total = Math.round((low + high) / 2);
@@ -316,6 +343,108 @@ export function leadReply(leadId, text, { books = false } = {}) {
     l.recovered = true;
     l.recoveredCaseId = c.id;
     l.reactivation = { ...l.reactivation, status: "booked" };
+    return { ok: true, booked: true, slot, caseId: c.id };
+  });
+}
+
+// ----- Storm check-ins -----
+// One run per storm: the storm itself, who was inside it, who was excluded, and one drafted check-in per
+// customer. Same one-way status as quotes; only owner taps move a message to approved or sent.
+
+export function startStormRun({ tenantId, storm, leadIds, excludedIds }) {
+  return update((s) => {
+    const existing = s.stormRuns.find((r) => r.storm.id === storm.id && r.tenantId === tenantId);
+    if (existing) return existing.id;
+    const run = { id: uid("storm"), tenantId, storm, leadIds, excludedIds, startedAt: new Date().toISOString(), drafts: {} };
+    s.stormRuns.unshift(run);
+    return run.id;
+  });
+}
+
+export function setStormDraft(runId, leadId, { message, provider }) {
+  update((s) => {
+    const run = s.stormRuns.find((r) => r.id === runId);
+    const lead = s.leads.find((l) => l.id === leadId);
+    if (!run || !lead || lead.optOut) return;
+    run.drafts[leadId] = { text: message, provider, status: "draft", history: [{ status: "draft", at: new Date().toISOString(), by: "ai" }] };
+  });
+}
+
+export function editStormDraft(runId, leadId, text) {
+  update((s) => {
+    const d = s.stormRuns.find((r) => r.id === runId)?.drafts[leadId];
+    if (!d || d.status === "sent") return;
+    d.text = text;
+    d.editedByOwner = true;
+  });
+}
+
+export function moveStormDraft(runId, leadId, target) {
+  return update((s) => {
+    const d = s.stormRuns.find((r) => r.id === runId)?.drafts[leadId];
+    const lead = s.leads.find((l) => l.id === leadId);
+    if (!d || !lead || lead.optOut) return null;
+    return forward(d, target, "owner");
+  });
+}
+
+// Approves every remaining draft in one owner tap. Sending stays one tap per message or one "send all approved".
+export function moveAllStormDrafts(runId, from, target) {
+  return update((s) => {
+    const run = s.stormRuns.find((r) => r.id === runId);
+    if (!run) return 0;
+    let n = 0;
+    for (const [leadId, d] of Object.entries(run.drafts)) {
+      const lead = s.leads.find((l) => l.id === leadId);
+      if (d.status === from && lead && !lead.optOut && forward(d, target, "owner")) n++;
+    }
+    return n;
+  });
+}
+
+// A reply to a storm check-in. One that books takes the next open slot, becomes a case that carries the
+// storm (for the claim pack), and counts once.
+export function stormReply(runId, leadId, text, { books = false } = {}) {
+  return update((s) => {
+    const run = s.stormRuns.find((r) => r.id === runId);
+    const d = run?.drafts[leadId];
+    const l = s.leads.find((x) => x.id === leadId);
+    if (!d || !l || d.status !== "sent") return { ok: false, reason: "Nothing was sent to this customer yet." };
+    d.reply = { text, at: new Date().toISOString() };
+    if (!books || d.caseId) return { ok: true, booked: false };
+    const slot = s.slots.find((sl) => sl.tenantId === run.tenantId && !sl.caseId && new Date(sl.start).getTime() > Date.now());
+    if (!slot) return { ok: true, booked: false, reason: "No open slots to book into." };
+    const tenant = s.tenants[run.tenantId];
+    const c = {
+      id: uid("case"),
+      trade: tenant.trade,
+      source: "storm",
+      tenantId: tenant.id,
+      leadId: l.id,
+      storm: run.storm,
+      createdAt: new Date().toISOString(),
+      status: "booked",
+      customer: { name: l.name, phone: l.phone, address: l.address },
+      intent: "repair",
+      urgency: "routine",
+      description: `Storm check-in after the ${run.storm.event.toLowerCase()}`,
+      consent: null,
+      messages: [
+        { at: d.history[0].at, role: "assistant", content: d.text },
+        { at: new Date().toISOString(), role: "user", content: text },
+      ],
+      photo: null,
+      segmentation: null,
+      measurement: null,
+      assessment: null,
+      quote: null,
+      bookingSlotId: slot.id,
+      report: null,
+      provider: d.provider,
+    };
+    slot.caseId = c.id;
+    s.cases.unshift(c);
+    d.caseId = c.id;
     return { ok: true, booked: true, slot, caseId: c.id };
   });
 }

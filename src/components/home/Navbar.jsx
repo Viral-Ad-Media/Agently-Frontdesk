@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Sparkles } from "lucide-react";
 import Logo from "@/components/shared/Logo";
 import { useStore } from "@/lib/store";
 
@@ -21,7 +21,7 @@ export default function Navbar({ dark = false }) {
   return (
     <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-200 ${scrolled ? "border-b border-border bg-background" : ""}`}>
       <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-3 md:px-8">
-        <Logo light={light} word={tenant.name} />
+        <Logo to="/site" light={light} word={tenant.name} mark={tenant.trade === "medspa" ? <Sparkles className="h-5 w-5" aria-hidden /> : null} />
         <nav className={`hidden items-center gap-8 text-sm md:flex ${light ? "text-white/85" : "text-foreground/80"}`}>
           {links.map(([l, h]) => (
             <a key={l} href={h} className="transition-colors duration-200 hover:text-primary">

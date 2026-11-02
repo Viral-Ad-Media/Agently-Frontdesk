@@ -11,9 +11,11 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "test": "node --test \"tests/**/*.test.js\"",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "eval": "node scripts/eval.mjs"
   },
   "dependencies": {
+    "@fontsource/instrument-serif": "^5.3.0",
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",

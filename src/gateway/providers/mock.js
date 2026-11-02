@@ -13,13 +13,15 @@
 //   converse({ trade, messages, caseState, tenant })
 //     -> { reply, extracted: { description?, address?, urgency?, intent? },
 //          nextAction: "ask_description"|"ask_address"|"ask_consent"|"ask_photo"|"assess"|"none" }
-//   reactivateMessage({ lead, tenant }) -> { message, generic: boolean }
+//   reactivateMessage({ lead, tenant, storm? }) -> { message, generic: boolean }   (storm: { event, area, when, hailIn, windMph })
 //   renderReportVisual({ photoDataUrl, segmentation, assessment, quote, tenant }) -> { imageDataUrl }
 //   transcribeCall({ audio }) -> { transcript, segments: [] }
 //
 // Coordinates are normalised 0-1000 on both axes.
 
 import { areaPercent } from "../../lib/eye.js";
+import { readUtterance } from "../../lib/desk.js";
+import { QUESTION, NEEDS, DAY_WORD, THOUGHT } from "../../lib/agent.js";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -216,9 +218,17 @@ export async function converse({ trade = "roofing", messages = [], caseState = {
   return { reply: "I've got everything I need. Here is the assessment.", extracted, nextAction: "assess" };
 }
 
-export async function reactivateMessage({ lead = {}, tenant = {} } = {}) {
+export async function reactivateMessage({ lead = {}, tenant = {}, storm = null } = {}) {
   await wait(500);
   const who = tenant.name || "the team";
+  if (storm) {
+    // Storm check-in: name the storm the weather service reported, offer a free photo check, never claim damage.
+    const facts = [storm.hailIn ? `${storm.hailIn} in hail` : "", storm.windMph ? `${storm.windMph} mph gusts` : ""].filter(Boolean).join(" and ");
+    return {
+      message: `Hi ${lead.firstName || lead.name}, it's ${who}. The weather service reported ${facts || "a severe storm"} over ${storm.area || "your area"} ${storm.when || "recently"}. Want a free photo check of your roof? Reply YES and we'll book a time.`,
+      generic: false,
+    };
+  }
   const hasHistory = Array.isArray(lead.history) && lead.history.length > 0;
   if (!hasHistory) {
     return { message: `Hi${lead.firstName ? ` ${lead.firstName}` : ""}, it's ${who}. Is this still on your list? Happy to book a quick look whenever suits.`, generic: true };
@@ -311,4 +321,228 @@ function wrap(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
     } else line = test;
   }
   ctx.fillText(line, x, y);
+}
+
+// setupTenant({ site }) -> { name, trade, tradeLabel, serviceArea, summary, services[], greeting, heroTitle, heroText, placeholder, evidence[], confidence }
+// Reads only what the site says: prices that are not written on the site come back null, never guessed.
+export async function setupTenant({ site = {} } = {}) {
+  await wait(800);
+  const text = String(site.text || "");
+  const lower = text.toLowerCase();
+  const count = (re) => (lower.match(re) || []).length;
+  const roof = count(/roof|shingle|gutter|storm damage|hail|leak/g);
+  const spa = count(/facial|botox|filler|laser|med ?spa|skin|peel|injectable|microneedling|aesthetic/g);
+  const trade = roof === 0 && spa === 0 ? "unsupported" : roof >= spa ? "roofing" : "medspa";
+  const rawName = site.siteName || String(site.title || "").split(/\s[|\-–—:]\s/)[0] || site.host || "Your business";
+  const name = rawName.trim().slice(0, 60);
+  const areaMatch = text.match(/(?:serving|proudly serving|located in|based in)\s+(?:the\s+)?([A-Z][A-Za-z.' ]+(?:,\s*[A-Z]{2})?)/);
+  const serviceArea = areaMatch ? areaMatch[1].trim().replace(/\s+(and|&)$/, "") : null;
+  const services = [];
+  const evidence = [];
+  for (const line of text.split("\n")) {
+    const m = line.match(/^-?\s*([A-Za-z][A-Za-z0-9 &'/()+-]{2,48}?)\s*[:\-–—|]?\s*(?:from\s+)?\$(\d[\d,]*)(?:\s*(?:-|–|to)\s*\$?(\d[\d,]*))?/i);
+    if (m && services.length < 10) {
+      const low = Number(m[2].replace(/,/g, ""));
+      const high = m[3] ? Number(m[3].replace(/,/g, "")) : low;
+      services.push({ name: m[1].trim(), priceLow: low, priceHigh: high, keywords: m[1].toLowerCase().split(/\s+/).filter((w) => w.length > 3).slice(0, 4), evidence: line.slice(0, 140) });
+    }
+  }
+  if (serviceArea) evidence.push({ field: "serviceArea", quote: areaMatch[0] });
+  evidence.push({ field: "name", quote: site.title || name });
+  const isSpa = trade === "medspa";
+  return {
+    name,
+    trade,
+    tradeLabel: trade === "unsupported" ? "business" : isSpa ? "med spa" : "roofing company",
+    serviceArea,
+    summary: site.description || `${name}, read from ${site.host || "its website"}.`,
+    services,
+    greeting: isSpa ? "Tell me what you'd like help with, or what you've noticed about your skin." : "Tell me what's going on with the roof, and where the water is getting in.",
+    heroTitle: isSpa ? `Curious about a treatment at ${name}?` : `Roof trouble? ${name} can take a look.`,
+    heroText: isSpa
+      ? "Tell us what you've noticed, add a photo if you like, and we'll match it to our menu, give you the published price and book a consultation."
+      : "Describe the problem and add a photo. We outline the damage, draft a price range and book a free inspection, in minutes.",
+    placeholder: isSpa ? "What would you like help with?" : "What's happening with your roof?",
+    evidence,
+    confidence: trade === "unsupported" ? 0.3 : 0.6,
+  };
+}
+
+// "See it fixed" (rehearsal): paints matching new shingles over the outlined damage on the customer's own
+// photo, so the before/after flow can be rehearsed offline. Muse Image does the real edit on the meta provider.
+export async function previewRepair({ photoDataUrl, segmentation } = {}) {
+  await wait(1400);
+  const img = await loadImage(photoDataUrl);
+  const W = Math.min(1200, img.width);
+  const H = Math.round(img.height * (W / img.width));
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, W, H);
+
+  // Average tone of the whole photo, darkened, as the new-shingle colour.
+  const sample = ctx.getImageData(0, 0, W, H).data;
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < sample.length; i += 4 * 97) {
+    r += sample[i];
+    g += sample[i + 1];
+    b += sample[i + 2];
+    n++;
+  }
+  const base = [r / n, g / n, b / n].map((v) => Math.round(v * 0.55));
+
+  for (const region of segmentation?.regions || []) {
+    const pts = (region.polygon || []).map(([x, y]) => [(x / 1000) * W, (y / 1000) * H]);
+    if (pts.length < 3) continue;
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.clip();
+    const row = Math.max(8, Math.round(H / 60));
+    const tab = row * 2.4;
+    for (let y = y0 - row, k = 0; y < y1 + row; y += row, k++) {
+      for (let x = x0 - tab + (k % 2) * (tab / 2); x < x1 + tab; x += tab) {
+        const j = ((Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1) * 14;
+        ctx.fillStyle = `rgb(${base[0] + j},${base[1] + j},${base[2] + j})`;
+        ctx.fillRect(x, y, tab - 1.5, row - 1.5);
+      }
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.fillRect(x0 - tab, y + row - 1.5, x1 - x0 + tab * 2, 1.5);
+    }
+    ctx.restore();
+  }
+  return { imageDataUrl: canvas.toDataURL("image/jpeg", 0.85) };
+}
+
+// Talk to your desk: a keyword reading of the owner's words, so the voice flow rehearses offline.
+export async function deskCommand({ utterance = "", snapshot = { quotes: [], reopeners: [], summary: "" } } = {}) {
+  await wait(500);
+  const r = readUtterance(utterance, snapshot);
+  const reply =
+    r.intent === "brief"
+      ? snapshot.summary
+      : r.intent === "none"
+        ? "I can brief you on today, or approve and send a quote or a re-opener. Try \"brief me\" or \"approve the Larkspur quote\"."
+        : "";
+  return { ...r, reply };
+}
+
+
+// Layer 2 on the mock: a deterministic reviewer that reads the evidence and the drafted card and flags
+// contradictions, unsupported claims and missing hazards, so the bounded retry and escalation can be rehearsed.
+const OTHER_PARTS = [
+  [/\bgutters?\b/, "gutter"],
+  [/\bchimney\b/, "chimney"],
+  [/\bskylight\b/, "skylight"],
+  [/\bsolar panels?\b/, "solar panels"],
+  [/\bflat roof\b/, "flat roof"],
+  [/\bsiding\b/, "siding"],
+];
+export async function judgeAssessment({ trade = "roofing", description = "", segmentation = null, measurement = null, assessment = null, quote = null, route = null } = {}) {
+  await wait(600);
+  const issues = [];
+  const text = String(description).toLowerCase();
+  if (trade === "medspa") {
+    if (/\byou have\b|\bdiagnos/i.test(assessment?.summary || "")) issues.push({ type: "unsupported", detail: "The summary reads as a diagnosis; it must only describe what the client said." });
+  } else {
+    const label = segmentation?.regions?.[0]?.label || "";
+    const part = OTHER_PARTS.find(([re]) => re.test(text) && !re.test(label) && !re.test(String(assessment?.failedPart || "").toLowerCase()));
+    if (part) issues.push({ type: "contradiction", detail: `The customer describes the ${part[1]}, but the photo and the card are about ${label || "the roof covering"}.` });
+    if (measurement?.areaM2 != null && !measurement.reference) issues.push({ type: "unsupported", detail: "An area in square metres is claimed with no reference object in the photo." });
+    if (quote?.low != null && measurement?.areaM2 == null) issues.push({ type: "unsupported", detail: "A dollar range is given without a measurement." });
+    if (/\b(spark|sparking|burning smell|exposed wir|live wire)/.test(text) && !assessment?.emergency) issues.push({ type: "missing", detail: "The customer describes an electrical hazard that the card does not flag." });
+  }
+  return { verdict: issues.length ? "FAIL" : "PASS", issues, usage: { model: "mock", effort: route?.effort || "medium", tokens: null } };
+}
+
+// ----- The desk agent (plan, act, observe, answer) -----
+// agentStep({ trade, tenant, messages, caseState, observations, tools, mustAnswer })
+//   -> { action: "tool", tool, args, thought } | { action: "answer", reply, extracted, nextAction, thought }
+// Mock: picks tools from the question's wording, then answers only from what the tools returned,
+// and carries on qualifying the job with the same questions as converse().
+const DAMAGE = {
+  roofing: /\b(leak|leaking|drip|dripping|water|shingles?|tiles?|hail damage|damage|missing|crack|hole|gutter|flashing|stain|ceiling|attic|blown|lifted)\b/i,
+  medspa: /\b(skin|acne|breakouts?|spots|dull|dry|wrinkles?|lines|tone|pores|scars?|redness)\b/i,
+};
+
+function qualifyOnly(trade, caseState) {
+  if (trade === "medspa") {
+    if (!caseState.description) return { reply: "What would you like help with, or what have you noticed about your skin?", nextAction: "ask_description" };
+    if (!caseState.consent) return { reply: "When you're ready, confirm consent below and add a photo, or tell me more.", nextAction: "ask_consent" };
+    if (!caseState.photo) return { reply: "Add a photo of the area when you're ready.", nextAction: "ask_photo" };
+    return { reply: "", nextAction: "none" };
+  }
+  if (!caseState.description) return { reply: "So I can book the right visit, what's going on with the roof?", nextAction: "ask_description" };
+  if (!caseState.address) return { reply: "What's the address of the property? Street and town is enough.", nextAction: "ask_address" };
+  if (!caseState.photo) return { reply: "Add a photo of the damage when you're ready and I'll outline what I see.", nextAction: "ask_photo" };
+  return { reply: "", nextAction: "none" };
+}
+
+const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
+const list = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
+function answerFrom(o, tenant, trade, text = "") {
+  const r = o.result || {};
+  if (o.tool === "check_calendar") {
+    if (!r.open?.length) return r.asked ? `I don't have an open slot on ${r.asked}. ${r.totalOpenThisWeek ? "There are other times this week." : "The calendar is full this week, so I'll ask the team to call you."}` : "The calendar is full this week, so I'll ask the team to call you.";
+    const byDay = {};
+    for (const s of r.open) (byDay[s.day] ||= []).push(s.time);
+    return `Our next open ${tenant.words?.visit || "visit"} times are ${list(Object.entries(byDay).map(([d, ts]) => `${d} at ${list(ts)}`))}.`;
+  }
+  if (o.tool === "rate_card") {
+    if (trade === "medspa") return `From our menu: ${list((r.services || []).map((s) => `${s.name} ${money(s.from)} to ${money(s.to)}`))}. A clinician confirms what suits you at the consultation.`;
+    if (!r.published) return "Our prices aren't published yet, so the team will confirm them at the visit.";
+    const named = (r.servicePrices || []).find((s) => s.name.toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
+    if (named) return `${named.name} is ${money(named.from)}${named.to !== named.from ? ` to ${money(named.to)}` : ""} on our published price list. The final price is confirmed at the ${r.visit || "visit"}.`;
+    const [mat, rate] = Object.entries(r.materialsPerM2 || {})[0] || [];
+    return `Our published rates are ${mat ? `${money(rate)} per square metre for ${mat}` : "on our rate card"}${r.labourPerHour != null ? ` plus ${money(r.labourPerHour)} an hour labour` : ""}. Your draft range comes from your photo, and the final price is confirmed at the ${r.visit}.`;
+  }
+  if (o.tool === "business_facts") {
+    const bits = [r.serviceArea ? `We cover ${r.serviceArea}.` : "", r.firstVisit ? `The first step is a ${r.firstVisit}.` : ""].filter(Boolean);
+    return `${bits.join(" ")} Anything else, like insurance or warranty details, isn't on my record, so I've noted it for the team to confirm.`.trim();
+  }
+  if (o.tool === "customer_history") {
+    if (!r.addressKnown) return "I can look up earlier enquiries once I have the property address.";
+    if (!r.earlier?.length) return "I can't find an earlier enquiry for this address, so we'll start fresh.";
+    const e = r.earlier[0];
+    return `I can see your earlier enquiry${e.date ? ` from ${e.date}` : ""}${e.reported ? ` about "${e.reported}"` : ""} (${e.status}).`;
+  }
+  if (o.tool === "storm_reports") {
+    if (!r.reports?.length) return "I don't have a storm report on record for your area.";
+    const s = r.reports[0];
+    const facts = [s.hailIn ? `${s.hailIn} in hail` : "", s.windMph ? `${s.windMph} mph gusts` : ""].filter(Boolean).join(" and ");
+    return `The weather service reported ${facts || "a severe storm"} over ${s.area || "the area"}${s.when ? ` ${s.when}` : ""}.`;
+  }
+  return "";
+}
+
+
+export async function agentStep({ trade = "roofing", tenant = {}, messages = [], caseState = {}, observations = [], mustAnswer = false } = {}) {
+  const text = ([...messages].reverse().find((m) => m.role === "user")?.content || "").trim();
+  const asking = QUESTION.test(text);
+  const needed = asking ? NEEDS.filter(([, re]) => re.test(text)).map(([t]) => t) : [];
+  const seen = new Set(observations.map((o) => o.tool));
+  const next = needed.find((t) => !seen.has(t));
+  if (next && !mustAnswer) {
+    await wait(250);
+    const day = text.match(DAY_WORD)?.[1]?.toLowerCase() || null;
+    return { action: "tool", tool: next, args: next === "check_calendar" ? { day } : next === "rate_card" ? { topic: trade === "medspa" ? (text.match(DAMAGE.medspa)?.[0] || null) : null } : {}, thought: THOUGHT[next] };
+  }
+  const answers = observations.map((o) => answerFrom(o, tenant, trade, text)).filter(Boolean);
+  // A price question that names a listed service ("how much is leak detection?") is a question, not a description.
+  const namesService = (tenant.services || []).some((sv) => String(sv.name).toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
+  const pureQuestion = needed.length > 0 && (!DAMAGE[trade === "medspa" ? "medspa" : "roofing"].test(text) || (needed.includes("rate_card") && namesService));
+  const base = pureQuestion ? { ...qualifyOnly(trade, caseState), extracted: {} } : await converse({ trade, messages, caseState });
+  return {
+    action: "answer",
+    reply: [...answers, base.reply].filter(Boolean).join(" "),
+    extracted: base.extracted || {},
+    nextAction: base.nextAction,
+    thought: answers.length ? `Answered from ${[...seen].join(", ").replace(/_/g, " ")}, then carried on qualifying the job.` : "Nothing to look up. Carried on qualifying the job.",
+  };
 }

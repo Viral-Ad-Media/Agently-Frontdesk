@@ -1,46 +1,57 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/* Type: Instrument Serif (self-hosted, imported in main.jsx) is the brand face for large display headlines only.
+   UI text stays the platform's own system font: SF Pro on Apple devices, Segoe UI / Roboto elsewhere. No Inter. */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens from the build brief (page 12). Light theme:
-   background #f6f5f1, surface #ffffff, ink #101216, muted #5a5b61, line #d9d7d0,
-   deep #07101c, orange #f15a24, orange-deep #b63a0e. */
+/* Design tokens. One accent (Agently orange), iOS system colours for status and icon tiles. */
 @layer base {
+    /* Dark by default, matching the Agently product site: zinc-black canvas, near-black cards,
+       hairline white borders, iOS dark-mode system colours. Print falls back to the light set below. */
     :root {
-        --background: 48 22% 95%;
-        --foreground: 220 16% 7%;
-        --card: 0 0% 100%;
-        --card-foreground: 220 16% 7%;
-        --popover: 0 0% 100%;
-        --popover-foreground: 220 16% 7%;
+        color-scheme: dark;
+        --background: 240 10% 4%;
+        --foreground: 0 0% 98%;
+        --card: 240 6% 7%;
+        --card-foreground: 0 0% 98%;
+        --popover: 240 6% 8%;
+        --popover-foreground: 0 0% 98%;
         --primary: 16 88% 54%;
         --primary-foreground: 0 0% 100%;
-        --primary-deep: 16 86% 38%;
-        --deep: 214 60% 7%;
-        --secondary: 48 18% 92%;
-        --secondary-foreground: 220 16% 7%;
-        --muted: 48 18% 92%;
-        --muted-foreground: 231 4% 37%;
-        --accent: 48 18% 92%;
-        --accent-foreground: 220 16% 7%;
-        --destructive: 0 72% 45%;
+        --primary-deep: 16 82% 50%;
+        --deep: 240 6% 7%;
+        --secondary: 240 5% 12%;
+        --secondary-hover: 240 5% 17%;
+        --secondary-foreground: 0 0% 98%;
+        --muted: 240 5% 12%;
+        --muted-foreground: 240 5% 65%;
+        --accent: 240 5% 12%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 3 100% 61%;
         --destructive-foreground: 0 0% 98%;
-        --border: 47 11% 83%;
-        --input: 47 11% 83%;
+        --border: 240 4% 15%;
+        --input: 240 4% 18%;
+        /* iOS system colours for icon tiles and status. */
+        --ios-blue: 210 100% 52%;
+        --ios-green: 135 61% 50%;
+        --ios-indigo: 241 73% 63%;
+        --ios-red: 3 100% 61%;
+        --ios-orange: 36 100% 52%;
+        --ios-teal: 192 80% 55%;
+        --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
         --ring: 16 88% 54%;
         --chart-1: 16 88% 54%;
         --chart-2: 173 30% 35%;
         --chart-3: 197 25% 25%;
         --chart-4: 38 70% 55%;
         --chart-5: 27 60% 50%;
-        --radius: 14px;
-        --font-heading: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-        --font-body: 'Manrope', ui-sans-serif, system-ui, sans-serif;
-        --font-display: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-        --font-accent: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-        --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        --radius: 18px;
+        --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Roboto, sans-serif;
+        --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
+        --font-display: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
+        --font-accent: var(--font-heading);
+        --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
         --sidebar-background: 0 0% 100%;
         --sidebar-foreground: 220 16% 7%;
         --sidebar-primary: 16 88% 54%;
@@ -51,26 +62,19 @@
         --sidebar-ring: 16 88% 54%;
     }
 
-    .dark {
-        --background: 214 60% 7%;
-        --foreground: 48 22% 95%;
-        --card: 214 40% 10%;
-        --card-foreground: 48 22% 95%;
-        --popover: 214 40% 10%;
-        --popover-foreground: 48 22% 95%;
-        --primary: 16 88% 54%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 214 30% 14%;
-        --secondary-foreground: 48 22% 95%;
-        --muted: 214 30% 14%;
-        --muted-foreground: 48 10% 70%;
-        --accent: 214 30% 14%;
-        --accent-foreground: 48 22% 95%;
-        --destructive: 0 62% 40%;
-        --destructive-foreground: 0 0% 98%;
-        --border: 214 20% 20%;
-        --input: 214 20% 20%;
-        --ring: 16 88% 54%;
+    /* Printing (claim pack, reports): paper colours. */
+    @media print {
+        :root {
+            color-scheme: light;
+            --background: 0 0% 100%;
+            --foreground: 240 6% 10%;
+            --card: 0 0% 100%;
+            --card-foreground: 240 6% 10%;
+            --secondary: 240 11% 95%;
+            --muted: 240 11% 95%;
+            --muted-foreground: 240 2% 40%;
+            --border: 240 6% 88%;
+        }
     }
 }
 
@@ -86,7 +90,11 @@
     body {
         @apply bg-background text-foreground font-body antialiased;
         font-size: 16px;
-        line-height: 1.55;
+        line-height: 1.5;
+        letter-spacing: -0.011em;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "cv11", "ss01";
     }
 
     h1,
@@ -94,8 +102,8 @@
     h3,
     h4 {
         @apply font-heading;
-        font-weight: 500;
-        letter-spacing: -0.02em;
+        font-weight: 600;
+        letter-spacing: -0.022em;
     }
 
     ::selection {
@@ -133,30 +141,52 @@
         transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* Former mono caps labels now read as iOS footnote text. */
     .font-spec {
-        font-family: var(--font-mono);
-        letter-spacing: 0.04em;
+        font-family: var(--font-body);
+        letter-spacing: 0;
+        font-weight: 500;
+        text-transform: none !important;
     }
 
-    /* Brief: cards 14px radius, 1px hairline, no shadows. Buttons 40px tall, 12px radius. */
+    .ease-ios {
+        transition-timing-function: var(--ease-ios);
+    }
+
+    .glass {
+        background-color: hsl(var(--background) / 0.72);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        backdrop-filter: saturate(180%) blur(20px);
+    }
+
+    .rise {
+        animation: rise 0.55s var(--ease-ios) both;
+    }
+
+    .pop {
+        animation: pop 0.35s var(--ease-ios) both;
+    }
+
+    /* Cards: near-black, continuous-feeling 18px corners, a white hairline and a deep soft shadow. */
     .fd-card {
-        @apply rounded-lg border border-border bg-card;
+        @apply rounded-lg border border-white/[0.08] bg-card shadow-[0_1px_0_rgba(255,255,255,0.03)_inset,0_12px_32px_-16px_rgba(0,0,0,0.6)];
     }
 
+    /* Capsule buttons with a press-down spring, like iOS. */
     .fd-btn {
-        @apply inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-medium transition-[background-color,color,opacity,transform] duration-200 ease-out-quick active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+        @apply inline-flex h-10 select-none items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-[15px] font-semibold tracking-[-0.01em] transition-[background-color,color,box-shadow,opacity,transform] duration-300 ease-ios active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40;
     }
 
     .fd-btn-primary {
-        @apply fd-btn bg-[hsl(var(--primary-deep))] text-primary-foreground hover:bg-primary;
+        @apply fd-btn bg-[hsl(var(--primary-deep))] text-primary-foreground shadow-[0_4px_14px_-6px_hsl(var(--primary)/0.7)] hover:bg-primary hover:shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.8)];
     }
 
     .fd-btn-ink {
-        @apply fd-btn bg-foreground text-background hover:bg-[hsl(var(--deep))];
+        @apply fd-btn bg-foreground text-background hover:bg-foreground/85;
     }
 
     .fd-btn-outline {
-        @apply fd-btn border border-border bg-card text-foreground hover:border-foreground;
+        @apply fd-btn bg-secondary text-foreground hover:bg-[hsl(var(--secondary-hover))];
     }
 
     .no-scrollbar::-webkit-scrollbar {
@@ -168,6 +198,136 @@
     }
 }
 
+/* ---- UI/CSS skill techniques (Ania Kubow tips). CSS first; every one has a plain fallback and a reduced-motion path. ---- */
+
+/* Display headline: the brand serif, slightly tightened. Real text, no images of text. */
+.font-display-tight {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+}
+
+/* #21 Scroll-driven entrance: no IntersectionObserver, no JS. Unsupported browsers and reduced motion
+   simply show the content in place, so nothing ever waits to be readable. */
+@supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+        .reveal {
+            animation: reveal-in linear both;
+            animation-timeline: view();
+            animation-range: entry 0% entry 55%;
+        }
+        /* The CSS-only 3D moment: the dashboard screenshot starts tilted back in perspective and lays
+           flat as it scrolls into view. No three.js; desktop widths only. */
+        @media (min-width: 768px) {
+            .tilt-in {
+                transform-origin: 50% 0;
+                animation: tilt-flat linear both;
+                animation-timeline: view();
+                animation-range: entry 0% cover 40%;
+            }
+        }
+    }
+}
+
+@keyframes reveal-in {
+    from { opacity: 0; translate: 0 var(--reveal-y, 20px); }
+    to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes tilt-flat {
+    from { transform: perspective(1600px) rotateX(16deg) scale(0.94); opacity: 0.55; }
+    to { transform: none; opacity: 1; }
+}
+
+/* #8 Premium card shine: one slow, soft light sweep on hover or keyboard focus. */
+.card-shine {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+}
+.card-shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.07) 48%, rgba(255, 255, 255, 0.02) 56%, transparent 70%);
+    translate: -110% 0;
+    transition: translate 1.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.card-shine:hover::after,
+.card-shine:focus-within::after {
+    translate: 110% 0;
+}
+
+/* #25 AI voice orb: two stacked conic gradients, blurred, turning at different speeds.
+   Brand orange family only (no blue/purple wash). data-state speeds it up while listening or speaking. */
+.ai-orb {
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: 9999px;
+    background: hsl(var(--primary-deep));
+}
+.ai-orb::before,
+.ai-orb::after {
+    content: "";
+    position: absolute;
+    inset: -30%;
+    border-radius: 9999px;
+    filter: blur(5px);
+    animation: orb-spin var(--orb-speed, 7s) linear infinite;
+}
+.ai-orb::before {
+    background: conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--ios-orange)), hsl(var(--ios-red)), hsl(var(--primary)));
+}
+.ai-orb::after {
+    background: conic-gradient(from 90deg, transparent 0 25%, rgba(255, 255, 255, 0.55) 40%, transparent 55% 75%, rgba(255, 214, 160, 0.5) 88%, transparent);
+    mix-blend-mode: screen;
+    animation-direction: reverse;
+    animation-duration: calc(var(--orb-speed, 7s) * 1.6);
+}
+.ai-orb[data-state="listening"] { --orb-speed: 1.6s; }
+.ai-orb[data-state="thinking"] { --orb-speed: 2.4s; }
+.ai-orb[data-state="speaking"] { --orb-speed: 1.1s; }
+
+/* #18 Typing dots: scale and opacity only, staggered delays, no timers. */
+.typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.typing-dots > span {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: typing-dot 1.2s ease-in-out infinite;
+}
+.typing-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots > span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes typing-dot {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shimmer {
+    to { transform: translateX(100%); }
+}
+
+@keyframes rise {
+    from { opacity: 0; transform: translateY(10px) scale(0.99); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes pop {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+}
+
 @keyframes orb-breathe {
     0%, 100% { transform: scale(1); opacity: 0.7; }
     50% { transform: scale(1.12); opacity: 1; }
@@ -176,4 +336,83 @@
 @keyframes orb-spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+
+/* Storm radar: the storm edge marches, pins in the path pulse. Reduced motion stops both (global rule + motion-safe). */
+@keyframes storm-march {
+    to { stroke-dashoffset: -32; }
+}
+
+@keyframes pin-pulse {
+    0% { transform: scale(0.6); opacity: 0.9; }
+    100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Pills sit in components so utilities such as `hidden` can still override them. */
+@layer components {
+    .fd-pill {
+        @apply inline-flex h-6 flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[12px] font-semibold leading-none transition-colors duration-300 ease-ios;
+    }
+    .fd-pill-neutral {
+        @apply fd-pill bg-secondary text-muted-foreground;
+    }
+    .fd-pill-accent {
+        @apply fd-pill bg-[hsl(var(--ios-blue)/0.16)] text-[hsl(var(--ios-blue))];
+    }
+    .fd-pill-ok {
+        @apply fd-pill bg-[hsl(var(--ios-green)/0.16)] text-[hsl(var(--ios-green))];
+    }
+    .fd-pill-strong {
+        @apply fd-pill bg-foreground text-background;
+    }
+}
+
+/* App-screen pieces (Taste app-screen rules): sentence-case pills, one section header pattern, quiet empties. */
+@layer utilities {
+    .fd-section-head {
+        @apply mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2;
+    }
+    .fd-section-title {
+        @apply text-[16px] font-semibold leading-tight;
+    }
+    .fd-section-meta {
+        @apply text-[13px] text-muted-foreground;
+    }
+    .fd-empty {
+        @apply rounded-lg border border-dashed border-border px-4 py-5 text-[14px] text-muted-foreground;
+    }
+    .fd-btn-sm {
+        @apply h-9 rounded-full px-3.5 text-[14px];
+    }
+}
+
+/* ---- Business sites (/site and the customer chat): each trade gets its own feel on the same dark base. ----
+   Roofing: steel-black, safety orange, a heavy upright sans headline. Med spa: plum-black, soft rose,
+   the italic serif. Only tokens change, so every button, link and focus ring follows. */
+.site-roofing {
+    --deep: 215 16% 6%;
+    --primary: 22 92% 52%;
+    --primary-deep: 20 88% 46%;
+    --ring: 22 92% 52%;
+}
+.site-roofing .site-headline {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.035em;
+    line-height: 0.92;
+}
+.site-medspa {
+    --deep: 340 16% 7%;
+    --background: 340 10% 5%;
+    --card: 340 10% 8%;
+    --primary: 345 72% 74%;
+    --primary-deep: 343 52% 56%;
+    --ring: 345 72% 74%;
+}
+.site-medspa .site-headline {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.01em;
 }
