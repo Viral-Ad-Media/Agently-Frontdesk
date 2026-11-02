@@ -31,6 +31,7 @@ export const CAPABILITY_MODEL = {
   previewRepair: "Muse Image",
   transcribeCall: "Muse Voice Transcribe",
   setupTenant: "Muse Spark",
+  deskCommand: "Muse Spark",
 };
 
 export class GatewayError extends Error {
@@ -129,4 +130,5 @@ export const gateway = {
   previewRepair: (input) => call("previewRepair", input),
   transcribeCall: (input) => call("transcribeCall", input),
   setupTenant: (input) => call("setupTenant", input),
+  deskCommand: (input) => call("deskCommand", input),
 };
