@@ -80,6 +80,10 @@ await scrollTo(page.locator("#how"));
 await shot("08-site-how", page.locator("#how"));
 await scrollTo(page.locator("#why"));
 await shot("09-site-why", page.locator("#why"));
+await page.goto(`${BASE}/site?tenant=luma-skin`, { waitUntil: "networkidle" });
+await settle(600);
+await shot("09b-site-spa");
+await page.goto(`${BASE}/site?tenant=summit-ridge`, { waitUntil: "networkidle" });
 
 // ---------- 3. Customer chat, roofing ----------
 await page.goto(`${BASE}/chat?tenant=summit-ridge`, { waitUntil: "networkidle" });
