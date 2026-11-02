@@ -69,7 +69,7 @@ Built on 2 Nov 2026 from the Agents 101, Agents 102 and Fireworks sessions. Ever
 | Task | Tier | Effort | Human review |
 |---|---|---|---|
 | Chat turns, re-openers, voice desk | small | low | no |
-| Clear single-problem assessment, reviewer pass | medium | medium | no |
+| Clear single-problem assessment, reviewer pass | medium | low (was medium; a medium-effort review took 34 s on Meta) | no |
 | Safety hazard, photo vs description conflict, several problems | large | high | forced |
 | Retry after a failed review | next tier up | higher | after 3 failures |
 
