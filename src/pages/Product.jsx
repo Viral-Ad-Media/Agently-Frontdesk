@@ -24,6 +24,8 @@ import Reveal from "@/components/shared/Reveal";
 // Agently product site, laid out like a modern developer-tool SaaS page (21st.dev/mcp as the reference):
 // dark canvas, one accent, hairline borders, a live product mock in the hero, numbered steps, a bento grid,
 // a real screenshot of the owner dashboard, FAQ and a closing call to action. Everything shown is in the app.
+// UI/CSS skill pass: Instrument Serif display headlines, no section glow washes, CSS scroll entrances,
+// a slow card shine on the bento and a CSS-only 3D tilt on the dashboard screenshot.
 
 const EASE = [0.32, 0.72, 0, 1];
 const SITE = "/site";
@@ -75,7 +77,7 @@ function HeroDemo() {
               <svg viewBox="0 0 176 112" className="absolute inset-0 h-full w-full" aria-hidden>
                 <motion.polygon points="58,34 118,28 132,70 74,82" fill="hsl(16 88% 54% / 0.28)" stroke="hsl(16 88% 60%)" strokeWidth="2" strokeLinejoin="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.2, delay: 2.3, ease: EASE }} />
               </svg>
-              <span className="absolute bottom-1.5 left-2 rounded-full bg-black/50 px-2 py-0.5 font-mono text-[10px] text-white/80">SAM 3.1 outline</span>
+              <span className="absolute bottom-1.5 left-2 rounded-full bg-black/50 px-2.5 py-1 font-mono text-[10px] leading-none text-white/80">SAM 3.1 outline</span>
             </div>
           </motion.div>
           <Bubble from="desk" delay={3.0}>
@@ -88,7 +90,7 @@ function HeroDemo() {
           <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 3.9, ease: EASE }} className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-4">
             <div className="flex items-center justify-between">
               <p className="text-[14px] font-semibold text-white">New lead</p>
-              <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">Moderate</span>
+              <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-[11px] leading-none font-semibold text-amber-300">Moderate</span>
             </div>
             <p className="mt-1 text-[12px] text-white/50">14 Larkspur Lane · photo outlined</p>
             <p className="mt-3 text-[20px] font-semibold tracking-tight text-white">$650 – $1,100</p>
@@ -121,7 +123,7 @@ function SectionHead({ eyebrow, title, text, action }) {
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="max-w-2xl">
         {eyebrow && <p className="font-mono text-[12px] text-[hsl(16_88%_62%)]">{eyebrow}</p>}
-        <h2 className="mt-2 text-balance text-[30px] font-semibold leading-[1.1] tracking-[-0.03em] text-white sm:text-[40px]">{title}</h2>
+        <h2 className="font-display-tight mt-2 text-balance text-[38px] leading-[1.04] text-white sm:text-[54px]">{title}</h2>
         {text && <p className="mt-3 text-[16px] leading-relaxed text-white/55">{text}</p>}
       </div>
       {action}
@@ -132,8 +134,7 @@ function SectionHead({ eyebrow, title, text, action }) {
 function Tile({ icon: Icon, title, text, className = "", children, delay = 0 }) {
   return (
     <Reveal delay={delay} y={24} className={className}>
-      <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111113] p-5 transition-colors duration-300 hover:border-white/20 sm:p-6">
-        <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100 [background:radial-gradient(400px_circle_at_20%_0%,rgba(241,90,36,0.10),transparent_60%)]" />
+      <div className="card-shine group flex h-full flex-col rounded-2xl border border-white/10 bg-[#111113] p-5 transition-colors duration-300 hover:border-white/20 sm:p-6">
         <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-white/80">
           <Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
         </span>
@@ -193,15 +194,14 @@ export default function Product() {
       <main>
         {/* Hero */}
         <section className="relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-[640px] [background:radial-gradient(60%_50%_at_50%_0%,rgba(241,90,36,0.22),transparent_70%)]" />
           <div className="pointer-events-none absolute inset-0 opacity-[0.35] [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:56px_56px] [mask-image:radial-gradient(70%_60%_at_50%_0%,black,transparent)]" />
           <div className="relative mx-auto max-w-[1200px] px-4 pb-16 pt-16 text-center sm:px-6 sm:pt-24">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE }} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1 pl-1 pr-3 text-[13px] text-white/70">
-              <span className="rounded-full bg-[hsl(16_88%_54%)] px-2 py-0.5 text-[11px] font-semibold text-white">New</span>
+              <span className="rounded-full bg-[hsl(16_88%_54%)] px-2.5 py-1 text-[11px] font-semibold leading-none text-white">New</span>
               Storm radar and claim packs for roofers
             </motion.div>
-            <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.08, ease: EASE }} className="mx-auto mt-6 max-w-[16ch] text-balance text-[44px] font-semibold leading-[1.02] tracking-[-0.045em] sm:text-[68px]">
-              The front desk that never misses a job.
+            <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.08, ease: EASE }} className="font-display-tight mx-auto mt-6 max-w-[15ch] text-balance text-[52px] leading-[0.98] sm:text-[88px]">
+              The front desk that <em className="text-[hsl(16_88%_62%)]">never misses</em> a job.
             </motion.h1>
             <motion.p initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.16, ease: EASE }} className="mx-auto mt-5 max-w-[56ch] text-[17px] leading-relaxed text-white/60 sm:text-[18px]">
               Agently answers every chat and call, reads the photo, drafts a fair price from your own rates and books the visit. You approve, it sends.
@@ -283,7 +283,7 @@ export default function Product() {
                     <svg viewBox="0 0 100 80" className="absolute inset-0 h-full w-full" aria-hidden>
                       <polygon points={["30,22 70,18 78,50 38,58", "20,30 60,26 64,40 24,46", "40,20 70,30 62,60 30,52"][i]} fill="hsl(16 88% 54% / 0.25)" stroke="hsl(16 88% 60%)" strokeWidth="1.5" />
                     </svg>
-                    <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] text-white/80">{t}</span>
+                    <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] leading-none text-white/80">{t}</span>
                   </div>
                 ))}
               </div>
@@ -293,7 +293,7 @@ export default function Product() {
                 {[["Draft", "bg-white/10 text-white/70"], ["Approved", "bg-white text-black"], ["Sent", "bg-emerald-500/20 text-emerald-300"]].map(([s, cls], i) => (
                   <div key={s} className="flex items-center justify-between rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-[13px]">
                     <span className="text-white/60">Quote #{1042 + i}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>{s}</span>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none ${cls}`}>{s}</span>
                   </div>
                 ))}
               </div>
@@ -363,12 +363,14 @@ export default function Product() {
             />
           </Reveal>
           <Reveal y={40} delay={0.1}>
-            <Window title="agently.app/frontdesk" className="mt-10">
-              <div className="relative max-h-[560px] overflow-hidden bg-[#09090b]">
-                <img src="/shots/dashboard.webp" alt="The Agently owner dashboard: today's numbers, leads, calendar, storm radar and phone calls" width="1200" height="1300" loading="lazy" className="block w-full" />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#111113] to-transparent" />
-              </div>
-            </Window>
+            <div className="mt-10 [perspective:1600px]">
+              <Window title="agently.app/frontdesk" className="tilt-in">
+                <div className="relative max-h-[560px] overflow-hidden bg-[#09090b]">
+                  <img src="/shots/dashboard.webp" alt="The Agently owner dashboard: today's numbers, leads, calendar, storm radar and phone calls" width="1200" height="1300" loading="lazy" className="block w-full" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#111113] to-transparent" />
+                </div>
+              </Window>
+            </div>
           </Reveal>
         </section>
 
@@ -420,8 +422,8 @@ export default function Product() {
         <section className="mx-auto max-w-[1200px] px-4 pb-24 sm:px-6">
           <Reveal y={30}>
             <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#111113] px-6 py-16 text-center sm:py-20">
-              <div className="pointer-events-none absolute inset-0 [background:radial-gradient(50%_80%_at_50%_100%,rgba(241,90,36,0.25),transparent_70%)]" />
-              <h2 className="relative mx-auto max-w-[18ch] text-balance text-[32px] font-semibold leading-[1.08] tracking-[-0.04em] sm:text-[48px]">Stop losing jobs to voicemail.</h2>
+              <div className="pointer-events-none absolute inset-x-[15%] top-0 h-px bg-gradient-to-r from-transparent via-[hsl(16_88%_60%)] to-transparent" aria-hidden />
+              <h2 className="font-display-tight relative mx-auto max-w-[16ch] text-balance text-[40px] leading-[1.02] sm:text-[64px]">Stop losing jobs to <em className="text-[hsl(16_88%_62%)]">voicemail.</em></h2>
               <p className="relative mx-auto mt-4 max-w-[48ch] text-[16px] text-white/60">Paste your website and your front desk is ready to review in about a minute.</p>
               <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link to="/setup" className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-[15px] font-semibold text-black transition-transform duration-300 active:scale-95">
