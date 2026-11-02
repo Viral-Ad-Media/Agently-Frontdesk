@@ -89,6 +89,36 @@ export const TOOLS = {
   },
 };
 
+// Fast path planner. The lookups a question plainly needs are picked from its wording and run in code before
+// the model is called, so most replies take one model call instead of two. The model can still ask for a
+// lookup the planner missed. Tools only read data, so an extra lookup costs nothing but a few microseconds.
+export const QUESTION = /\?|^\s*(do|does|did|can|could|are|is|how|what|when|where|will|would|any|have|got)\b/i;
+export const NEEDS = [
+  ["customer_history", /\b(last time|before|again|already|earlier|previous|still waiting|follow(?:ing)? up)\b/i],
+  ["check_calendar", /\b(available|availability|slots?|appointment|come (?:out|over|by)|today|tomorrow|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|when can)\b/i],
+  ["rate_card", /\b(how much|cost|costs|price|prices|pricing|rates?|charge|expensive|cheap)\b/i],
+  ["business_facts", /\b(area|serve|cover|near|insured|insurance|licen[cs]ed|warranty|guarantee|hours|open on|located|who are you)\b/i],
+  ["storm_reports", /\b(was there a storm|storm (?:last|yesterday|this)|hail (?:last|yesterday|this))\b/i],
+];
+export const SKIN = /\b(skin|acne|breakouts?|spots|dull|dry|wrinkles?|lines|tone|pores|scars?|redness)\b/i;
+export const DAY_WORD = /\b(today|tomorrow|mon|tue|wed|thu|fri|sat|sun)[a-z]*\b/i;
+export const THOUGHT = {
+  check_calendar: "They asked about timing. Check real open slots before offering any.",
+  rate_card: "They asked about price. Read the published rates; never invent a total.",
+  business_facts: "They asked about the business. Read what is on record; anything else is unknown.",
+  customer_history: "They referred to an earlier contact. Look up enquiries from this address.",
+  storm_reports: "They asked about the storm. Read the weather-service reports on record.",
+};
+
+export function planLookups(text = "", trade = "roofing") {
+  if (!QUESTION.test(text)) return [];
+  return NEEDS.filter(([, re]) => re.test(text)).map(([tool]) => ({
+    tool,
+    args: tool === "check_calendar" ? { day: text.match(DAY_WORD)?.[1]?.toLowerCase() || null } : tool === "rate_card" ? { topic: trade === "medspa" ? text.match(SKIN)?.[0] || null : text } : {},
+    thought: THOUGHT[tool],
+  }));
+}
+
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 export const toolList = () => Object.entries(TOOLS).map(([name, t]) => ({ name, describe: t.describe }));
@@ -124,6 +154,13 @@ export async function runAgentTurn({ ai, trade, tenant, messages, caseState, dat
   if (typeof ai.agentStep !== "function") {
     const res = await ai.converse({ trade, messages, caseState, tenant, route, caseId });
     return { ...res, trace: { steps, grounded: true, fallback: "converse" } };
+  }
+  // Fast path: run the lookups the question plainly needs now, in code, then ask the model once.
+  const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content || "";
+  for (const p of data.prefetch === false ? [] : planLookups(lastUser, trade)) {
+    const result = TOOLS[p.tool].run({ ...data, tenant, args: p.args, now });
+    observations.push({ tool: p.tool, args: p.args, result });
+    steps.push({ thought: p.thought, tool: p.tool, label: TOOLS[p.tool].label, args: p.args, result, prefetched: true });
   }
   for (let i = 0; i <= maxSteps; i++) {
     const out = await ai.agentStep({ trade, tenant, messages, caseState, observations, tools: toolList(), mustAnswer: i === maxSteps, route, caseId });
