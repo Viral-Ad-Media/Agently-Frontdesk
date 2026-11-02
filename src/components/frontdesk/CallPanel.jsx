@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Mic, PhoneIncoming, Square } from "lucide-react";
+import { Loader2, Mic, Phone, PhoneIncoming, Square } from "lucide-react";
 import { gateway, PROVIDER } from "@/gateway";
 import { useStore, createCaseFromCall } from "@/lib/store";
 import Panel from "@/components/frontdesk/Panel";
@@ -9,7 +9,7 @@ import { recordWav } from "@/lib/recorder";
 // Callers reach the same front desk as chatters: the call is transcribed, qualified by the same brain,
 // and lands in the same case record. On a real provider the owner records the caller's words with the
 // microphone (Muse Voice Transcribe); on mock a rehearsed transcript plays instead, labelled.
-export default function CallPanel({ tenant, className = "" }) {
+export default function CallPanel({ tenant, className = "", delay = 0 }) {
   const allCases = useStore((s) => s.cases);
   const calls = allCases.filter((c) => c.tenantId === tenant.id && c.source === "call");
   const [busy, setBusy] = useState(false);
@@ -68,7 +68,7 @@ export default function CallPanel({ tenant, className = "" }) {
   };
 
   return (
-    <Panel title="Phone calls" meta="Transcribed and qualified by the same desk" className={className} bodyClassName="flex flex-col">
+    <Panel title="Phone calls" icon={Phone} tint="var(--ios-green)" delay={delay} meta="Transcribed and qualified by the same desk" className={className} bodyClassName="flex flex-col">
       <div className="border-b border-border p-4">
       <p className="text-[14px] text-muted-foreground">A call becomes a case in your leads, the same as a chat.</p>
       <div className="mt-3">

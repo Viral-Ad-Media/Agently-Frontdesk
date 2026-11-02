@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, Check, ChevronDown, CloudLightning, FileText, ImageOff, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { CalendarDays, Check, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, ImageOff, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { clearGatewayCache } from "@/gateway";
 import { STATUS_LABEL } from "@/lib/quote";
@@ -49,7 +49,7 @@ export default function Frontdesk() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 border-b border-border bg-background">
+      <header className="glass sticky top-0 z-20 border-b border-black/[0.06]">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-2 px-4 md:gap-3 md:px-8">
           <Logo showWord={false} word={tenant.name} />
           <label className="relative min-w-0">
@@ -78,7 +78,8 @@ export default function Frontdesk() {
       <main className="mx-auto max-w-[1200px] px-4 pb-20 pt-6 md:px-8 md:pt-8">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold leading-tight">Today</h1>
+            <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
+            <h1 className="mt-0.5 text-[34px] font-bold leading-[1.1] tracking-[-0.03em]">Today</h1>
             <p className="mt-1 text-[14px] text-muted-foreground">
               {tenant.name} · {spa ? "med spa" : "roofing"}
               {tenant.serviceArea ? ` · ${tenant.serviceArea}` : ""}
@@ -93,16 +94,18 @@ export default function Frontdesk() {
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-12">
-          <section aria-label="Today in numbers" className="overflow-hidden rounded-lg border border-border bg-card lg:col-span-12">
+          <section aria-label="Today in numbers" className="fd-card rise overflow-hidden lg:col-span-12">
             <div className="grid grid-cols-3 divide-x divide-border">
               {[
-                ["Answered", answered, "enquiries"],
-                ["Booked", booked, spa ? "consultations" : "inspections"],
-                ["Reactivated", reactivated, spa ? "clients" : "jobs"],
-              ].map(([label, n, unit]) => (
-                <div key={label} className="min-w-0 px-4 py-3 sm:px-5 sm:py-4">
-                  <p className="truncate text-[13px] text-muted-foreground">{label}</p>
-                  <p className="mt-1 font-heading text-[26px] font-semibold leading-none tabular-nums sm:text-[30px]">{n}</p>
+                ["Answered", answered, "enquiries", MessageCircle, "var(--ios-blue)"],
+                ["Booked", booked, spa ? "consultations" : "inspections", CircleCheck, "var(--ios-green)"],
+                ["Reactivated", reactivated, spa ? "clients" : "jobs", Sparkles, "var(--ios-orange)"],
+              ].map(([label, n, unit, Icon, tint]) => (
+                <div key={label} className="min-w-0 px-4 py-3.5 sm:px-5 sm:py-4">
+                  <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-muted-foreground">
+                    <Icon className="hidden h-4 w-4 shrink-0 sm:block" strokeWidth={2.25} style={{ color: `hsl(${tint})` }} aria-hidden /> {label}
+                  </p>
+                  <p key={n} className="pop mt-1.5 font-heading text-[28px] font-bold leading-none tracking-[-0.03em] tabular-nums sm:text-[34px]">{n}</p>
                   <p className="mt-1 truncate text-[12px] text-muted-foreground">{unit}</p>
                 </div>
               ))}
@@ -110,7 +113,7 @@ export default function Frontdesk() {
             <DailySummary flat tenant={tenant} cases={cases} slots={slots} leads={tenantLeads} />
           </section>
 
-          <Panel title="Leads" meta={cases.length ? `${cases.length} total · ${waiting} waiting on you` : "Newest first"} className="lg:col-span-8 lg:h-[380px]" bodyClassName="overflow-y-auto">
+          <Panel title="Leads" icon={Inbox} tint="var(--ios-blue)" delay={80} meta={cases.length ? `${cases.length} total · ${waiting} waiting on you` : "Newest first"} className="lg:col-span-8 lg:h-[380px]" bodyClassName="overflow-y-auto">
             {cases.length === 0 ? (
               <Empty>
                 No enquiries yet. Open the{" "}
@@ -128,15 +131,15 @@ export default function Frontdesk() {
             )}
           </Panel>
 
-          <Panel title="Calendar" meta={schedule.length ? `${schedule.length} ${tenant.words.visit}${schedule.length === 1 ? "" : "s"} booked` : "A taken slot is never offered twice"} className="lg:col-span-4 lg:h-[380px]" bodyClassName="overflow-y-auto">
+          <Panel title="Calendar" icon={CalendarDays} tint="var(--ios-red)" delay={140} meta={schedule.length ? `${schedule.length} ${tenant.words.visit}${schedule.length === 1 ? "" : "s"} booked` : "A taken slot is never offered twice"} className="lg:col-span-4 lg:h-[380px]" bodyClassName="overflow-y-auto">
             {schedule.length === 0 ? (
               <Empty>Nothing booked yet. A booking made in chat appears here at once.</Empty>
             ) : (
               <ul className="divide-y divide-border">
                 {schedule.map((s) => (
-                  <li key={s.id} className="flex items-center gap-3 px-4 py-3">
+                  <li key={s.id} className="pop flex items-center gap-3 px-4 py-3 transition-colors duration-200 hover:bg-secondary/60">
                     <div className="w-10 shrink-0 text-center">
-                      <p className="text-[11px] uppercase text-muted-foreground">{new Date(s.start).toLocaleDateString("en-US", { month: "short" })}</p>
+                      <p className="text-[11px] font-semibold uppercase text-[hsl(var(--ios-red))]">{new Date(s.start).toLocaleDateString("en-US", { month: "short" })}</p>
                       <p className="font-heading text-[20px] font-semibold leading-none tabular-nums">{new Date(s.start).getDate()}</p>
                     </div>
                     <div className="min-w-0 flex-1">
@@ -156,10 +159,10 @@ export default function Frontdesk() {
             )}
           </Panel>
 
-          {!spa && <StormRadar tenant={tenant} className="lg:col-span-8" />}
-          <CallPanel tenant={tenant} className={spa ? "lg:col-span-12" : "lg:col-span-4"} />
+          {!spa && <StormRadar tenant={tenant} className="lg:col-span-8" delay={200} />}
+          <CallPanel tenant={tenant} delay={260} className={spa ? "lg:col-span-12" : "lg:col-span-4"} />
 
-          <ReactivationPanel tenant={tenant} className="lg:col-span-12" />
+          <ReactivationPanel tenant={tenant} delay={320} className="lg:col-span-12" />
         </div>
       </main>
     </div>
@@ -280,7 +283,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
       )}
 
       {open && c.assessment && (
-        <div className="space-y-4 border-t border-border p-4">
+        <div className="pop space-y-4 border-t border-border p-4">
           {c.photo && c.segmentation && status !== "sent" && (
             <div className="flex flex-wrap items-center gap-2">
               {!outlining && (

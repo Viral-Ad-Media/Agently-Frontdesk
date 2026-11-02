@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/* iPhone type: SF Pro on Apple devices (system font), Inter elsewhere as the closest match. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,38 +10,46 @@
    deep #07101c, orange #f15a24, orange-deep #b63a0e. */
 @layer base {
     :root {
-        --background: 48 22% 95%;
-        --foreground: 220 16% 7%;
+        --background: 240 24% 96%;
+        --foreground: 240 6% 10%;
         --card: 0 0% 100%;
-        --card-foreground: 220 16% 7%;
+        --card-foreground: 240 6% 10%;
         --popover: 0 0% 100%;
-        --popover-foreground: 220 16% 7%;
+        --popover-foreground: 240 6% 10%;
         --primary: 16 88% 54%;
         --primary-foreground: 0 0% 100%;
-        --primary-deep: 16 86% 38%;
-        --deep: 214 60% 7%;
-        --secondary: 48 18% 92%;
-        --secondary-foreground: 220 16% 7%;
-        --muted: 48 18% 92%;
-        --muted-foreground: 231 4% 37%;
-        --accent: 48 18% 92%;
-        --accent-foreground: 220 16% 7%;
-        --destructive: 0 72% 45%;
+        --primary-deep: 16 82% 46%;
+        --deep: 240 6% 10%;
+        --secondary: 240 11% 95%;
+        --secondary-foreground: 240 6% 10%;
+        --muted: 240 11% 95%;
+        --muted-foreground: 240 2% 44%;
+        --accent: 240 11% 95%;
+        --accent-foreground: 240 6% 10%;
+        --destructive: 3 100% 50%;
         --destructive-foreground: 0 0% 98%;
-        --border: 47 11% 83%;
-        --input: 47 11% 83%;
+        --border: 240 6% 90%;
+        --input: 240 6% 88%;
+        /* iOS system colours for icon tiles and status. */
+        --ios-blue: 211 100% 50%;
+        --ios-green: 135 64% 45%;
+        --ios-indigo: 241 61% 59%;
+        --ios-red: 3 100% 59%;
+        --ios-orange: 35 100% 50%;
+        --ios-teal: 189 64% 48%;
+        --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
         --ring: 16 88% 54%;
         --chart-1: 16 88% 54%;
         --chart-2: 173 30% 35%;
         --chart-3: 197 25% 25%;
         --chart-4: 38 70% 55%;
         --chart-5: 27 60% 50%;
-        --radius: 14px;
-        --font-heading: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-        --font-body: 'Manrope', ui-sans-serif, system-ui, sans-serif;
-        --font-display: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-        --font-accent: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-        --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        --radius: 18px;
+        --font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+        --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+        --font-display: var(--font-heading);
+        --font-accent: var(--font-heading);
+        --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
         --sidebar-background: 0 0% 100%;
         --sidebar-foreground: 220 16% 7%;
         --sidebar-primary: 16 88% 54%;
@@ -86,7 +95,11 @@
     body {
         @apply bg-background text-foreground font-body antialiased;
         font-size: 16px;
-        line-height: 1.55;
+        line-height: 1.5;
+        letter-spacing: -0.011em;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "cv11", "ss01";
     }
 
     h1,
@@ -94,8 +107,8 @@
     h3,
     h4 {
         @apply font-heading;
-        font-weight: 500;
-        letter-spacing: -0.02em;
+        font-weight: 600;
+        letter-spacing: -0.022em;
     }
 
     ::selection {
@@ -133,30 +146,53 @@
         transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* Former mono caps labels now read as iOS footnote text. */
     .font-spec {
-        font-family: var(--font-mono);
-        letter-spacing: 0.04em;
+        font-family: var(--font-body);
+        letter-spacing: 0;
+        font-weight: 500;
+        text-transform: none !important;
+    }
+
+    .ease-ios {
+        transition-timing-function: var(--ease-ios);
+    }
+
+    .glass {
+        background-color: hsl(var(--background) / 0.72);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        backdrop-filter: saturate(180%) blur(20px);
+    }
+
+    .rise {
+        animation: rise 0.55s var(--ease-ios) both;
+    }
+
+    .pop {
+        animation: pop 0.35s var(--ease-ios) both;
     }
 
     /* Brief: cards 14px radius, 1px hairline, no shadows. Buttons 40px tall, 12px radius. */
+    /* iOS cards: white, continuous-feeling 18px corners, a hairline and a soft lift. */
     .fd-card {
-        @apply rounded-lg border border-border bg-card;
+        @apply rounded-lg border border-black/[0.05] bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)];
     }
 
+    /* Capsule buttons with a press-down spring, like iOS. */
     .fd-btn {
-        @apply inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-sm font-medium transition-[background-color,color,opacity,transform] duration-200 ease-out-quick active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+        @apply inline-flex h-10 select-none items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-[15px] font-semibold tracking-[-0.01em] transition-[background-color,color,box-shadow,opacity,transform] duration-300 ease-ios active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40;
     }
 
     .fd-btn-primary {
-        @apply fd-btn bg-[hsl(var(--primary-deep))] text-primary-foreground hover:bg-primary;
+        @apply fd-btn bg-[hsl(var(--primary-deep))] text-primary-foreground shadow-[0_4px_14px_-6px_hsl(var(--primary)/0.7)] hover:bg-primary hover:shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.8)];
     }
 
     .fd-btn-ink {
-        @apply fd-btn bg-foreground text-background hover:bg-[hsl(var(--deep))];
+        @apply fd-btn bg-foreground text-background hover:bg-foreground/85;
     }
 
     .fd-btn-outline {
-        @apply fd-btn border border-border bg-card text-foreground hover:border-foreground;
+        @apply fd-btn bg-secondary text-foreground hover:bg-[hsl(240_9%_90%)];
     }
 
     .no-scrollbar::-webkit-scrollbar {
@@ -166,6 +202,16 @@
     .no-scrollbar {
         scrollbar-width: none;
     }
+}
+
+@keyframes rise {
+    from { opacity: 0; transform: translateY(10px) scale(0.99); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes pop {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
 }
 
 @keyframes orb-breathe {
@@ -191,16 +237,16 @@
 /* Pills sit in components so utilities such as `hidden` can still override them. */
 @layer components {
     .fd-pill {
-        @apply inline-flex h-6 flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[12px] font-medium leading-none;
+        @apply inline-flex h-6 flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[12px] font-semibold leading-none transition-colors duration-300 ease-ios;
     }
     .fd-pill-neutral {
         @apply fd-pill bg-secondary text-muted-foreground;
     }
     .fd-pill-accent {
-        @apply fd-pill bg-primary/10 text-[hsl(var(--primary-deep))];
+        @apply fd-pill bg-[hsl(var(--ios-blue)/0.1)] text-[hsl(var(--ios-blue))];
     }
     .fd-pill-ok {
-        @apply fd-pill bg-emerald-600/10 text-emerald-800;
+        @apply fd-pill bg-[hsl(var(--ios-green)/0.14)] text-[hsl(135_60%_28%)];
     }
     .fd-pill-strong {
         @apply fd-pill bg-foreground text-background;
@@ -222,6 +268,6 @@
         @apply rounded-lg border border-dashed border-border px-4 py-5 text-[14px] text-muted-foreground;
     }
     .fd-btn-sm {
-        @apply h-9 rounded-lg px-3 text-[13px];
+        @apply h-9 rounded-full px-3.5 text-[14px];
     }
 }
