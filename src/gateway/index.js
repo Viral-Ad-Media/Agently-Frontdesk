@@ -32,6 +32,7 @@ export const CAPABILITY_MODEL = {
   transcribeCall: "Muse Voice Transcribe",
   setupTenant: "Muse Spark",
   deskCommand: "Muse Spark",
+  judgeAssessment: "Muse Spark (reviewer pass)",
 };
 
 export class GatewayError extends Error {
@@ -71,7 +72,7 @@ function hash(str) {
   return (h >>> 0).toString(16);
 }
 function cacheKey(capability, input) {
-  const { tenant, ...rest } = input || {};
+  const { tenant, caseId: _caseId, ...rest } = input || {};
   return `${PROVIDER}:${capability}:${hash(JSON.stringify({ ...rest, tenantId: tenant?.id }))}`;
 }
 export function clearGatewayCache() {
@@ -80,6 +81,15 @@ export function clearGatewayCache() {
   } catch {
     /* ignore */
   }
+}
+
+// Cost only when prices are configured (USD per million tokens); otherwise null, shown as "not priced". Never guessed.
+const PRICE_IN = Number(import.meta.env.VITE_META_PRICE_IN_PER_M) || null;
+const PRICE_OUT = Number(import.meta.env.VITE_META_PRICE_OUT_PER_M) || null;
+function costOf(usage) {
+  const t = usage?.tokens;
+  if (!t || PRICE_IN == null || PRICE_OUT == null) return null;
+  return Math.round((((t.input || 0) * PRICE_IN + (t.output || 0) * PRICE_OUT) / 1e6) * 10000) / 10000;
 }
 
 async function call(capability, input) {
@@ -98,8 +108,10 @@ async function call(capability, input) {
   }
   const started = performance.now();
   let ok = true;
+  let usage = null;
   try {
     const result = await impl(input);
+    usage = result?.usage || null;
     if (cacheable) {
       const c = readCache();
       c[key] = result;
@@ -115,8 +127,13 @@ async function call(capability, input) {
       capability,
       provider: PROVIDER,
       latencyMs: Math.round(performance.now() - started),
-      costUsd: PROVIDER === "mock" ? 0 : null,
+      costUsd: PROVIDER === "mock" ? 0 : costOf(usage),
       ok,
+      caseId: input?.caseId || null,
+      model: usage?.model || null,
+      effort: usage?.effort || input?.route?.effort || null,
+      tokens: usage?.tokens || null,
+      route: input?.route ? { tier: input.route.tier, reason: input.route.reason } : null,
     });
   }
 }
@@ -131,4 +148,5 @@ export const gateway = {
   transcribeCall: (input) => call("transcribeCall", input),
   setupTenant: (input) => call("setupTenant", input),
   deskCommand: (input) => call("deskCommand", input),
+  judgeAssessment: (input) => call("judgeAssessment", input),
 };
