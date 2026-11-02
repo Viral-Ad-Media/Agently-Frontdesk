@@ -52,3 +52,8 @@ test("mock deskCommand: a brief retells the summary, nothing else is invented", 
   const n = await mock.deskCommand({ utterance: "order pizza", snapshot: snap });
   assert.equal(n.intent, "none");
 });
+
+test("the voice desk won't approve a quote that hasn't passed its checks", () => {
+  const s = deskSnapshot({ tenant, cases, leads, isVerified: (c) => c.id !== "c1" });
+  assert.match(planAction({ intent: "send_quote", targetId: "c1" }, s).error, /hasn't passed its checks/);
+});

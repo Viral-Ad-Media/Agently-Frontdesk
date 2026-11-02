@@ -5,6 +5,7 @@ import { gateway, PROVIDER, CAPABILITY_MODEL } from "@/gateway";
 import { useStore, moveQuote, moveLeadMessage } from "@/lib/store";
 import { recordWav } from "@/lib/recorder";
 import { deskSnapshot, planAction, confirmWord, readUtterance } from "@/lib/desk";
+import { jobStatus } from "@/lib/verify";
 import { summarise } from "@/components/frontdesk/DailySummary";
 import useVoice from "@/hooks/useVoice";
 
@@ -32,7 +33,14 @@ export default function DeskAssistant() {
 
   const cases = allCases.filter((c) => c.tenantId === tenant.id);
   const leads = allLeads.filter((l) => l.tenantId === tenant.id);
-  const snap = () => deskSnapshot({ tenant, cases, leads, summary: summarise({ tenant, cases, slots: allSlots.filter((s) => s.tenantId === tenant.id), leads }) });
+  const snap = () =>
+    deskSnapshot({
+      tenant,
+      cases,
+      leads,
+      summary: summarise({ tenant, cases, slots: allSlots.filter((s) => s.tenantId === tenant.id), leads }),
+      isVerified: (c) => jobStatus(c, { tenant, slots: allSlots }).status === "verified" || !!c.quote?.override,
+    });
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" });
