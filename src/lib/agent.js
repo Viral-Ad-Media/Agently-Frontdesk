@@ -44,14 +44,20 @@ export const TOOLS = {
   },
   business_facts: {
     label: "Checked the business facts",
-    describe: "What is on record about the business: name, trade, service area, what the first visit is, and any facts confirmed at setup. Anything not listed is unknown.",
+    describe: "What is on record about the business: name, trade, service area, what the first visit is, a short summary and quotes from its own website read at setup. Anything not listed is unknown.",
     run({ tenant = {} }) {
       return {
         name: tenant.name,
         trade: tenant.trade,
         serviceArea: tenant.serviceArea || null,
         firstVisit: tenant.words?.visitLong || null,
-        facts: (tenant.facts || []).map((f) => (typeof f === "string" ? f : f.text || f.value)).filter(Boolean).slice(0, 8),
+        about: tenant.setup?.summary || null,
+        // Facts on record: any set by hand, then the quotes read from the business's own website at setup
+        // (each one is the site's exact words, shown to the owner on the review screen before launch).
+        facts: [
+          ...(tenant.facts || []).map((f) => (typeof f === "string" ? f : f.text || f.value)),
+          ...(tenant.setup?.evidence || []).map((e) => (e?.quote ? `${e.field ? e.field + ": " : ""}"${e.quote}"` : null)),
+        ].filter(Boolean).slice(0, 8),
         unknownMeansUnknown: true,
       };
     },
