@@ -6,7 +6,7 @@ Timing is for a 3:00 cut. Record at 1440×900 for the desktop shots and 390×844
 
 ## 0:00–0:20 · The leak
 
-**Screen:** home page on a phone, then the chat.
+**Screen:** the roofer site at `/site` on a phone, then the chat. (The main URL `/` is now the Agently product page; open it at the start or the end of the video.)
 **Voice:** "Small trade businesses lose the work they already paid to win, in the first five minutes. A homeowner's roof is leaking after a storm. The roofer is on a roof. This is Agently Front Desk: the AI front desk that answers now, assesses the damage from a photo, drafts a price range, books the visit, and never sends a price without a human."
 
 ## 0:20–1:05 · Photo to assessment
