@@ -34,12 +34,28 @@ const usageOf = (out, model, effort) => ({ model, effort, tokens: out.__usage ? 
 
 // ----- plumbing -----
 
-async function post(path, body, extra = {}) {
-  const res = await fetch("/api/ai/meta", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ path, body, ...extra }),
-  });
+// A dropped connection or a busy upstream (proxy 502/503/504, 429) is retried twice with a short backoff;
+// any other error (bad request, auth) fails at once. Seen on a home network: parallel connects to the API
+// timing out now and then while a retry a second later succeeds.
+const RETRYABLE = new Set([429, 502, 503, 504]);
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function post(path, body, extra = {}, attempt = 0) {
+  let res;
+  try {
+    res = await fetch("/api/ai/meta", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path, body, ...extra }),
+    });
+  } catch (e) {
+    if (attempt < 2) return pause(700 * (attempt + 1)).then(() => post(path, body, extra, attempt + 1));
+    throw e;
+  }
+  if (RETRYABLE.has(res.status) && attempt < 2) {
+    await pause(700 * (attempt + 1));
+    return post(path, body, extra, attempt + 1);
+  }
   const text = await res.text();
   if (!res.ok) {
     let msg = `Meta API returned ${res.status}`;
@@ -144,8 +160,11 @@ export async function segmentDamage({ trade = "roofing", dataUrl } = {}) {
   if (!dataUrl) throw new Error("segmentDamage needs the photo.");
   const concepts = trade === "medspa" ? ["area of skin concern"] : ROOF_CONCEPTS;
   let best = null;
-  const perConcept = await Promise.all(concepts.map((concept) => sam(concept, dataUrl).then((boxes) => boxes.map((b) => ({ ...b, concept })))));
-  for (const b of perConcept.flat()) {
+  // One failed concept no longer sinks the photo: use whichever concepts came back, and fail only if none did.
+  const settled = await Promise.allSettled(concepts.map((concept) => sam(concept, dataUrl).then((boxes) => boxes.map((b) => ({ ...b, concept })))));
+  const ok = settled.filter((r) => r.status === "fulfilled");
+  if (!ok.length) throw settled[0].reason;
+  for (const b of ok.flatMap((r) => r.value)) {
     const score = b.confidence ?? 0.5;
     if (!best || score > best.score) best = { ...b, score };
   }
@@ -161,7 +180,8 @@ export async function segmentDamage({ trade = "roofing", dataUrl } = {}) {
   let reference = null;
   if (trade !== "medspa") {
     const refs = REFERENCE_CONCEPTS.filter((r) => r.knownWidthM);
-    const found = await Promise.all(refs.map((r) => sam(r.concept, dataUrl).then((boxes) => ({ r, boxes }))));
+    // A reference lookup that fails just means no scale reference (percent only), never a failed photo.
+    const found = await Promise.all(refs.map((r) => sam(r.concept, dataUrl).then((boxes) => ({ r, boxes }), () => ({ r, boxes: [] }))));
     for (const { r, boxes } of found) {
       const small = boxes.filter((b) => (b.x2 - b.x1) * (b.y2 - b.y1) < 0.05 * b.w * b.h);
       const top = small.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
