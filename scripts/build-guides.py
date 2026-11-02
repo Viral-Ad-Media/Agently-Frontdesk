@@ -22,7 +22,7 @@ def img(name):
 
 # Speeds measured on Luqman's PC, Meta provider, 2 Nov 2026 (gateway log). Nothing else is claimed.
 SPEED = {
-    "agent": "Measured on Meta: about 7 s per step (median 7.2 s, 10 steps, 5.0 to 8.7 s). A reply that looks something up takes two steps.",
+    "agent": "Measured on Meta: about 7 s per model call (median 7.2 s, 10 calls, 5.0 to 8.7 s). Lookups now run in code first, so a reply that looks something up takes one call, not two.",
     "desk": "Measured on Meta: 4.4 s and 5.6 s per answer (2 runs).",
     "draft": "Measured on Meta: median 7.9 s per draft (13 drafts, 5.1 to 14.4 s).",
     "sam": "Measured on Meta: SAM 3.1 answers in 2.3 to 4.2 s per call. The whole photo step has not been timed yet.",
@@ -109,9 +109,10 @@ FEATURES = [
         ("06-landing-faq", "Questions owners ask", ["Tap a question to open the answer."]),
     ]),
     ("Customer website ( /site )", [
-        ("07-site-hero", "The business's own website", ["What a homeowner sees for Summit Ridge Roofing.", "Type the problem in the box and press <b>Start</b>, or tap <b>Describe your roof problem</b>. Both open the chat.", "The hero photo is an illustration made with Muse Image."]),
+        ("07-site-hero", "The business's own website", ["What a homeowner sees for Summit Ridge Roofing.", "Type the problem in the box and press <b>Start</b>, or tap <b>Describe your roof problem</b>. Both open the chat.", "Roofing sites have a strong look: steel-black, safety orange, a heavy headline and a roofer at work.", "The hero photo is an illustration made with Muse Image."]),
         ("08-site-how", "How it works, for customers", ["The steps from a leak to a booked inspection, in the customer's words."]),
         ("09-site-why", "Why trust it", ["The page's three promises: a quick first answer, the working shown, and a person approves before anything is sent.", "<b>Start now</b> opens the chat."]),
+        ("09b-site-spa", "The med spa's own website", ["Luma Skin Studio gets its own soft look: blush and rose, an italic serif headline and a calm treatment room photo.", "Each business site follows its trade. Open it with <b>/site?tenant=luma-skin</b>.", "<b>Ask about a treatment</b> opens the spa chat."]),
     ]),
     ("Customer chat, roofing ( /chat )", [
         ("10-chat-start", "Start of a chat", ["The desk greets the customer.", "Type at the bottom. The <b>camera</b> icon adds a photo and the <b>mic</b> lets them speak.", "<b>Talk instead</b> turns the chat into a voice call in the browser. No phone number is needed.", "<b>Front desk</b> goes to the owner dashboard."], SPARK + ". Speech to text and the spoken reply use the browser's built-in voice."),
