@@ -26,6 +26,7 @@ function load() {
 function normalize(s) {
   s.tenant = s.tenants[s.activeTenantId] || s.tenants[Object.keys(s.tenants)[0]];
   s.rateCard = s.tenant.rateCard;
+  if (!Array.isArray(s.stormRuns)) s.stormRuns = [];
   return s;
 }
 
@@ -316,6 +317,108 @@ export function leadReply(leadId, text, { books = false } = {}) {
     l.recovered = true;
     l.recoveredCaseId = c.id;
     l.reactivation = { ...l.reactivation, status: "booked" };
+    return { ok: true, booked: true, slot, caseId: c.id };
+  });
+}
+
+// ----- Storm check-ins -----
+// One run per storm: the storm itself, who was inside it, who was excluded, and one drafted check-in per
+// customer. Same one-way status as quotes; only owner taps move a message to approved or sent.
+
+export function startStormRun({ tenantId, storm, leadIds, excludedIds }) {
+  return update((s) => {
+    const existing = s.stormRuns.find((r) => r.storm.id === storm.id && r.tenantId === tenantId);
+    if (existing) return existing.id;
+    const run = { id: uid("storm"), tenantId, storm, leadIds, excludedIds, startedAt: new Date().toISOString(), drafts: {} };
+    s.stormRuns.unshift(run);
+    return run.id;
+  });
+}
+
+export function setStormDraft(runId, leadId, { message, provider }) {
+  update((s) => {
+    const run = s.stormRuns.find((r) => r.id === runId);
+    const lead = s.leads.find((l) => l.id === leadId);
+    if (!run || !lead || lead.optOut) return;
+    run.drafts[leadId] = { text: message, provider, status: "draft", history: [{ status: "draft", at: new Date().toISOString(), by: "ai" }] };
+  });
+}
+
+export function editStormDraft(runId, leadId, text) {
+  update((s) => {
+    const d = s.stormRuns.find((r) => r.id === runId)?.drafts[leadId];
+    if (!d || d.status === "sent") return;
+    d.text = text;
+    d.editedByOwner = true;
+  });
+}
+
+export function moveStormDraft(runId, leadId, target) {
+  return update((s) => {
+    const d = s.stormRuns.find((r) => r.id === runId)?.drafts[leadId];
+    const lead = s.leads.find((l) => l.id === leadId);
+    if (!d || !lead || lead.optOut) return null;
+    return forward(d, target, "owner");
+  });
+}
+
+// Approves every remaining draft in one owner tap. Sending stays one tap per message or one "send all approved".
+export function moveAllStormDrafts(runId, from, target) {
+  return update((s) => {
+    const run = s.stormRuns.find((r) => r.id === runId);
+    if (!run) return 0;
+    let n = 0;
+    for (const [leadId, d] of Object.entries(run.drafts)) {
+      const lead = s.leads.find((l) => l.id === leadId);
+      if (d.status === from && lead && !lead.optOut && forward(d, target, "owner")) n++;
+    }
+    return n;
+  });
+}
+
+// A reply to a storm check-in. One that books takes the next open slot, becomes a case that carries the
+// storm (for the claim pack), and counts once.
+export function stormReply(runId, leadId, text, { books = false } = {}) {
+  return update((s) => {
+    const run = s.stormRuns.find((r) => r.id === runId);
+    const d = run?.drafts[leadId];
+    const l = s.leads.find((x) => x.id === leadId);
+    if (!d || !l || d.status !== "sent") return { ok: false, reason: "Nothing was sent to this customer yet." };
+    d.reply = { text, at: new Date().toISOString() };
+    if (!books || d.caseId) return { ok: true, booked: false };
+    const slot = s.slots.find((sl) => sl.tenantId === run.tenantId && !sl.caseId && new Date(sl.start).getTime() > Date.now());
+    if (!slot) return { ok: true, booked: false, reason: "No open slots to book into." };
+    const tenant = s.tenants[run.tenantId];
+    const c = {
+      id: uid("case"),
+      trade: tenant.trade,
+      source: "storm",
+      tenantId: tenant.id,
+      leadId: l.id,
+      storm: run.storm,
+      createdAt: new Date().toISOString(),
+      status: "booked",
+      customer: { name: l.name, phone: l.phone, address: l.address },
+      intent: "repair",
+      urgency: "routine",
+      description: `Storm check-in after the ${run.storm.event.toLowerCase()}`,
+      consent: null,
+      messages: [
+        { at: d.history[0].at, role: "assistant", content: d.text },
+        { at: new Date().toISOString(), role: "user", content: text },
+      ],
+      photo: null,
+      segmentation: null,
+      measurement: null,
+      assessment: null,
+      quote: null,
+      bookingSlotId: slot.id,
+      report: null,
+      provider: d.provider,
+    };
+    slot.caseId = c.id;
+    s.cases.unshift(c);
+    d.caseId = c.id;
     return { ok: true, booked: true, slot, caseId: c.id };
   });
 }

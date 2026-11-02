@@ -30,6 +30,10 @@ System: You are assessing a {{trade}} repair for {{tenant.name}}. From the custo
 
 System: Write one short, personal re-opener for a dead lead of {{tenant.name}}, from that lead's real history only: two or three sentences, under 45 words, plain text, as a text message. Open with the first name, name the thing they asked about and roughly when, end with one clear question. Sign off as {{tenant.name}} or not at all; never add a subject line, a label or the lead's own name as a signature. If there is no history, write a generic re-opener and set `generic: true`. No discounts, no invented details, no pressure.
 
+## stormCheckin (Muse Spark, a variant of reactivateMessage)
+
+When a `storm` object is given, the message is a storm check-in instead of a re-opener: open with the first name, say the weather service reported the storm (use only `storm.hailIn`, `storm.windMph`, `storm.area` and `storm.when` as given; leave out any that are missing), offer a free photo check of the roof, and end with one clear question. Never say or imply their roof is damaged, never mention insurance outcomes, no urgency tricks, under 45 words. Set `generic: false`.
+
 ## renderReportVisual (Muse Image)
 
 Prompt: A clean, branded damage report card for {{tenant.name}}: the customer's annotated photo on top, the summary, the severity word, the next step and the draft range with the disclaimer "Draft only - the business confirms the final price on site." Use only the words in the reference image; do not add anything that is not there: no report ID, no date, no page number, no address, no logo, badge, certification, seal or testimonial. White background, ink #101216, accent #f15a24.

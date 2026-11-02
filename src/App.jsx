@@ -4,6 +4,7 @@ import PageNotFound from "./lib/PageNotFound";
 import Home from "@/pages/Home";
 import Chat from "@/pages/Chat";
 import Frontdesk from "@/pages/Frontdesk";
+import ClaimPack from "@/pages/ClaimPack";
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/frontdesk" element={<Frontdesk />} />
+        <Route path="/claim/:id" element={<ClaimPack />} />
         <Route path="/aura" element={<Navigate to="/chat" replace />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>

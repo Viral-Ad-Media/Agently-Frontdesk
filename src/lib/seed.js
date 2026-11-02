@@ -160,6 +160,7 @@ export function seedState() {
     cases: [],
     slots: seedSlots(),
     leads: seedLeads(),
+    stormRuns: [],
     gatewayLog: [],
   };
 }
