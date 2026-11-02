@@ -101,7 +101,7 @@ export default function Frontdesk() {
                 ["Booked", booked, spa ? "consultations" : "inspections", CircleCheck, "var(--ios-green)"],
                 ["Reactivated", reactivated, spa ? "clients" : "jobs", Sparkles, "var(--ios-orange)"],
               ].map(([label, n, unit, Icon, tint]) => (
-                <div key={label} className="min-w-0 px-4 py-3.5 sm:px-5 sm:py-4">
+                <div key={label} role="group" aria-label={`${label} ${unit}`} className="min-w-0 px-4 py-3.5 sm:px-5 sm:py-4">
                   <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-muted-foreground">
                     <Icon className="hidden h-4 w-4 shrink-0 sm:block" strokeWidth={2.25} style={{ color: `hsl(${tint})` }} aria-hidden /> {label}
                   </p>

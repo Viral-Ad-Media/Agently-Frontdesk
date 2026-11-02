@@ -92,7 +92,7 @@ export default function ReactivationPanel({ tenant, className = "", delay = 0 })
       {lastRun && (
         <p className="flex flex-wrap items-center gap-2 border-b border-border bg-secondary/60 px-4 py-2 text-[13px]">
           <span>
-            Drafted {lastRun.drafted} ({lastRun.generic} generic). Excluded {lastRun.excluded} opted out. Nothing is sent until you approve it.
+            Drafted {lastRun.drafted} ({lastRun.generic} generic). Excluded {lastRun.excluded} opted-out lead{lastRun.excluded === 1 ? "" : "s"}. Nothing is sent until you approve it.
           </span>
           <ProviderBadge />
         </p>
