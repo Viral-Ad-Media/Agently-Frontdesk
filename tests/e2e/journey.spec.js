@@ -26,6 +26,15 @@ test("homeowner: describe, address, photo, outlined assessment, draft range, thr
   await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
   await expect(page.getByText(/Draft quote/i)).toBeVisible({ timeout: 90000 });
   await expect(page.getByText(/Draft only/)).toBeVisible();
+  // See it fixed: an edited copy of the customer's own photo, always captioned as an illustration.
+  await page.getByRole("button", { name: /See your roof repaired/ }).click();
+  await expect(page.getByRole("img", { name: /after the repair/ })).toBeVisible({ timeout: AI });
+  await expect(page.getByText(/confirmed at the free inspection/)).toBeVisible();
+  // The before/after slider is a native range: arrow keys move the CSS --pos variable that drives the clip.
+  const compare = page.getByRole("slider", { name: /Compare the roof/ });
+  await compare.focus();
+  await compare.press("End");
+  await expect(page.locator("figure [style*='--pos']")).toHaveAttribute("style", /--pos:\s*100%/);
   // Mock measures the rehearsed outline; a real provider may find no outline on the synthetic drawing. Both are honest.
   await expect(page.getByText(/m² from the outline|no measurement|no square-metre/i).first()).toBeVisible();
   await page.getByRole("button", { name: "9:00 AM" }).first().click();
@@ -87,7 +96,7 @@ test("reactivation: opt-outs excluded and counted, a reply that books raises the
   await page.getByRole("button", { name: "Send" }).last().click();
   await page.getByRole("button", { name: /Yes, book me in/ }).click();
   await expect(page.getByText(/1 recovered/)).toBeVisible();
-  await expect(page.getByText("Jobs reactivated").locator("..").getByText("1")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Reactivated jobs" }).getByText("1", { exact: true })).toBeVisible();
 });
 
 test("med spa: consent before photo, service match, no diagnosis, consultation booked", async ({ page }) => {
@@ -102,4 +111,81 @@ test("med spa: consent before photo, service match, no diagnosis, consultation b
   await page.getByRole("button", { name: "2:00 PM" }).first().click();
   await page.getByRole("button", { name: /Confirm booking/ }).click();
   await expect(page.getByText(/consultation booked/i)).toBeVisible();
+});
+
+test("talk to your desk: brief, then a spoken send waits for yes and moves the quote exactly once", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("Water dripping through the bedroom ceiling")}`);
+  await replied(page, 1);
+  await page.getByLabel("Message").fill("14 Larkspur Lane, Lyons");
+  await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible({ timeout: AI });
+  await page.locator('input[type=file]').first().setInputFiles(photo);
+  await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/Draft quote/i)).toBeVisible({ timeout: 90000 });
+  await page.getByRole("button", { name: "9:00 AM" }).first().click();
+  await page.getByRole("button", { name: /Confirm booking/ }).click();
+  await expect(page.getByText(/inspection booked/i).first()).toBeVisible();
+
+  await page.goto(`${BASE}/frontdesk`);
+  await page.getByRole("button", { name: "Ask your desk" }).click();
+  const desk = page.getByRole("dialog", { name: "Your desk" });
+  await desk.getByRole("button", { name: "Brief me" }).click();
+  await expect(desk.getByText(/Summit Ridge Roofing, today:/)).toBeVisible({ timeout: AI });
+  await desk.getByLabel("Ask your desk").fill("send the Larkspur quote");
+  await desk.getByLabel("Ask your desk").press("Enter");
+  await expect(desk.getByText(/Approve and send the .* range to 14 Larkspur Lane/).first()).toBeVisible({ timeout: AI });
+  // Nothing has moved yet: the card still waits for the owner.
+  await expect(page.getByText("Awaiting approval").first()).toBeVisible();
+  await desk.getByLabel("Ask your desk").fill("yes");
+  await desk.getByLabel("Ask your desk").press("Enter");
+  await expect(desk.getByText(/^Sent\. 14 Larkspur Lane/)).toBeVisible();
+  await expect(page.locator(".fd-pill-ok", { hasText: "Sent" }).first()).toBeVisible();
+});
+
+test("verification: a job whose photo contradicts the description fails review 3 times, is held from the customer and needs a reason to approve", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("The gutter is hanging off the front of the house and water pours down the wall")}`);
+  await replied(page, 1);
+  await page.getByLabel("Message").fill("9 Aspen Court, Lyons");
+  await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible({ timeout: AI });
+  await page.locator('input[type=file]').first().setInputFiles(photo);
+  await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/is checking this one before a range is shared/).first()).toBeVisible({ timeout: AI });
+  await expect(page.getByText(/\$\d+ – \$\d+/)).toHaveCount(0);
+
+  await page.goto(`${BASE}/frontdesk`);
+  await expect(page.getByText("Escalated to you").first()).toBeVisible();
+  await page.getByRole("button", { name: /^Assessment/ }).first().click();
+  await expect(page.getByText(/Review 3: FAIL/)).toBeVisible();
+  await expect(page.getByText(/describes the gutter/).first()).toBeVisible();
+  await page.getByRole("button", { name: /Review & approve/ }).click();
+  const approve = page.getByRole("button", { name: /Approve with reason/ });
+  await expect(approve).toBeDisabled();
+  await page.getByPlaceholder(/Why approve/).fill("Checked by phone: gutter and eave shingles both need work");
+  await approve.click();
+  await expect(page.getByText(/Approved over failed checks: Checked by phone/).first()).toBeVisible();
+});
+
+test("smart desk: looks up prices and open times before answering, and the owner sees how it answered", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("How much do you charge?")}`);
+  await replied(page, 1);
+  await expect(page.getByText(/per square metre/).first()).toBeVisible();
+  await expect(page.getByText("Checked the price list").first()).toBeVisible();
+  await page.getByLabel("Message").fill("Water is dripping through the ceiling, can you come tomorrow?");
+  await page.getByLabel("Message").press("Enter");
+  await replied(page, 2);
+  await expect(page.getByText("Checked the calendar").first()).toBeVisible();
+  await page.getByLabel("Message").fill("3 Pine Ridge, Boulder");
+  await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible({ timeout: AI });
+  await page.locator('input[type=file]').first().setInputFiles(photo);
+  await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/Draft quote/i)).toBeVisible({ timeout: 90000 });
+
+  await page.goto(`${BASE}/frontdesk`);
+  await page.getByRole("button", { name: /^Assessment/ }).first().click();
+  const how = page.getByRole("region", { name: "How the desk answered" });
+  await expect(how).toBeVisible();
+  await expect(how.getByText(/How much do you charge/)).toBeVisible();
+  await expect(how.getByText(/Every time and price in the reply came from a lookup/).first()).toBeVisible();
 });

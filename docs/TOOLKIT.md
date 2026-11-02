@@ -41,3 +41,22 @@ The brief says its design tokens win any conflict. These Taste house rules were 
 1. Re-run all three checks on the production build (`vite build && vite preview`), as the Taste skill asks.
 2. Taste's fourteen-pass critique on the final screenshots, written down.
 3. Playwright journeys green on the Meta provider.
+
+## UI/CSS skill pass (2 Nov 2026)
+
+Luqman shared Ania Kubow's *AI Builder Skill: UI / UX / CSS* on 2 Nov. Applied as follows.
+
+| Rule | What changed |
+|---|---|
+| One distinctive brand font, never Inter | Inter removed. Instrument Serif (self-hosted via `@fontsource`, ~20 kB) is the display face for big headlines on `/`, `/site`, `/setup` and 404, tightened to -0.02em. UI text stays the platform system font (SF Pro on Apple). |
+| No glow washes or gradient section backgrounds | The orange radial wash behind the product hero and the closing call to action are gone. One contained glow behind the hero demo stays (technique 4). The CTA now has a 1px gradient top edge instead. The blue/indigo gradient icon on "Ask your desk" is replaced by the orb below. |
+| Even pills | Product-site badges use the same 4px/10px rhythm as the app's pills. |
+| CSS first | `Reveal` no longer uses framer-motion: it is `animation-timeline: view()` (#21). Unsupported browsers and reduced motion show content in place. |
+
+Techniques, at most three per page:
+
+- **Product site:** scroll-driven entrances (#21), a slow premium card shine on the bento tiles (#8), and a CSS-only 3D tilt: the dashboard screenshot starts tilted back in perspective and lays flat as it scrolls in (desktop only).
+- **Dashboard:** the AI voice orb (#25), two blurred conic gradients in the brand orange family, on the "Ask your desk" button and sheet; it speeds up while listening or thinking. Typing dots (#18) while the desk thinks.
+- **Customer chat:** the voice orb core uses the same `.ai-orb`; typing dots replace the pulsing "Typing…" label; the before/after slider (#16) is now `clip-path: inset()` driven by one CSS variable from a native range input, so arrow keys work (covered by the homeowner e2e).
+
+Three.js: ThreeUI (above) is still not used. A WebGL scene costs about 600 kB on a phone-first first screen and the skill asks for CSS before libraries, so the 3D moment is done with `perspective` and `rotateX` instead, at zero bundle cost.
