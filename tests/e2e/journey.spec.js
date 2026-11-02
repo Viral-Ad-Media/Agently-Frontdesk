@@ -165,3 +165,27 @@ test("verification: a job whose photo contradicts the description fails review 3
   await approve.click();
   await expect(page.getByText(/Approved over failed checks: Checked by phone/).first()).toBeVisible();
 });
+
+test("smart desk: looks up prices and open times before answering, and the owner sees how it answered", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("How much do you charge?")}`);
+  await replied(page, 1);
+  await expect(page.getByText(/per square metre/).first()).toBeVisible();
+  await expect(page.getByText("Checked the price list").first()).toBeVisible();
+  await page.getByLabel("Message").fill("Water is dripping through the ceiling, can you come tomorrow?");
+  await page.getByLabel("Message").press("Enter");
+  await replied(page, 2);
+  await expect(page.getByText("Checked the calendar").first()).toBeVisible();
+  await page.getByLabel("Message").fill("3 Pine Ridge, Boulder");
+  await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible({ timeout: AI });
+  await page.locator('input[type=file]').first().setInputFiles(photo);
+  await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/Draft quote/i)).toBeVisible({ timeout: 90000 });
+
+  await page.goto(`${BASE}/frontdesk`);
+  await page.getByRole("button", { name: /^Assessment/ }).first().click();
+  const how = page.getByRole("region", { name: "How the desk answered" });
+  await expect(how).toBeVisible();
+  await expect(how.getByText(/How much do you charge/)).toBeVisible();
+  await expect(how.getByText(/Every time and price in the reply came from a lookup/).first()).toBeVisible();
+});
