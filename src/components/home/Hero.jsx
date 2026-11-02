@@ -20,7 +20,7 @@ export default function Hero() {
           {tenant.words.heroTitle}
         </h1>
         <p className="mt-5 max-w-xl text-lg text-white">
-          {tenant.words.heroText} {tenant.name}, {tenant.serviceArea}.
+          {tenant.words.heroText} {tenant.name}{tenant.serviceArea ? `, ${tenant.serviceArea}` : ""}.
         </p>
         <div className="mt-8">
           <HeroSearch />
