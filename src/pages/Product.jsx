@@ -364,7 +364,7 @@ export default function Product() {
           </Reveal>
           <Reveal y={40} delay={0.1}>
             <Window title="agently.app/frontdesk" className="mt-10">
-              <div className="relative max-h-[560px] overflow-hidden bg-[#f2f2f7]">
+              <div className="relative max-h-[560px] overflow-hidden bg-[#09090b]">
                 <img src="/shots/dashboard.webp" alt="The Agently owner dashboard: today's numbers, leads, calendar, storm radar and phone calls" width="1200" height="1300" loading="lazy" className="block w-full" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#111113] to-transparent" />
               </div>

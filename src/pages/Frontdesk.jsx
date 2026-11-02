@@ -51,7 +51,7 @@ export default function Frontdesk() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="glass sticky top-0 z-20 border-b border-black/[0.06]">
+      <header className="glass sticky top-0 z-20 border-b border-white/[0.08]">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-2 px-4 md:gap-3 md:px-8">
           <Logo showWord={false} word={tenant.name} />
           <label className="relative min-w-0">

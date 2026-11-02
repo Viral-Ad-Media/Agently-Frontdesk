@@ -104,7 +104,7 @@ export default function ReactivationPanel({ tenant, className = "", delay = 0 })
         <div>
           <div className="flex flex-wrap gap-1.5 border-b border-border p-3" role="tablist" aria-label="Filter dead leads">
             {STAGES.filter(([k]) => k === "all" || counts[k]).map(([k, label]) => (
-              <button key={k} type="button" role="tab" aria-selected={stage === k} onClick={() => pick(k)} className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-all duration-300 ease-ios active:scale-95 ${stage === k ? "bg-foreground text-background shadow-sm" : "bg-secondary text-muted-foreground hover:bg-[hsl(240_9%_90%)] hover:text-foreground"}`}>
+              <button key={k} type="button" role="tab" aria-selected={stage === k} onClick={() => pick(k)} className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-all duration-300 ease-ios active:scale-95 ${stage === k ? "bg-foreground text-background shadow-sm" : "bg-secondary text-muted-foreground hover:bg-[hsl(var(--secondary-hover))] hover:text-foreground"}`}>
                 {label} <span className="tabular-nums opacity-70">{counts[k] || 0}</span>
               </button>
             ))}
