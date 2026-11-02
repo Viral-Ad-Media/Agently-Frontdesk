@@ -17,6 +17,7 @@ import OutlineEditor from "@/components/frontdesk/OutlineEditor";
 import StormRadar from "@/components/frontdesk/StormRadar";
 import { BeforeAfter } from "@/components/frontdesk/RepairPreview";
 import Panel from "@/components/frontdesk/Panel";
+import DeskAssistant from "@/components/frontdesk/DeskAssistant";
 import { stormForCase } from "@/lib/storm";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 
@@ -166,6 +167,7 @@ export default function Frontdesk() {
           <ReactivationPanel tenant={tenant} delay={320} className="lg:col-span-12" />
         </div>
       </main>
+      <DeskAssistant />
     </div>
   );
 }

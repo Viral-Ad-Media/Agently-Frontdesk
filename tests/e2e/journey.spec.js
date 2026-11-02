@@ -107,3 +107,32 @@ test("med spa: consent before photo, service match, no diagnosis, consultation b
   await page.getByRole("button", { name: /Confirm booking/ }).click();
   await expect(page.getByText(/consultation booked/i)).toBeVisible();
 });
+
+test("talk to your desk: brief, then a spoken send waits for yes and moves the quote exactly once", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("Water dripping through the bedroom ceiling")}`);
+  await replied(page, 1);
+  await page.getByLabel("Message").fill("14 Larkspur Lane, Lyons");
+  await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible({ timeout: AI });
+  await page.locator('input[type=file]').first().setInputFiles(photo);
+  await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/Draft quote/i)).toBeVisible({ timeout: 90000 });
+  await page.getByRole("button", { name: "9:00 AM" }).first().click();
+  await page.getByRole("button", { name: /Confirm booking/ }).click();
+  await expect(page.getByText(/inspection booked/i).first()).toBeVisible();
+
+  await page.goto(`${BASE}/frontdesk`);
+  await page.getByRole("button", { name: "Ask your desk" }).click();
+  const desk = page.getByRole("dialog", { name: "Your desk" });
+  await desk.getByRole("button", { name: "Brief me" }).click();
+  await expect(desk.getByText(/Summit Ridge Roofing, today:/)).toBeVisible({ timeout: AI });
+  await desk.getByLabel("Ask your desk").fill("send the Larkspur quote");
+  await desk.getByLabel("Ask your desk").press("Enter");
+  await expect(desk.getByText(/Approve and send the .* range to 14 Larkspur Lane/).first()).toBeVisible({ timeout: AI });
+  // Nothing has moved yet: the card still waits for the owner.
+  await expect(page.getByText("Awaiting approval").first()).toBeVisible();
+  await desk.getByLabel("Ask your desk").fill("yes");
+  await desk.getByLabel("Ask your desk").press("Enter");
+  await expect(desk.getByText(/^Sent\. 14 Larkspur Lane/)).toBeVisible();
+  await expect(page.locator(".fd-pill-ok", { hasText: "Sent" }).first()).toBeVisible();
+});
