@@ -65,37 +65,39 @@ export default function CallPanel({ tenant }) {
   };
 
   return (
-    <section className="fd-card p-5" aria-label="Phone calls">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg">Phone calls</h2>
-          <p className="text-[14px] text-muted-foreground">A call is transcribed and qualified by the same front desk, into the same case.</p>
-        </div>
+    <section aria-label="Phone calls">
+      <div className="fd-section-head">
+        <h2 className="fd-section-title">Phone calls</h2>
+        <p className="fd-section-meta">Same desk, same case</p>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-4">
+      <p className="text-[14px] text-muted-foreground">A call is transcribed and qualified by the same front desk, then lands in your leads.</p>
+      <div className="mt-3">
         {PROVIDER === "mock" ? (
-          <button type="button" onClick={playRehearsed} disabled={busy} className="fd-btn-outline">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneIncoming className="h-4 w-4" />}
+          <button type="button" onClick={playRehearsed} disabled={busy} className="fd-btn-outline fd-btn-sm w-full">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneIncoming className="h-4 w-4" strokeWidth={1.75} />}
             {busy ? "Transcribing…" : "Play a rehearsed call (demo)"}
           </button>
         ) : recording ? (
-          <button type="button" onClick={stopRecording} className="fd-btn-primary">
+          <button type="button" onClick={stopRecording} className="fd-btn-primary fd-btn-sm w-full">
             <Square className="h-4 w-4 fill-current" /> Stop and transcribe
             <span className="ml-1 inline-block h-2 w-10 overflow-hidden rounded-full bg-white/30" aria-hidden>
               <span className="block h-full bg-white" style={{ width: `${Math.round(level * 100)}%` }} />
             </span>
           </button>
         ) : (
-          <button type="button" onClick={startRecording} disabled={busy} className="fd-btn-outline">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+          <button type="button" onClick={startRecording} disabled={busy} className="fd-btn-outline fd-btn-sm w-full">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" strokeWidth={1.75} />}
             {busy ? "Transcribing…" : "Record an incoming call"}
           </button>
         )}
       </div>
       {PROVIDER !== "mock" && !result && !recording && (
-        <p className="mt-2 text-[13px] text-muted-foreground">Speak the caller's words into the microphone (up to 20 seconds), e.g. the problem and the address. Muse Voice Transcribe turns it into the transcript that opens the case.</p>
+        <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">Speak the caller's words into the microphone (up to 20 seconds), e.g. the problem and the address. Muse Voice Transcribe turns it into the transcript that opens the case.</p>
       )}
       {error && <p className="mt-3 text-[14px] text-destructive">{error}</p>}
       {result && (
-        <div className="mt-4 space-y-2 rounded-lg bg-secondary p-4 text-[14px]">
+        <div className="mt-3 space-y-2 rounded-lg bg-secondary p-3 text-[14px]">
           <p>
             <span className="text-muted-foreground">Caller: </span>
             {result.transcript}
@@ -113,6 +115,7 @@ export default function CallPanel({ tenant }) {
           </p>
         </div>
       )}
+      </div>
     </section>
   );
 }

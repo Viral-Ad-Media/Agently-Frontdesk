@@ -41,13 +41,11 @@ export default function DailySummary(props) {
     }
   };
   return (
-    <section className="rounded-lg bg-secondary p-5" aria-label="Daily summary">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-[16px] leading-relaxed">{text}</p>
-        <button type="button" onClick={copy} className="fd-btn-outline h-9 shrink-0 px-3 text-[13px]" aria-label="Copy summary">
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
+    <section className={`flex items-start gap-3 rounded-lg bg-secondary px-4 py-3 ${props.className || ""}`} aria-label="Daily summary">
+        <p className="min-w-0 flex-1 text-[14px] leading-relaxed text-foreground/80">{text}</p>
+        <button type="button" onClick={copy} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-background hover:text-foreground" aria-label={copied ? "Copied" : "Copy summary"} title="Copy summary">
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
         </button>
-      </div>
     </section>
   );
 }

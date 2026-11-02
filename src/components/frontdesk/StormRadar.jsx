@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, CloudLightning, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Check, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
 import { gateway } from "@/gateway";
 import { useStore, startStormRun, setStormDraft, editStormDraft, moveStormDraft, moveAllStormDrafts, stormReply } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
@@ -37,6 +37,14 @@ export default function StormRadar({ tenant }) {
     return () => clearInterval(t);
   }, []);
 
+  const [mapH, setMapH] = useState(() => (typeof window !== "undefined" && window.innerWidth < 640 ? 240 : 340));
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const on = () => setMapH(mq.matches ? 240 : 340);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
   const options = [...live.storms.slice(0, 6), rehearsal];
   // Default: the first live storm that covers a customer, otherwise the rehearsal storm.
   const firstHit = live.storms.find((s) => customersInStorm(leads, s).hit.length > 0);
@@ -71,32 +79,31 @@ export default function StormRadar({ tenant }) {
   };
 
   return (
-    <section className="fd-card overflow-hidden" aria-label="Storm radar">
-      <div className="flex flex-wrap items-start justify-between gap-3 p-5 pb-4">
-        <div>
-          <h2 className="flex items-center gap-2 text-lg">
-            <CloudLightning className="h-5 w-5 text-[hsl(var(--primary-deep))]" aria-hidden /> Storm radar
-          </h2>
-          <p className="text-[14px] text-muted-foreground">
+    <section aria-label="Storm radar">
+      <div className="fd-section-head">
+        <div className="min-w-0">
+          <h2 className="fd-section-title">Storm radar</h2>
+          <p className="fd-section-meta mt-0.5">
             {live.state === "loading" && "Checking the National Weather Service for Texas…"}
             {live.state === "ok" && (live.storms.length ? `${live.storms.length} live storm alert${live.storms.length === 1 ? "" : "s"} with a path in Texas` : "No live storm warnings with a path in Texas right now")}
             {live.state === "error" && `Live alerts unavailable: ${live.error}`}
             {live.at && ` · checked ${fmtClock(live.at)}`}
           </p>
         </div>
-        <button type="button" onClick={load} disabled={live.state === "loading"} className="fd-btn-outline h-9 px-3 text-[13px]">
-          <RefreshCw className={`h-4 w-4 ${live.state === "loading" ? "animate-spin" : ""}`} /> Check now
+        <button type="button" onClick={load} disabled={live.state === "loading"} className="fd-btn-outline fd-btn-sm">
+          <RefreshCw className={`h-4 w-4 ${live.state === "loading" ? "animate-spin" : ""}`} strokeWidth={1.75} /> Check now
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto px-5 pb-4" role="radiogroup" aria-label="Pick a storm">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto p-3" role="radiogroup" aria-label="Pick a storm">
         {options.map((s) => {
           const on = s.id === storm.id;
           const n = customersInStorm(leads, s).hit.length;
           return (
-            <button key={s.id} type="button" role="radio" aria-checked={on} onClick={() => setSelectedId(s.id)} className={`shrink-0 rounded-xl border px-3 py-2 text-left text-[13px] transition-colors duration-150 ${on ? "border-foreground bg-background" : "border-border hover:border-foreground/40"}`}>
-              <span className="block font-spec text-[10px] uppercase text-muted-foreground">{s.source === "rehearsal" ? "Rehearsal · not a real alert" : `Live · ${s.severity}`}</span>
-              <span className="block max-w-[220px] truncate">{s.event}</span>
+            <button key={s.id} type="button" role="radio" aria-checked={on} onClick={() => setSelectedId(s.id)} className={`shrink-0 rounded-lg border px-3 py-2 text-left text-[13px] transition-colors duration-150 ${on ? "border-foreground bg-background" : "border-border hover:border-foreground/40"}`}>
+              <span className="block text-[12px] text-muted-foreground">{s.source === "rehearsal" ? "Rehearsal, not a real alert" : `Live · ${s.severity}`}</span>
+              <span className="block max-w-[220px] truncate font-medium">{s.event}</span>
               <span className="block max-w-[220px] truncate text-muted-foreground">
                 {s.source === "rehearsal" ? "Dallas-Fort Worth" : s.areaDesc.split(";").slice(0, 2).join(",")} · {n} customer{n === 1 ? "" : "s"}
               </span>
@@ -105,9 +112,9 @@ export default function StormRadar({ tenant }) {
         })}
       </div>
 
-      <div className="grid gap-0 border-t border-border lg:grid-cols-[1.5fr_1fr]">
-        <div className="p-4 lg:border-r lg:border-border">
-          <StormMap leads={leads} storm={storm} />
+      <div className="grid gap-0 border-t border-border xl:grid-cols-[1.5fr_1fr]">
+        <div className="p-3 xl:border-r xl:border-border">
+          <StormMap leads={leads} storm={storm} height={mapH} />
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[hsl(var(--primary-deep))]" /> In the path</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border border-muted-foreground" /> Opted out</span>
@@ -116,10 +123,10 @@ export default function StormRadar({ tenant }) {
           </div>
         </div>
 
-        <div className="space-y-4 p-5">
+        <div className="space-y-4 border-t border-border p-4 xl:border-t-0">
           <div>
-            <p className="font-spec text-[11px] uppercase text-muted-foreground">{isRehearsal ? "Rehearsal storm · synthetic" : storm.sender}</p>
-            <p className="mt-1 text-[15px]">{storm.headline}</p>
+            <p className="text-[12px] text-muted-foreground">{isRehearsal ? "Rehearsal storm · synthetic" : storm.sender}</p>
+            <p className="mt-1 text-[15px] font-medium leading-snug">{storm.headline}</p>
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[14px]">
               <div><dt className="text-muted-foreground">Hail</dt><dd className="tabular-nums">{storm.hailIn ? `${storm.hailIn} in` : "not reported"}</dd></div>
               <div><dt className="text-muted-foreground">Gusts</dt><dd className="tabular-nums">{storm.windMph ? `${storm.windMph} mph` : "not reported"}</dd></div>
@@ -129,20 +136,20 @@ export default function StormRadar({ tenant }) {
           </div>
 
           <div className="border-t border-border pt-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 divide-x divide-border">
               {[
                 ["In the path", hit.length],
                 ["Opted out", optedOut.length],
                 ["Booked", booked],
               ].map(([label, n]) => (
-                <div key={label}>
-                  <p className="font-heading text-3xl tabular-nums">{n}</p>
-                  <p className="text-[13px] text-muted-foreground">{label}</p>
+                <div key={label} className="px-3 first:pl-0">
+                  <p className="font-heading text-[26px] font-semibold leading-none tabular-nums">{n}</p>
+                  <p className="mt-1 truncate text-[12px] text-muted-foreground">{label}</p>
                 </div>
               ))}
             </div>
             <button type="button" onClick={draftAll} disabled={drafting || toDraft.length === 0} className="fd-btn-primary mt-4 w-full justify-center">
-              {drafting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {drafting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" strokeWidth={1.75} />}
               {drafting ? "Drafting check-ins…" : toDraft.length ? `Draft storm check-ins (${toDraft.length})` : hit.length ? "All check-ins drafted" : "No customers in this path"}
             </button>
             <p className="mt-2 text-[12px] text-muted-foreground">
@@ -154,16 +161,16 @@ export default function StormRadar({ tenant }) {
       </div>
 
       {draftList.length > 0 && (
-        <div className="border-t border-border p-5">
+        <div className="border-t border-border p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[14px]">
-              {draftList.length} check-ins · {draftCount} to review · {approvedCount} approved · {sentCount} sent <ProviderBadge className="ml-1 align-middle" />
+            <p className="flex flex-wrap items-center gap-2 text-[14px]">
+              {draftList.length} check-ins · {draftCount} to review · {approvedCount} approved · {sentCount} sent <ProviderBadge />
             </p>
-            <div className="flex gap-2">
-              <button type="button" disabled={!draftCount} onClick={() => moveAllStormDrafts(run.id, "draft", "approved")} className="fd-btn-outline">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={!draftCount} onClick={() => moveAllStormDrafts(run.id, "draft", "approved")} className="fd-btn-outline fd-btn-sm">
                 <Check className="h-4 w-4" /> Approve all ({draftCount})
               </button>
-              <button type="button" disabled={!approvedCount} onClick={() => moveAllStormDrafts(run.id, "approved", "sent")} className="fd-btn-ink">
+              <button type="button" disabled={!approvedCount} onClick={() => moveAllStormDrafts(run.id, "approved", "sent")} className="fd-btn-ink fd-btn-sm">
                 <Send className="h-4 w-4" /> Send approved ({approvedCount})
               </button>
             </div>
@@ -175,6 +182,7 @@ export default function StormRadar({ tenant }) {
           </ul>
         </div>
       )}
+      </div>
     </section>
   );
 }
@@ -186,42 +194,42 @@ function CheckinRow({ runId, lead, d }) {
     <li className="py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[15px]">
-            {lead.name} <span className="text-muted-foreground">· {leadArea(lead)} · {lead.status === "active" ? "customer" : "old enquiry"}</span>
+          <p className="truncate text-[14px] font-medium">
+            {lead.name} <span className="font-normal text-muted-foreground">· {leadArea(lead)} · {lead.status === "active" ? "customer" : "old enquiry"}</span>
           </p>
           {!editing && <p className="mt-1 text-[14px]">{d.text}</p>}
         </div>
-        <span className="shrink-0 rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase">{d.caseId ? "Booked" : d.reply ? "Replied" : STATUS_LABEL[d.status]}</span>
+        <span className={d.caseId ? "fd-pill-ok" : d.status === "approved" ? "fd-pill-strong" : d.reply || d.status === "sent" ? "fd-pill-accent" : "fd-pill-neutral"}>{d.caseId ? "Booked" : d.reply ? "Replied" : STATUS_LABEL[d.status]}</span>
       </div>
       {editing ? (
         <div className="mt-2 space-y-2">
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} className="w-full rounded-xl border border-border bg-card p-3 text-[15px] outline-none focus:border-foreground" />
           <div className="flex gap-2">
-            <button type="button" onClick={() => { editStormDraft(runId, lead.id, text); setEditing(false); }} className="fd-btn-primary">Save</button>
-            <button type="button" onClick={() => setEditing(false)} className="fd-btn-outline">Cancel</button>
+            <button type="button" onClick={() => { editStormDraft(runId, lead.id, text); setEditing(false); }} className="fd-btn-primary fd-btn-sm">Save</button>
+            <button type="button" onClick={() => setEditing(false)} className="fd-btn-outline fd-btn-sm">Cancel</button>
           </div>
         </div>
       ) : (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {d.status !== "sent" && (
             <>
-              <button type="button" disabled={d.status !== "draft"} onClick={() => moveStormDraft(runId, lead.id, "approved")} className="fd-btn-outline h-9 px-3 text-[13px]"><Check className="h-4 w-4" /> Approve</button>
-              <button type="button" onClick={() => { setText(d.text); setEditing(true); }} className="fd-btn-outline h-9 px-3 text-[13px]"><Pencil className="h-4 w-4" /> Edit</button>
-              <button type="button" disabled={d.status !== "approved"} onClick={() => moveStormDraft(runId, lead.id, "sent")} className="fd-btn-ink h-9 px-3 text-[13px]"><Send className="h-4 w-4" /> Send</button>
+              <button type="button" disabled={d.status !== "draft"} onClick={() => moveStormDraft(runId, lead.id, "approved")} className="fd-btn-outline fd-btn-sm"><Check className="h-4 w-4" /> Approve</button>
+              <button type="button" onClick={() => { setText(d.text); setEditing(true); }} className="fd-btn-outline fd-btn-sm"><Pencil className="h-4 w-4" /> Edit</button>
+              <button type="button" disabled={d.status !== "approved"} onClick={() => moveStormDraft(runId, lead.id, "sent")} className="fd-btn-ink fd-btn-sm"><Send className="h-4 w-4" /> Send</button>
             </>
           )}
           {d.status === "sent" && !d.reply && (
             <>
-              <span className="font-spec text-[10px] uppercase text-muted-foreground">Demo control · play the reply</span>
-              <button type="button" onClick={() => stormReply(runId, lead.id, "YES please, can someone come look at it?", { books: true })} className="fd-btn-outline h-9 px-3 text-[13px]"><MessageSquareReply className="h-4 w-4" /> "YES"</button>
-              <button type="button" onClick={() => stormReply(runId, lead.id, "We're fine, thanks for checking.")} className="fd-btn-outline h-9 px-3 text-[13px]">"We're fine"</button>
+              <span className="basis-full text-[12px] font-medium text-muted-foreground">Demo control · play the reply</span>
+              <button type="button" onClick={() => stormReply(runId, lead.id, "YES please, can someone come look at it?", { books: true })} className="fd-btn-outline fd-btn-sm"><MessageSquareReply className="h-4 w-4" /> "YES"</button>
+              <button type="button" onClick={() => stormReply(runId, lead.id, "We're fine, thanks for checking.")} className="fd-btn-outline fd-btn-sm">"We're fine"</button>
             </>
           )}
         </div>
       )}
       {d.reply && (
         <p className="mt-2 rounded-lg bg-secondary p-3 text-[14px]">
-          <span className="font-spec text-[11px] uppercase text-muted-foreground">Reply · </span>
+          <span className="font-medium text-muted-foreground">Reply · </span>
           {d.reply.text}
           {d.caseId && <span className="mt-1 block text-[13px] text-[hsl(var(--primary-deep))]">Booked into the next open inspection. The storm is on the case for the claim pack.</span>}
         </p>
