@@ -302,6 +302,37 @@ export async function converse({ trade = "roofing", messages = [], caseState = {
   return { reply: String(out.reply || ""), extracted, nextAction: out.nextAction || "none", usage: usageOf(out, r.model, r.effort) };
 }
 
+// The desk agent: one plan-act-observe step. Returns a tool call or the answer (see prompts.md#agentStep).
+const TOOL_NAMES = ["check_calendar", "rate_card", "business_facts", "customer_history", "storm_reports"];
+export async function agentStep({ trade = "roofing", tenant = { name: "the business" }, messages = [], caseState = {}, observations = [], tools = [], mustAnswer = false, route = null } = {}) {
+  const r = routed(route, { model: MODELS.sparkLight, effort: "low" });
+  const base = converseSchemaFor(trade);
+  const out = await sparkJson({
+    system: fill(section("agentStep"), { trade, tenant }) + "\n\nQualifying rules:\n" + fill(section("converse"), { trade, tenant }) + (trade === "medspa" ? `\n\nMed spa rules:\n${medspaRules()}` : ""),
+    user: JSON.stringify({ conversation: messages, caseState, tools, observations, mustAnswer }),
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        thought: { type: "string" },
+        action: { type: "string", enum: mustAnswer ? ["answer"] : ["tool", "answer"] },
+        tool: { type: ["string", "null"], enum: [...TOOL_NAMES, null] },
+        args: { type: "object", additionalProperties: false, properties: { day: { type: ["string", "null"] }, topic: { type: ["string", "null"] } }, required: ["day", "topic"] },
+        reply: { type: "string" },
+        extracted: base.properties.extracted,
+        nextAction: base.properties.nextAction,
+      },
+      required: ["thought", "action", "tool", "args", "reply", "extracted", "nextAction"],
+    },
+    name: "agent_step",
+    model: r.model,
+    effort: r.effort,
+  });
+  const extracted = {};
+  for (const k of ["description", "address", "urgency", "intent"]) if (out.extracted?.[k]) extracted[k] = String(out.extracted[k]);
+  return { action: out.action === "tool" && out.tool ? "tool" : "answer", tool: out.tool, args: out.args || {}, thought: String(out.thought || ""), reply: String(out.reply || ""), extracted, nextAction: out.nextAction || "none", usage: usageOf(out, r.model, r.effort) };
+}
+
 export async function reactivateMessage({ lead = {}, tenant = { name: "the business" }, storm = null } = {}) {
   const out = await sparkJson({
     system: fill(section("reactivateMessage"), { tenant }) + (storm ? `\n\nStorm check-in:\n${section("stormCheckin")}` : ""),

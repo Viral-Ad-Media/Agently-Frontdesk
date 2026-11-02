@@ -458,3 +458,102 @@ export async function judgeAssessment({ trade = "roofing", description = "", seg
   }
   return { verdict: issues.length ? "FAIL" : "PASS", issues, usage: { model: "mock", effort: route?.effort || "medium", tokens: null } };
 }
+
+// ----- The desk agent (plan, act, observe, answer) -----
+// agentStep({ trade, tenant, messages, caseState, observations, tools, mustAnswer })
+//   -> { action: "tool", tool, args, thought } | { action: "answer", reply, extracted, nextAction, thought }
+// Mock: picks tools from the question's wording, then answers only from what the tools returned,
+// and carries on qualifying the job with the same questions as converse().
+const QUESTION = /\?|^\s*(do|does|did|can|could|are|is|how|what|when|where|will|would|any|have|got)\b/i;
+const NEEDS = [
+  ["customer_history", /\b(last time|before|again|already|earlier|previous|still waiting|follow(?:ing)? up)\b/i],
+  ["check_calendar", /\b(available|availability|slots?|appointment|come (?:out|over|by)|today|tomorrow|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|when can)\b/i],
+  ["rate_card", /\b(how much|cost|costs|price|prices|pricing|rates?|charge|expensive|cheap)\b/i],
+  ["business_facts", /\b(area|serve|cover|near|insured|insurance|licen[cs]ed|warranty|guarantee|hours|open on|located|who are you)\b/i],
+  ["storm_reports", /\b(was there a storm|storm (?:last|yesterday|this)|hail (?:last|yesterday|this))\b/i],
+];
+const DAMAGE = {
+  roofing: /\b(leak|leaking|drip|dripping|water|shingles?|tiles?|hail damage|damage|missing|crack|hole|gutter|flashing|stain|ceiling|attic|blown|lifted)\b/i,
+  medspa: /\b(skin|acne|breakouts?|spots|dull|dry|wrinkles?|lines|tone|pores|scars?|redness)\b/i,
+};
+const DAY_WORD = /\b(today|tomorrow|mon|tue|wed|thu|fri|sat|sun)[a-z]*\b/i;
+
+function qualifyOnly(trade, caseState) {
+  if (trade === "medspa") {
+    if (!caseState.description) return { reply: "What would you like help with, or what have you noticed about your skin?", nextAction: "ask_description" };
+    if (!caseState.consent) return { reply: "When you're ready, confirm consent below and add a photo, or tell me more.", nextAction: "ask_consent" };
+    if (!caseState.photo) return { reply: "Add a photo of the area when you're ready.", nextAction: "ask_photo" };
+    return { reply: "", nextAction: "none" };
+  }
+  if (!caseState.description) return { reply: "So I can book the right visit, what's going on with the roof?", nextAction: "ask_description" };
+  if (!caseState.address) return { reply: "What's the address of the property? Street and town is enough.", nextAction: "ask_address" };
+  if (!caseState.photo) return { reply: "Add a photo of the damage when you're ready and I'll outline what I see.", nextAction: "ask_photo" };
+  return { reply: "", nextAction: "none" };
+}
+
+const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
+const list = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
+function answerFrom(o, tenant, trade) {
+  const r = o.result || {};
+  if (o.tool === "check_calendar") {
+    if (!r.open?.length) return r.asked ? `I don't have an open slot on ${r.asked}. ${r.totalOpenThisWeek ? "There are other times this week." : "The calendar is full this week, so I'll ask the team to call you."}` : "The calendar is full this week, so I'll ask the team to call you.";
+    const byDay = {};
+    for (const s of r.open) (byDay[s.day] ||= []).push(s.time);
+    return `Our next open ${tenant.words?.visit || "visit"} times are ${list(Object.entries(byDay).map(([d, ts]) => `${d} at ${list(ts)}`))}.`;
+  }
+  if (o.tool === "rate_card") {
+    if (trade === "medspa") return `From our menu: ${list((r.services || []).map((s) => `${s.name} ${money(s.from)} to ${money(s.to)}`))}. A clinician confirms what suits you at the consultation.`;
+    if (!r.published) return "Our prices aren't published yet, so the team will confirm them at the visit.";
+    const [mat, rate] = Object.entries(r.materialsPerM2 || {})[0] || [];
+    return `Our published rates are ${mat ? `${money(rate)} per square metre for ${mat}` : "on our rate card"}${r.labourPerHour != null ? ` plus ${money(r.labourPerHour)} an hour labour` : ""}. Your draft range comes from your photo, and the final price is confirmed at the ${r.visit}.`;
+  }
+  if (o.tool === "business_facts") {
+    const bits = [r.serviceArea ? `We cover ${r.serviceArea}.` : "", r.firstVisit ? `The first step is a ${r.firstVisit}.` : ""].filter(Boolean);
+    return `${bits.join(" ")} Anything else, like insurance or warranty details, isn't on my record, so I've noted it for the team to confirm.`.trim();
+  }
+  if (o.tool === "customer_history") {
+    if (!r.addressKnown) return "I can look up earlier enquiries once I have the property address.";
+    if (!r.earlier?.length) return "I can't find an earlier enquiry for this address, so we'll start fresh.";
+    const e = r.earlier[0];
+    return `I can see your earlier enquiry${e.date ? ` from ${e.date}` : ""}${e.reported ? ` about "${e.reported}"` : ""} (${e.status}).`;
+  }
+  if (o.tool === "storm_reports") {
+    if (!r.reports?.length) return "I don't have a storm report on record for your area.";
+    const s = r.reports[0];
+    const facts = [s.hailIn ? `${s.hailIn} in hail` : "", s.windMph ? `${s.windMph} mph gusts` : ""].filter(Boolean).join(" and ");
+    return `The weather service reported ${facts || "a severe storm"} over ${s.area || "the area"}${s.when ? ` ${s.when}` : ""}.`;
+  }
+  return "";
+}
+
+const THOUGHT = {
+  check_calendar: "They asked about timing. Check real open slots before offering any.",
+  rate_card: "They asked about price. Read the published rates; never invent a total.",
+  business_facts: "They asked about the business. Read what is on record; anything else is unknown.",
+  customer_history: "They referred to an earlier contact. Look up enquiries from this address.",
+  storm_reports: "They asked about the storm. Read the weather-service reports on record.",
+};
+
+export async function agentStep({ trade = "roofing", tenant = {}, messages = [], caseState = {}, observations = [], mustAnswer = false } = {}) {
+  const text = ([...messages].reverse().find((m) => m.role === "user")?.content || "").trim();
+  const asking = QUESTION.test(text);
+  const needed = asking ? NEEDS.filter(([, re]) => re.test(text)).map(([t]) => t) : [];
+  const seen = new Set(observations.map((o) => o.tool));
+  const next = needed.find((t) => !seen.has(t));
+  if (next && !mustAnswer) {
+    await wait(250);
+    const day = text.match(DAY_WORD)?.[1]?.toLowerCase() || null;
+    return { action: "tool", tool: next, args: next === "check_calendar" ? { day } : next === "rate_card" ? { topic: trade === "medspa" ? (text.match(DAMAGE.medspa)?.[0] || null) : null } : {}, thought: THOUGHT[next] };
+  }
+  const answers = observations.map((o) => answerFrom(o, tenant, trade)).filter(Boolean);
+  const pureQuestion = needed.length > 0 && !DAMAGE[trade === "medspa" ? "medspa" : "roofing"].test(text);
+  const base = pureQuestion ? { ...qualifyOnly(trade, caseState), extracted: {} } : await converse({ trade, messages, caseState });
+  return {
+    action: "answer",
+    reply: [...answers, base.reply].filter(Boolean).join(" "),
+    extracted: base.extracted || {},
+    nextAction: base.nextAction,
+    thought: answers.length ? `Answered from ${[...seen].join(", ").replace(/_/g, " ")}, then carried on qualifying the job.` : "Nothing to look up. Carried on qualifying the job.",
+  };
+}
