@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
 import { gateway } from "@/gateway";
 import { useStore, setLeadMessage, editLeadMessage, moveLeadMessage, leadReply } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
@@ -7,7 +7,17 @@ import ProviderBadge from "@/components/shared/ProviderBadge";
 
 // Dead-lead reactivation: one personal re-opener per lead from its real history, opt-outs excluded and counted,
 // owner approves and sends, a reply lands in the same thread, and a reply that books counts exactly once.
-const CAP = 6;
+const PAGE = 8;
+const STAGES = [
+  ["all", "All"],
+  ["new", "Not drafted"],
+  ["review", "To review"],
+  ["ready", "Ready to send"],
+  ["sent", "Sent"],
+  ["booked", "Booked"],
+  ["optout", "Opted out"],
+];
+const stageOf = (l) => (l.optOut ? "optout" : l.recovered ? "booked" : l.message?.reply || l.message?.status === "sent" ? "sent" : l.message?.status === "approved" ? "ready" : l.message?.status === "draft" ? "review" : "new");
 
 export default function ReactivationPanel({ tenant }) {
   // Select the stable array, then filter: a selector that returns a fresh array re-renders forever.
@@ -16,7 +26,8 @@ export default function ReactivationPanel({ tenant }) {
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState(null);
   const [openId, setOpenId] = useState(null);
-  const [showAll, setShowAll] = useState(false);
+  const [stage, setStage] = useState("all");
+  const [page, setPage] = useState(0);
 
   const optedOut = leads.filter((l) => l.optOut);
   const eligible = leads.filter((l) => !l.optOut);
@@ -46,7 +57,20 @@ export default function ReactivationPanel({ tenant }) {
     setRunning(false);
   };
 
-  const shown = showAll ? leads : leads.slice(0, CAP);
+  const counts = leads.reduce((acc, l) => ((acc[stageOf(l)] = (acc[stageOf(l)] || 0) + 1), acc), { all: leads.length });
+  const filtered = stage === "all" ? leads : leads.filter((l) => stageOf(l) === stage);
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const p = Math.min(page, pages - 1);
+  const shown = filtered.slice(p * PAGE, p * PAGE + PAGE);
+  const pick = (k) => {
+    setStage(k);
+    setPage(0);
+    setOpenId(null);
+  };
+  const go = (n) => {
+    setPage(n);
+    setOpenId(null);
+  };
 
   return (
     <section aria-label="Dead-lead reactivation">
@@ -75,15 +99,39 @@ export default function ReactivationPanel({ tenant }) {
         <p className="fd-empty">No {tenant.trade === "medspa" ? "lapsed clients" : "old enquiries"} on file for this business yet.</p>
       ) : (
         <div className="rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap gap-1.5 border-b border-border p-3" role="tablist" aria-label="Filter dead leads">
+            {STAGES.filter(([k]) => k === "all" || counts[k]).map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={stage === k} onClick={() => pick(k)} className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors duration-150 ${stage === k ? "bg-foreground text-background" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                {label} <span className="tabular-nums opacity-70">{counts[k] || 0}</span>
+              </button>
+            ))}
+          </div>
+          <div className="hidden grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.6fr)_120px] gap-4 border-b border-border px-4 py-2 text-[12px] font-medium text-muted-foreground md:grid">
+            <span>Name</span>
+            <span>Service</span>
+            <span>Last contact</span>
+            <span className="text-right">Status</span>
+          </div>
           <ul className="divide-y divide-border">
             {shown.map((l) => (
               <LeadRow key={l.id} lead={l} open={openId === l.id} onToggle={() => setOpenId(openId === l.id ? null : l.id)} />
             ))}
           </ul>
-          {leads.length > CAP && (
-            <button type="button" onClick={() => setShowAll(!showAll)} className="flex h-11 w-full items-center justify-center gap-1 border-t border-border text-[13px] font-medium text-muted-foreground hover:text-foreground">
-              {showAll ? "Show fewer" : `Show all ${leads.length}`} <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showAll ? "rotate-180" : ""}`} />
-            </button>
+          {pages > 1 && (
+            <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2">
+              <p className="text-[13px] tabular-nums text-muted-foreground">
+                {p * PAGE + 1}–{Math.min(filtered.length, p * PAGE + PAGE)} of {filtered.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button type="button" disabled={p === 0} onClick={() => go(p - 1)} aria-label="Previous page" className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-40">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="px-1 text-[13px] tabular-nums">{p + 1} / {pages}</span>
+                <button type="button" disabled={p >= pages - 1} onClick={() => go(p + 1)} aria-label="Next page" className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-40">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -100,15 +148,18 @@ function LeadRow({ lead, open, onToggle }) {
   const tone = lead.optOut ? "text-muted-foreground line-through" : "";
   return (
     <li>
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[56px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-secondary/50">
-        <div className="min-w-0">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[56px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-secondary/50 md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.6fr)_120px] md:gap-4">
+        <div className="min-w-0 md:contents">
           <p className={`truncate text-[14px] font-medium ${tone}`}>
-            {lead.name} <span className="font-normal text-muted-foreground">· {lead.serviceType}</span>
+            {lead.name} <span className="font-normal text-muted-foreground md:hidden">· {lead.serviceType}</span>
           </p>
-          <p className="truncate text-[13px] text-muted-foreground">{lead.lastInteraction}</p>
+          <p className="hidden truncate text-[14px] text-muted-foreground md:block">{lead.serviceType}</p>
+          <p className="truncate text-[13px] text-muted-foreground md:text-[14px]">{lead.lastInteraction}</p>
         </div>
-        <span className={lead.recovered ? "fd-pill-ok" : status === "approved" ? "fd-pill-strong" : m?.reply || status === "sent" ? "fd-pill-accent" : "fd-pill-neutral"}>
-          {lead.optOut ? "Opted out" : lead.recovered ? "Booked" : m?.reply ? "Replied" : status ? STATUS_LABEL[status] : "Not drafted"}
+        <span className="md:flex md:justify-end">
+          <span className={lead.recovered ? "fd-pill-ok" : status === "approved" ? "fd-pill-strong" : m?.reply || status === "sent" ? "fd-pill-accent" : "fd-pill-neutral"}>
+            {lead.optOut ? "Opted out" : lead.recovered ? "Booked" : m?.reply ? "Replied" : status ? STATUS_LABEL[status] : "Not drafted"}
+          </span>
         </span>
       </button>
 

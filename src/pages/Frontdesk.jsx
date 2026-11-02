@@ -22,7 +22,7 @@ const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 
 // The owner's one screen (Taste app-screen rules): a compact top bar with the business as scope, a noun title
 // with the day in one sentence, the three numbers as one divided strip, then the work in a two-column grid:
-// leads, storm radar and dead leads on the left; the calendar and calls in a right rail.
+// leads and storm radar on the left, the calendar and calls in a right rail, then dead leads full width.
 export default function Frontdesk() {
   const { cases: allCases, slots: allSlots, tenant, tenants, leads } = useStore();
   const [openId, setOpenId] = useState(null);
@@ -131,11 +131,9 @@ export default function Frontdesk() {
             </section>
 
             {!spa && <StormRadar tenant={tenant} />}
-
-            <ReactivationPanel tenant={tenant} />
           </div>
 
-          <aside className="min-w-0 space-y-10 lg:sticky lg:top-20">
+          <aside className="min-w-0 space-y-10">
             <section aria-label="Calendar">
               <div className="fd-section-head">
                 <h2 className="fd-section-title">Calendar</h2>
@@ -171,6 +169,10 @@ export default function Frontdesk() {
 
             <CallPanel tenant={tenant} />
           </aside>
+        </div>
+
+        <div className="mt-10">
+          <ReactivationPanel tenant={tenant} />
         </div>
       </main>
     </div>
