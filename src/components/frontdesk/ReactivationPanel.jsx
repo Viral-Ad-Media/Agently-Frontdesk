@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronLeft, ChevronRight, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Check, RotateCcw, ChevronLeft, ChevronRight, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
 import { gateway } from "@/gateway";
 import { useStore, setLeadMessage, editLeadMessage, moveLeadMessage, leadReply } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
@@ -20,7 +20,7 @@ const STAGES = [
 ];
 const stageOf = (l) => (l.optOut ? "optout" : l.recovered ? "booked" : l.message?.reply || l.message?.status === "sent" ? "sent" : l.message?.status === "approved" ? "ready" : l.message?.status === "draft" ? "review" : "new");
 
-export default function ReactivationPanel({ tenant, className = "" }) {
+export default function ReactivationPanel({ tenant, className = "", delay = 0 }) {
   // Select the stable array, then filter: a selector that returns a fresh array re-renders forever.
   const allLeads = useStore((s) => s.leads);
   const leads = allLeads.filter((l) => l.tenantId === tenant.id && l.status === "dead");
@@ -76,6 +76,9 @@ export default function ReactivationPanel({ tenant, className = "" }) {
   return (
     <Panel
       title="Dead leads"
+      icon={RotateCcw}
+      tint="var(--ios-orange)"
+      delay={delay}
       label="Dead-lead reactivation"
       className={className}
       meta={`${eligible.length} eligible, ${optedOut.length} opted out, ${recovered} recovered`}
@@ -101,7 +104,7 @@ export default function ReactivationPanel({ tenant, className = "" }) {
         <div>
           <div className="flex flex-wrap gap-1.5 border-b border-border p-3" role="tablist" aria-label="Filter dead leads">
             {STAGES.filter(([k]) => k === "all" || counts[k]).map(([k, label]) => (
-              <button key={k} type="button" role="tab" aria-selected={stage === k} onClick={() => pick(k)} className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors duration-150 ${stage === k ? "bg-foreground text-background" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+              <button key={k} type="button" role="tab" aria-selected={stage === k} onClick={() => pick(k)} className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-all duration-300 ease-ios active:scale-95 ${stage === k ? "bg-foreground text-background shadow-sm" : "bg-secondary text-muted-foreground hover:bg-[hsl(240_9%_90%)] hover:text-foreground"}`}>
                 {label} <span className="tabular-nums opacity-70">{counts[k] || 0}</span>
               </button>
             ))}
@@ -148,7 +151,7 @@ function LeadRow({ lead, open, onToggle }) {
   const tone = lead.optOut ? "text-muted-foreground line-through" : "";
   return (
     <li>
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[56px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-secondary/50 md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.6fr)_120px] md:gap-4">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[56px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors duration-200 hover:bg-secondary/60 md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.6fr)_120px] md:gap-4">
         <div className="min-w-0 md:contents">
           <p className={`truncate text-[14px] font-medium ${tone}`}>
             {lead.name} <span className="font-normal text-muted-foreground md:hidden">· {lead.serviceType}</span>
@@ -164,7 +167,7 @@ function LeadRow({ lead, open, onToggle }) {
       </button>
 
       {open && !lead.optOut && (
-        <div className="space-y-3 border-t border-border bg-background px-4 py-4">
+        <div className="pop space-y-3 border-t border-border bg-secondary/50 px-4 py-4">
           <p className="text-[13px] text-muted-foreground">
             <span className="font-medium text-foreground">History</span> · {lead.history.map((h) => `${h.when}: ${h.topic}`).join(" · ")}
             {lead.previousQuote ? ` · previous quote $${lead.previousQuote}` : ""}

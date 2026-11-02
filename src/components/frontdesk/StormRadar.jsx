@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Check, CloudLightning, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
 import { gateway } from "@/gateway";
 import { useStore, startStormRun, setStormDraft, editStormDraft, moveStormDraft, moveAllStormDrafts, stormReply } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
@@ -14,7 +14,7 @@ const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString("en-US", { weekday:
 // Storm Radar: live severe-weather alerts on a map with the roofer's customers. When a storm path covers
 // customers, one tap drafts a personal check-in for each; opt-outs are excluded and counted; the owner
 // approves and sends; a reply that books lands on the calendar carrying the storm for the claim pack.
-export default function StormRadar({ tenant, className = "" }) {
+export default function StormRadar({ tenant, className = "", delay = 0 }) {
   const allLeads = useStore((s) => s.leads);
   const runs = useStore((s) => s.stormRuns);
   const leads = allLeads.filter((l) => l.tenantId === tenant.id);
@@ -82,6 +82,9 @@ export default function StormRadar({ tenant, className = "" }) {
   return (
     <Panel
       title="Storm radar"
+      icon={CloudLightning}
+      tint="var(--ios-indigo)"
+      delay={delay}
       className={className}
       meta={
         <>
@@ -102,7 +105,7 @@ export default function StormRadar({ tenant, className = "" }) {
           const on = s.id === storm.id;
           const n = customersInStorm(leads, s).hit.length;
           return (
-            <button key={s.id} type="button" role="radio" aria-checked={on} onClick={() => setSelectedId(s.id)} className={`shrink-0 rounded-lg border px-3 py-2 text-left text-[13px] transition-colors duration-150 ${on ? "border-foreground bg-background" : "border-border hover:border-foreground/40"}`}>
+            <button key={s.id} type="button" role="radio" aria-checked={on} onClick={() => setSelectedId(s.id)} className={`shrink-0 rounded-2xl border px-3 py-2 text-left text-[13px] transition-all duration-300 ease-ios active:scale-[0.98] ${on ? "border-[hsl(var(--ios-indigo))] bg-[hsl(var(--ios-indigo)/0.06)] ring-1 ring-[hsl(var(--ios-indigo))]" : "border-border hover:bg-secondary"}`}>
               <span className="block text-[12px] text-muted-foreground">{s.source === "rehearsal" ? "Rehearsal, not a real alert" : `Live · ${s.severity}`}</span>
               <span className="block max-w-[220px] truncate font-medium">{s.event}</span>
               <span className="block max-w-[220px] truncate text-muted-foreground">
