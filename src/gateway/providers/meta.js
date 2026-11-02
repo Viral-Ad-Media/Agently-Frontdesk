@@ -45,7 +45,9 @@ async function post(path, body, extra = {}) {
 }
 
 function section(name) {
-  const re = new RegExp(`^## ${name}[^\\n]*\\n([\\s\\S]*?)(?=^## |\\s*$)`, "m");
+  // Section body up to the next "## " heading or the end of the file. (A bare `\s*$` here used to stop at
+  // the first blank line in multiline mode, which sent every section as an empty string.)
+  const re = new RegExp(`^## ${name}[^\\n]*\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, "m");
   const m = promptsMd.match(re);
   if (!m) throw new Error(`prompts.md has no section "${name}"`);
   return m[1].trim();
@@ -257,15 +259,15 @@ export async function converse({ trade = "roofing", messages = [], caseState = {
   return { reply: String(out.reply || ""), extracted, nextAction: out.nextAction || "none" };
 }
 
-export async function reactivateMessage({ lead = {}, tenant = { name: "the business" } } = {}) {
+export async function reactivateMessage({ lead = {}, tenant = { name: "the business" }, storm = null } = {}) {
   const out = await sparkJson({
-    system: fill(section("reactivateMessage"), { tenant }),
-    user: JSON.stringify({ lead: { firstName: lead.firstName, name: lead.name, history: lead.history || [], serviceType: lead.serviceType } }),
+    system: fill(section("reactivateMessage"), { tenant }) + (storm ? `\n\nStorm check-in:\n${section("stormCheckin")}` : ""),
+    user: JSON.stringify({ lead: { firstName: lead.firstName, name: lead.name, history: lead.history || [], serviceType: lead.serviceType }, ...(storm ? { storm } : {}) }),
     schema: { type: "object", additionalProperties: false, properties: { message: { type: "string" }, generic: { type: "boolean" } }, required: ["message", "generic"] },
     name: "reopener",
     model: MODELS.sparkLight,
   });
-  const generic = !Array.isArray(lead.history) || lead.history.length === 0 || out.generic === true;
+  const generic = !storm && (!Array.isArray(lead.history) || lead.history.length === 0 || out.generic === true);
   return { message: String(out.message || ""), generic };
 }
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { Check, CloudLightning, FileText, MessageSquare, Pencil, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { clearGatewayCache } from "@/gateway";
 import { STATUS_LABEL } from "@/lib/quote";
@@ -14,6 +14,8 @@ import CallPanel from "@/components/frontdesk/CallPanel";
 import DailySummary from "@/components/frontdesk/DailySummary";
 import ReportButton from "@/components/frontdesk/ReportButton";
 import OutlineEditor from "@/components/frontdesk/OutlineEditor";
+import StormRadar from "@/components/frontdesk/StormRadar";
+import { stormForCase } from "@/lib/storm";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 
 const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -86,6 +88,12 @@ export default function Frontdesk() {
           <DailySummary tenant={tenant} cases={cases} slots={slots} leads={leads.filter((l) => l.tenantId === tenant.id)} />
         </div>
 
+        {!spa && (
+          <div className="mt-10">
+            <StormRadar tenant={tenant} />
+          </div>
+        )}
+
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
           <section>
             <h2 className="text-lg">Leads <span className="text-muted-foreground">· newest first</span></h2>
@@ -122,7 +130,7 @@ export default function Frontdesk() {
                       </p>
                       <p className="truncate text-[14px] text-muted-foreground">{spa ? s.case?.description || "Consultation" : s.case?.customer?.address || "Address unknown"}</p>
                       <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">
-                        {s.case?.source === "reactivation" ? "Reactivated lead" : s.case?.assessment?.failedPart || "Assessment pending"}
+                        {s.case?.source === "reactivation" ? "Reactivated lead" : s.case?.source === "storm" ? "Storm check-in" : s.case?.assessment?.failedPart || "Assessment pending"}
                       </p>
                     </div>
                     <button type="button" onClick={() => cancelBooking(s.caseId)} aria-label="Cancel booking" className="self-start text-muted-foreground hover:text-destructive">
@@ -144,6 +152,8 @@ export default function Frontdesk() {
 }
 
 function LeadCard({ c, tenant, slot, open, onToggle }) {
+  const stormRuns = useStore((s) => s.stormRuns);
+  const storm = tenant.trade === "roofing" ? stormForCase(c, stormRuns) : null;
   const [editing, setEditing] = useState(false);
   const [outlining, setOutlining] = useState(false);
   const [low, setLow] = useState(c.quote?.low ?? "");
@@ -168,11 +178,11 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
         {c.photo ? (
           <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="h-24 w-32 shrink-0 [&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>span]:hidden" showReference={false} />
         ) : (
-          <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-secondary px-2 text-center font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "From a re-opener" : c.source === "call" ? "Phone call" : "No photo yet"}</div>
+          <div className="flex h-24 w-32 shrink-0 items-center justify-center rounded-lg bg-secondary px-2 text-center font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "From a re-opener" : c.source === "storm" ? "Storm check-in" : c.source === "call" ? "Phone call" : "No photo yet"}</div>
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            {c.assessment ? <Severity value={c.assessment.severity} spa={spa} /> : <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "Reactivated" : c.source === "call" ? "Phone call · needs photo" : "In conversation"}</span>}
+            {c.assessment ? <Severity value={c.assessment.severity} spa={spa} /> : <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">{c.source === "reactivation" ? "Reactivated" : c.source === "storm" ? "Storm check-in" : c.source === "call" ? "Phone call · needs photo" : "In conversation"}</span>}
             {q && <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase">{STATUS_LABEL[status]}</span>}
             {spa && c.consent && <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">Photo consent</span>}
             <span className="ml-auto font-spec text-[11px] uppercase text-muted-foreground">{new Date(c.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
@@ -197,6 +207,16 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
             <p className="mt-1 font-spec text-[11px] uppercase text-muted-foreground">
               {tenant.words.visit} {fmtDay(slot.start)} {fmtTime(slot.start)}
             </p>
+          )}
+          {storm && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-[12px] text-[hsl(var(--primary-deep))]">
+                <CloudLightning className="h-3.5 w-3.5" /> Storm on record{storm.source === "rehearsal" ? " (rehearsal)" : ""} · {storm.event}
+              </span>
+              <Link to={`/claim/${c.id}`} className="inline-flex items-center gap-1 text-[13px] text-foreground underline underline-offset-2">
+                <FileText className="h-3.5 w-3.5" /> Claim pack
+              </Link>
+            </div>
           )}
         </div>
       </div>
