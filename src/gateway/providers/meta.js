@@ -22,6 +22,16 @@ const MODELS = {
   voice: "muse-voice-transcribe-1.0",
 };
 
+// Router tiers -> model id. Without overrides every tier is the configured Muse Spark model and only the
+// reasoning effort changes; set VITE_META_TIER_{SMALL,MEDIUM,LARGE}_MODEL to route to different models.
+const TIER_MODEL = {
+  small: import.meta.env.VITE_META_TIER_SMALL_MODEL || MODELS.sparkLight,
+  medium: import.meta.env.VITE_META_TIER_MEDIUM_MODEL || MODELS.spark,
+  large: import.meta.env.VITE_META_TIER_LARGE_MODEL || MODELS.spark,
+};
+const routed = (route, fallback) => ({ model: (route && TIER_MODEL[route.tier]) || fallback.model, effort: route?.effort || fallback.effort });
+const usageOf = (out, model, effort) => ({ model, effort, tokens: out.__usage ? { input: out.__usage.prompt_tokens ?? null, output: out.__usage.completion_tokens ?? null, reasoning: out.__usage.completion_tokens_details?.reasoning_tokens ?? null } : null });
+
 // ----- plumbing -----
 
 async function post(path, body, extra = {}) {
@@ -72,11 +82,15 @@ async function sparkJson({ system, user, image = null, schema, name, model = MOD
   });
   const data = JSON.parse(text);
   const raw = data.choices?.[0]?.message?.content ?? "";
+  let parsed;
   try {
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch {
     throw new Error("Muse Spark returned something that was not JSON.");
   }
+  // Token usage rides along (non-enumerable) so each capability can report it to the gateway log.
+  Object.defineProperty(parsed, "__usage", { value: data.usage || null });
+  return parsed;
 }
 
 // ----- SAM 3.1 -----
@@ -198,15 +212,17 @@ const ASSESS_SCHEMA = {
   required: ["summary", "severity", "material", "failedPart", "workNeeded", "emergency", "serviceMatch", "clinicianFlags", "confidence"],
 };
 
-export async function assess({ trade = "roofing", description = "", urgency = null, segmentation = null, measurement = null, dataUrl = null, tenant = { name: "the business" } } = {}) {
+export async function assess({ trade = "roofing", description = "", urgency = null, segmentation = null, measurement = null, dataUrl = null, tenant = { name: "the business" }, route = null, feedback = null } = {}) {
   const spa = trade === "medspa";
+  const r = routed(route, { model: MODELS.spark, effort: "medium" });
   const out = await sparkJson({
     system: fill(section("assess"), { trade, tenant }) + (spa ? `\n\nMed spa rules:\n${medspaRules()}\nPublished services: ${JSON.stringify((tenant.services || []).map((s) => ({ id: s.id, name: s.name, concerns: s.concerns })))}` : ""),
-    user: JSON.stringify({ description, urgency, segmentation, measurement }),
+    user: JSON.stringify({ description, urgency, segmentation, measurement, ...(feedback?.length ? { reviewerFeedback: feedback, rule: "A separate reviewer rejected your last card for these reasons. Fix each one from the evidence, or say the evidence is missing. Do not just reword." } : {}) }),
     image: dataUrl,
     schema: ASSESS_SCHEMA,
     name: "assessment",
-    effort: "medium",
+    model: r.model,
+    effort: r.effort,
   });
   return {
     summary: String(out.summary || ""),
@@ -218,7 +234,32 @@ export async function assess({ trade = "roofing", description = "", urgency = nu
     serviceMatch: spa ? (out.serviceMatch || []).filter((s) => (tenant.services || []).some((t) => t.id === s.serviceId)) : undefined,
     clinicianFlags: spa ? (out.clinicianFlags || []).map(String) : undefined,
     confidence: clamp(out.confidence, 0, 1),
+    usage: usageOf(out, r.model, r.effort),
   };
+}
+
+// Layer 2: a separate Muse Spark pass that only reads the evidence and the drafted card, and never writes one.
+export async function judgeAssessment({ trade = "roofing", description = "", segmentation = null, measurement = null, assessment = null, quote = null, dataUrl = null, tenant = { name: "the business" }, route = null } = {}) {
+  const r = routed(route, { model: MODELS.spark, effort: "medium" });
+  const out = await sparkJson({
+    system: fill(section("judgeAssessment"), { trade, tenant }),
+    user: JSON.stringify({ evidence: { description, segmentation, measurement }, card: { assessment, quote: quote && { low: quote.low, high: quote.high, lines: quote.lines, reason: quote.reason } } }),
+    image: dataUrl,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        verdict: { type: "string", enum: ["PASS", "FAIL"] },
+        issues: { type: "array", items: { type: "object", additionalProperties: false, properties: { type: { type: "string", enum: ["contradiction", "unsupported", "missing"] }, detail: { type: "string" } }, required: ["type", "detail"] } },
+      },
+      required: ["verdict", "issues"],
+    },
+    name: "judge",
+    model: r.model,
+    effort: r.effort,
+  });
+  const issues = (out.issues || []).map((i) => ({ type: i.type, detail: String(i.detail || "") })).filter((i) => i.detail);
+  return { verdict: out.verdict === "PASS" && issues.length === 0 ? "PASS" : "FAIL", issues, usage: usageOf(out, r.model, r.effort) };
 }
 
 const CONVERSE_SCHEMA = {
@@ -246,17 +287,19 @@ const converseSchemaFor = (trade) => ({
   },
 });
 
-export async function converse({ trade = "roofing", messages = [], caseState = {}, tenant = { name: "the business" } } = {}) {
+export async function converse({ trade = "roofing", messages = [], caseState = {}, tenant = { name: "the business" }, route = null } = {}) {
+  const r = routed(route, { model: MODELS.sparkLight, effort: "low" });
   const out = await sparkJson({
     system: fill(section("converse"), { trade, tenant }) + (trade === "medspa" ? `\n\nMed spa rules:\n${medspaRules()}` : ""),
     user: JSON.stringify({ conversation: messages, caseState, rule: trade === "medspa" ? "Order: ask_description, then ask_consent (photo optional), then ask_photo, then assess. Never ask for an address." : "Order: ask_description, then ask_address, then ask_photo, then assess. If caseState.address is filled and there is no photo, nextAction is ask_photo. Never ask for consent." }),
     schema: converseSchemaFor(trade),
     name: "turn",
-    model: MODELS.sparkLight,
+    model: r.model,
+    effort: r.effort,
   });
   const extracted = {};
   for (const k of ["description", "address", "urgency", "intent"]) if (out.extracted?.[k]) extracted[k] = String(out.extracted[k]);
-  return { reply: String(out.reply || ""), extracted, nextAction: out.nextAction || "none" };
+  return { reply: String(out.reply || ""), extracted, nextAction: out.nextAction || "none", usage: usageOf(out, r.model, r.effort) };
 }
 
 export async function reactivateMessage({ lead = {}, tenant = { name: "the business" }, storm = null } = {}) {
