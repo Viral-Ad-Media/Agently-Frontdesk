@@ -15,14 +15,15 @@ import DailySummary from "@/components/frontdesk/DailySummary";
 import ReportButton from "@/components/frontdesk/ReportButton";
 import OutlineEditor from "@/components/frontdesk/OutlineEditor";
 import StormRadar from "@/components/frontdesk/StormRadar";
+import Panel from "@/components/frontdesk/Panel";
 import { stormForCase } from "@/lib/storm";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 
 const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 
 // The owner's one screen (Taste app-screen rules): a compact top bar with the business as scope, a noun title
-// with the day in one sentence, the three numbers as one divided strip, then the work in a two-column grid:
-// leads and storm radar on the left, the calendar and calls in a right rail, then dead leads full width.
+// with the day in one sentence, the three numbers as one divided strip, then the work as one 12-column grid of
+// cards with equal gaps: leads | calendar, storm radar | calls, then dead leads full width. Cards in a row share edges.
 export default function Frontdesk() {
   const { cases: allCases, slots: allSlots, tenant, tenants, leads } = useStore();
   const [openId, setOpenId] = useState(null);
@@ -91,92 +92,82 @@ export default function Frontdesk() {
           </div>
         </div>
 
-        <section aria-label="Today in numbers" className="mt-5 grid grid-cols-3 divide-x divide-border rounded-lg border border-border bg-card">
-          {[
-            ["Answered", answered, "enquiries"],
-            ["Booked", booked, spa ? "consultations" : "inspections"],
-            ["Reactivated", reactivated, spa ? "clients" : "jobs"],
-          ].map(([label, n, unit]) => (
-            <div key={label} className="min-w-0 px-3 py-3 sm:px-5 sm:py-4">
-              <p className="truncate text-[13px] text-muted-foreground">{label}</p>
-              <p className="mt-1 font-heading text-[26px] font-semibold leading-none tabular-nums sm:text-[30px]">{n}</p>
-              <p className="mt-1 truncate text-[12px] text-muted-foreground">{unit}</p>
+        <div className="mt-5 grid gap-4 lg:grid-cols-12">
+          <section aria-label="Today in numbers" className="overflow-hidden rounded-lg border border-border bg-card lg:col-span-12">
+            <div className="grid grid-cols-3 divide-x divide-border">
+              {[
+                ["Answered", answered, "enquiries"],
+                ["Booked", booked, spa ? "consultations" : "inspections"],
+                ["Reactivated", reactivated, spa ? "clients" : "jobs"],
+              ].map(([label, n, unit]) => (
+                <div key={label} className="min-w-0 px-4 py-3 sm:px-5 sm:py-4">
+                  <p className="truncate text-[13px] text-muted-foreground">{label}</p>
+                  <p className="mt-1 font-heading text-[26px] font-semibold leading-none tabular-nums sm:text-[30px]">{n}</p>
+                  <p className="mt-1 truncate text-[12px] text-muted-foreground">{unit}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </section>
+            <DailySummary flat tenant={tenant} cases={cases} slots={slots} leads={tenantLeads} />
+          </section>
 
-        <DailySummary className="mt-3" tenant={tenant} cases={cases} slots={slots} leads={tenantLeads} />
-
-        <div className="mt-8 grid items-start gap-x-8 gap-y-10 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 space-y-10">
-            <section aria-label="Leads">
-              <div className="fd-section-head">
-                <h2 className="fd-section-title">Leads</h2>
-                <p className="fd-section-meta">{cases.length ? `${cases.length} total · ${waiting} waiting on you` : "Newest first"}</p>
-              </div>
-              <div className="space-y-3">
-                {cases.length === 0 && (
-                  <p className="fd-empty">
-                    No enquiries yet. Open the{" "}
-                    <Link to={`/chat?tenant=${tenant.id}`} className="text-foreground underline underline-offset-2">
-                      customer view
-                    </Link>{" "}
-                    and start a case; it lands here.
-                  </p>
-                )}
+          <Panel title="Leads" meta={cases.length ? `${cases.length} total · ${waiting} waiting on you` : "Newest first"} className="lg:col-span-8 lg:h-[380px]" bodyClassName="overflow-y-auto">
+            {cases.length === 0 ? (
+              <Empty>
+                No enquiries yet. Open the{" "}
+                <Link to={`/chat?tenant=${tenant.id}`} className="text-foreground underline underline-offset-2">
+                  customer view
+                </Link>{" "}
+                and start a case; it lands here.
+              </Empty>
+            ) : (
+              <ul className="divide-y divide-border">
                 {cases.map((c) => (
                   <LeadCard key={c.id} c={c} tenant={tenant} slot={c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} />
                 ))}
-              </div>
-            </section>
+              </ul>
+            )}
+          </Panel>
 
-            {!spa && <StormRadar tenant={tenant} />}
-          </div>
+          <Panel title="Calendar" meta={schedule.length ? `${schedule.length} ${tenant.words.visit}${schedule.length === 1 ? "" : "s"} booked` : "A taken slot is never offered twice"} className="lg:col-span-4 lg:h-[380px]" bodyClassName="overflow-y-auto">
+            {schedule.length === 0 ? (
+              <Empty>Nothing booked yet. A booking made in chat appears here at once.</Empty>
+            ) : (
+              <ul className="divide-y divide-border">
+                {schedule.map((s) => (
+                  <li key={s.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-10 shrink-0 text-center">
+                      <p className="text-[11px] uppercase text-muted-foreground">{new Date(s.start).toLocaleDateString("en-US", { month: "short" })}</p>
+                      <p className="font-heading text-[20px] font-semibold leading-none tabular-nums">{new Date(s.start).getDate()}</p>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-medium">
+                        {fmtTime(s.start)} · {s.case?.customer?.name || (spa ? "Client" : "Homeowner")}
+                      </p>
+                      <p className="truncate text-[13px] text-muted-foreground">
+                        {s.case?.source === "reactivation" ? "Reactivated lead" : s.case?.source === "storm" ? "Storm check-in" : spa ? s.case?.description || "Consultation" : s.case?.customer?.address || "Address to confirm"}
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => cancelBooking(s.caseId)} aria-label={`Cancel the ${fmtTime(s.start)} booking`} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
 
-          <aside className="min-w-0 space-y-10">
-            <section aria-label="Calendar">
-              <div className="fd-section-head">
-                <h2 className="fd-section-title">Calendar</h2>
-                <p className="fd-section-meta">{schedule.length ? `${schedule.length} ${tenant.words.visit}${schedule.length === 1 ? "" : "s"}` : `${tenant.words.visit}s`}</p>
-              </div>
-              {schedule.length === 0 ? (
-                <p className="fd-empty">Nothing booked yet. A booking made in chat appears here at once.</p>
-              ) : (
-                <ul className="divide-y divide-border rounded-lg border border-border bg-card">
-                  {schedule.map((s) => (
-                    <li key={s.id} className="flex items-center gap-3 px-4 py-3">
-                      <div className="w-10 shrink-0 text-center">
-                        <p className="text-[11px] uppercase text-muted-foreground">{new Date(s.start).toLocaleDateString("en-US", { month: "short" })}</p>
-                        <p className="font-heading text-[20px] font-semibold leading-none tabular-nums">{new Date(s.start).getDate()}</p>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-medium">
-                          {fmtTime(s.start)} · {s.case?.customer?.name || (spa ? "Client" : "Homeowner")}
-                        </p>
-                        <p className="truncate text-[13px] text-muted-foreground">
-                          {s.case?.source === "reactivation" ? "Reactivated lead" : s.case?.source === "storm" ? "Storm check-in" : spa ? s.case?.description || "Consultation" : s.case?.customer?.address || "Address to confirm"}
-                        </p>
-                      </div>
-                      <button type="button" onClick={() => cancelBooking(s.caseId)} aria-label={`Cancel the ${fmtTime(s.start)} booking`} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
-                        <X className="h-4 w-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="mt-2 text-[12px] text-muted-foreground">Chat offers the same slots. A taken slot is never offered twice.</p>
-            </section>
+          {!spa && <StormRadar tenant={tenant} className="lg:col-span-8" />}
+          <CallPanel tenant={tenant} className={spa ? "lg:col-span-12" : "lg:col-span-4"} />
 
-            <CallPanel tenant={tenant} />
-          </aside>
-        </div>
-
-        <div className="mt-10">
-          <ReactivationPanel tenant={tenant} />
+          <ReactivationPanel tenant={tenant} className="lg:col-span-12" />
         </div>
       </main>
     </div>
   );
+}
+
+function Empty({ children }) {
+  return <div className="flex h-full min-h-[160px] items-center justify-center px-6 py-8"><p className="max-w-[40ch] text-center text-[14px] text-muted-foreground">{children}</p></div>;
 }
 
 function LeadCard({ c, tenant, slot, open, onToggle }) {
@@ -201,7 +192,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
   };
 
   return (
-    <article className="fd-card overflow-hidden">
+    <li>
       <div className="flex gap-3 p-4 sm:gap-4">
         {c.photo ? (
           <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="h-16 w-20 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-28 [&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>span]:hidden" showReference={false} />
@@ -307,6 +298,6 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
           )}
         </div>
       )}
-    </article>
+    </li>
   );
 }
