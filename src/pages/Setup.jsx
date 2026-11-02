@@ -174,7 +174,7 @@ export default function Setup() {
                 <div className="bg-[hsl(var(--deep))] px-5 py-8 text-white">
                   <p className="text-2xl leading-tight">{tenant.words.heroTitle}</p>
                   <p className="mt-3 text-[15px] text-white/80">{tenant.words.heroText}</p>
-                  <div className="mt-5 flex items-center gap-2 rounded-xl bg-white px-3 py-3 text-[14px] text-muted-foreground">
+                  <div className="mt-5 flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-3 text-[14px] text-muted-foreground">
                     <MessageSquare className="h-4 w-4" /> {tenant.words.placeholder}
                   </div>
                 </div>

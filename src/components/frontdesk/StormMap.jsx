@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { project, fitZoom, bboxOfPoints, leadPoint, pointInStorm } from "@/lib/storm";
 
-const TILE = (z, x, y) => `https://${"abcd"[(x + y) % 4]}.basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`;
+const TILE = (z, x, y) => `https://${"abcd"[(x + y) % 4]}.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}.png`;
 
 // A small slippy-map without a map library: CARTO light tiles under an SVG of the storm path and customer pins.
 // Fits the storm (with room around it) or, with no storm, every customer.
