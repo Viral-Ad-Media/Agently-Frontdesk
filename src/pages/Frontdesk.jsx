@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, Check, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, ImageOff, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { CalendarDays, Check, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, rejectQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { jobStatus } from "@/lib/verify";
 import VerificationPanel, { VerifyPill } from "@/components/frontdesk/VerificationPanel";
@@ -222,7 +222,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
           <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="h-16 w-20 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-28 [&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>span]:hidden" showReference={false} />
         ) : (
           <div className="flex h-16 w-20 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground sm:h-20 sm:w-28">
-            {c.source === "call" ? <Phone className="h-5 w-5" strokeWidth={1.5} /> : c.source === "storm" ? <CloudLightning className="h-5 w-5" strokeWidth={1.5} /> : c.source === "reactivation" ? <RefreshCw className="h-5 w-5" strokeWidth={1.5} /> : <ImageOff className="h-5 w-5" strokeWidth={1.5} />}
+            {c.source === "call" ? <Phone className="h-5 w-5" strokeWidth={1.5} /> : c.source === "storm" ? <CloudLightning className="h-5 w-5" strokeWidth={1.5} /> : c.source === "reactivation" ? <RefreshCw className="h-5 w-5" strokeWidth={1.5} /> : <MessageCircle className="h-5 w-5" strokeWidth={1.5} />}
           </div>
         )}
         <div className="min-w-0 flex-1">
