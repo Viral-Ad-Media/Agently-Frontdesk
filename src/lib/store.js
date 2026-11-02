@@ -1,7 +1,7 @@
 // One case record is the single source of truth. Chat, dashboard, calendar and reactivation all read and write here.
 // Persisted in localStorage for the demo; synthetic data only.
 import { useSyncExternalStore } from "react";
-import { seedState } from "@/lib/seed";
+import { seedState, seedSlots } from "@/lib/seed";
 import { QUOTE_STATUSES, draftQuote } from "@/lib/quote";
 import { measure, bboxOf, areaPercent } from "@/lib/eye";
 
@@ -72,6 +72,17 @@ export function setActiveTenant(id) {
   if (!state.tenants[id]) return;
   update((s) => {
     s.activeTenantId = id;
+  });
+}
+
+// Instant setup: a tenant built from a business website joins the spine and becomes the active desk.
+// Every new tenant gets its own calendar slots, generated the same way as the demo tenants'.
+export function addTenant(tenant) {
+  update((s) => {
+    s.tenants[tenant.id] = tenant;
+    s.activeTenantId = tenant.id;
+    const mine = seedSlots(new Date(), { [tenant.id]: tenant });
+    s.slots.push(...mine);
   });
 }
 
