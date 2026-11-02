@@ -68,7 +68,7 @@ export default function Chat() {
       if (q) {
         await converseWith(id, q);
       } else {
-        appendMessage(id, { role: "assistant", content: `Hi, this is the front desk at ${t.name}. ${t.words.greeting}` });
+        appendMessage(id, { role: "assistant", content: `Hi, this is the front desk at ${t.name.replace(/\.$/, "")}. ${t.words.greeting}` });
         updateCase(id, { lastQuestion: "ask_description" });
       }
     })();
