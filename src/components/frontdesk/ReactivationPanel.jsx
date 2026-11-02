@@ -4,6 +4,7 @@ import { gateway } from "@/gateway";
 import { useStore, setLeadMessage, editLeadMessage, moveLeadMessage, leadReply } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
 import ProviderBadge from "@/components/shared/ProviderBadge";
+import Panel from "@/components/frontdesk/Panel";
 
 // Dead-lead reactivation: one personal re-opener per lead from its real history, opt-outs excluded and counted,
 // owner approves and sends, a reply lands in the same thread, and a reply that books counts exactly once.
@@ -19,7 +20,7 @@ const STAGES = [
 ];
 const stageOf = (l) => (l.optOut ? "optout" : l.recovered ? "booked" : l.message?.reply || l.message?.status === "sent" ? "sent" : l.message?.status === "approved" ? "ready" : l.message?.status === "draft" ? "review" : "new");
 
-export default function ReactivationPanel({ tenant }) {
+export default function ReactivationPanel({ tenant, className = "" }) {
   // Select the stable array, then filter: a selector that returns a fresh array re-renders forever.
   const allLeads = useStore((s) => s.leads);
   const leads = allLeads.filter((l) => l.tenantId === tenant.id && l.status === "dead");
@@ -73,21 +74,20 @@ export default function ReactivationPanel({ tenant }) {
   };
 
   return (
-    <section aria-label="Dead-lead reactivation">
-      <div className="fd-section-head">
-        <div className="min-w-0">
-          <h2 className="fd-section-title">Dead leads</h2>
-          <p className="fd-section-meta mt-0.5">
-            {eligible.length} eligible, {optedOut.length} opted out, {recovered} recovered
-          </p>
-        </div>
+    <Panel
+      title="Dead leads"
+      label="Dead-lead reactivation"
+      className={className}
+      meta={`${eligible.length} eligible, ${optedOut.length} opted out, ${recovered} recovered`}
+      action={
         <button type="button" onClick={run} disabled={running || toDraft.length === 0} className="fd-btn-ink fd-btn-sm">
           {running ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" strokeWidth={1.75} />}
-          {running ? "Drafting…" : toDraft.length ? `Draft re-openers (${toDraft.length})` : "All drafted"}
+          {running ? "Drafting…" : toDraft.length ? <><span className="sm:hidden">{`Draft (${toDraft.length})`}</span><span className="hidden sm:inline">{`Draft re-openers (${toDraft.length})`}</span></> : "All drafted"}
         </button>
-      </div>
+      }
+    >
       {lastRun && (
-        <p className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-3 py-2 text-[13px]">
+        <p className="flex flex-wrap items-center gap-2 border-b border-border bg-secondary/60 px-4 py-2 text-[13px]">
           <span>
             Drafted {lastRun.drafted} ({lastRun.generic} generic). Excluded {lastRun.excluded} opted out. Nothing is sent until you approve it.
           </span>
@@ -96,9 +96,9 @@ export default function ReactivationPanel({ tenant }) {
       )}
 
       {leads.length === 0 ? (
-        <p className="fd-empty">No {tenant.trade === "medspa" ? "lapsed clients" : "old enquiries"} on file for this business yet.</p>
+        <p className="px-4 py-8 text-center text-[14px] text-muted-foreground">No {tenant.trade === "medspa" ? "lapsed clients" : "old enquiries"} on file for this business yet.</p>
       ) : (
-        <div className="rounded-lg border border-border bg-card">
+        <div>
           <div className="flex flex-wrap gap-1.5 border-b border-border p-3" role="tablist" aria-label="Filter dead leads">
             {STAGES.filter(([k]) => k === "all" || counts[k]).map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={stage === k} onClick={() => pick(k)} className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors duration-150 ${stage === k ? "bg-foreground text-background" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
@@ -135,7 +135,7 @@ export default function ReactivationPanel({ tenant }) {
           )}
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 
