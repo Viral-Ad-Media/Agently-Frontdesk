@@ -5,6 +5,8 @@ import { gateway } from "@/gateway";
 import { appendMessage, createCase, getCase, getState, setActiveTenant, updateCase, useStore } from "@/lib/store";
 import { route } from "@/lib/router";
 import { assessAndVerify } from "@/lib/pipeline";
+import { runAgentTurn } from "@/lib/agent";
+import AgentChecks from "@/components/frontdesk/AgentChecks";
 import { jobStatus, customerMaySee } from "@/lib/verify";
 import { measure } from "@/lib/eye";
 import { STATUS_LABEL } from "@/lib/quote";
@@ -98,7 +100,9 @@ export default function Chat() {
       try {
         const after = getCase(id);
         const t = tenants[after.tenantId];
-        const res = await gateway.converse({
+        const all = getState();
+        const res = await runAgentTurn({
+          ai: gateway,
           trade: after.trade,
           messages: after.messages.map(({ role, content }) => ({ role, content })),
           tenant: t,
@@ -111,6 +115,7 @@ export default function Chat() {
             photo: !!after.photo,
             lastQuestion: after.lastQuestion,
           },
+          data: { slots: all.slots.filter((sl) => sl.tenantId === after.tenantId), cases: all.cases, current: after, stormRuns: all.stormRuns || [] },
         });
         const ex = res.extracted || {};
         updateCase(id, (prev) => ({
@@ -121,7 +126,7 @@ export default function Chat() {
           lastQuestion: res.nextAction,
           provider: res.provider,
         }));
-        appendMessage(id, { role: "assistant", content: res.reply });
+        appendMessage(id, { role: "assistant", content: res.reply, trace: res.trace });
         say(res.reply);
       } catch (e) {
         setFailure({ message: e.message, retry: () => converseWith(id, text) });
@@ -290,6 +295,7 @@ export default function Chat() {
                 <div className="space-y-4" data-testid="assistant-message">
                   <p className="text-[13px] text-muted-foreground">{tenant.name}</p>
                   <p className="text-[17px] leading-relaxed">{m.content}</p>
+                  <AgentChecks trace={m.trace} />
                   {m.kind === "assessment" && c.assessment && (
                     <>
                       <EmergencyBanner emergency={c.assessment?.emergency} />
