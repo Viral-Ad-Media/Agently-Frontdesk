@@ -15,6 +15,7 @@ import DailySummary from "@/components/frontdesk/DailySummary";
 import ReportButton from "@/components/frontdesk/ReportButton";
 import OutlineEditor from "@/components/frontdesk/OutlineEditor";
 import StormRadar from "@/components/frontdesk/StormRadar";
+import { BeforeAfter } from "@/components/frontdesk/RepairPreview";
 import Panel from "@/components/frontdesk/Panel";
 import { stormForCase } from "@/lib/storm";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
@@ -216,6 +217,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
             {c.assessment ? <Severity value={c.assessment.severity} spa={spa} /> : <span className="fd-pill-neutral">{c.source === "reactivation" ? "Reactivated" : c.source === "storm" ? "Storm check-in" : c.source === "call" ? "Phone call, needs photo" : "In conversation"}</span>}
             {q && <span className={status === "sent" ? "fd-pill-ok" : status === "approved" ? "fd-pill-strong" : "fd-pill-neutral"}>{STATUS_LABEL[status]}</span>}
             {spa && c.consent && <span className="fd-pill-neutral">Photo consent</span>}
+            {c.repairPreview && <span className="fd-pill-accent">Saw it repaired</span>}
           </div>
           <p className="mt-2 line-clamp-2 text-[14px] text-muted-foreground">{c.assessment?.failedPart || c.description || "Waiting for the customer's description."}</p>
           {q && (
@@ -299,6 +301,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
           ) : (
             <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} flat />
           )}
+          {c.repairPreview && c.photo && <BeforeAfter before={c.photo.dataUrl} after={c.repairPreview.imageDataUrl} provider={c.repairPreview.provider} />}
         </div>
       )}
     </li>
