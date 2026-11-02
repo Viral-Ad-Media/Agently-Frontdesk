@@ -247,7 +247,7 @@ export default function Chat() {
     <div className="flex h-[100svh] flex-col bg-background">
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-8">
         <div className="min-w-0 [&_*]:truncate">
-          <Logo word={tenant.name} as="h1" />
+          <Logo to="/site" word={tenant.name} as="h1" />
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ProviderBadge className="hidden sm:inline-flex" />

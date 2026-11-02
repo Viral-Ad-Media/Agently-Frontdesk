@@ -6,13 +6,15 @@ import Chat from "@/pages/Chat";
 import Frontdesk from "@/pages/Frontdesk";
 import ClaimPack from "@/pages/ClaimPack";
 import Setup from "@/pages/Setup";
+import Product from "@/pages/Product";
 
 export default function App() {
   return (
     <Router>
       <ScrollToTop />
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Product />} />
+        <Route path="/site" element={<Home />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/frontdesk" element={<Frontdesk />} />
         <Route path="/claim/:id" element={<ClaimPack />} />
