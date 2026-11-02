@@ -246,16 +246,18 @@ export default function Chat() {
   return (
     <div className="flex h-[100svh] flex-col bg-background">
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-8">
-        <Logo word={tenant.name} as="h1" />
-        <div className="flex items-center gap-2">
+        <div className="min-w-0 [&_*]:truncate">
+          <Logo word={tenant.name} as="h1" />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <ProviderBadge className="hidden sm:inline-flex" />
           {voice.supported && (
-            <button type="button" onClick={toggleVoice} className={voiceMode ? "fd-btn-primary h-9 px-3 text-[13px]" : "fd-btn-outline h-9 px-3 text-[13px]"} aria-pressed={voiceMode}>
-              {voiceMode ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />} {voiceMode ? "End call" : "Talk instead"}
+            <button type="button" onClick={toggleVoice} className={`${voiceMode ? "fd-btn-primary" : "fd-btn-outline"} fd-btn-sm w-10 px-0 sm:w-auto sm:px-3`} aria-pressed={voiceMode} aria-label={voiceMode ? "End call" : "Talk instead"}>
+              {voiceMode ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />} <span className="hidden sm:inline">{voiceMode ? "End call" : "Talk instead"}</span>
             </button>
           )}
-          <Link to="/frontdesk" className="fd-btn-outline h-9 px-3 text-[13px]">
-            <LayoutDashboard className="h-4 w-4" /> Front desk
+          <Link to="/frontdesk" className="fd-btn-outline fd-btn-sm w-10 px-0 sm:w-auto sm:px-3" aria-label="Front desk">
+            <LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Front desk</span>
           </Link>
         </div>
       </header>

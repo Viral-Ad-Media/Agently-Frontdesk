@@ -187,3 +187,41 @@
     0% { transform: scale(0.6); opacity: 0.9; }
     100% { transform: scale(1.8); opacity: 0; }
 }
+
+/* Pills sit in components so utilities such as `hidden` can still override them. */
+@layer components {
+    .fd-pill {
+        @apply inline-flex h-6 flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[12px] font-medium leading-none;
+    }
+    .fd-pill-neutral {
+        @apply fd-pill bg-secondary text-muted-foreground;
+    }
+    .fd-pill-accent {
+        @apply fd-pill bg-primary/10 text-[hsl(var(--primary-deep))];
+    }
+    .fd-pill-ok {
+        @apply fd-pill bg-emerald-600/10 text-emerald-800;
+    }
+    .fd-pill-strong {
+        @apply fd-pill bg-foreground text-background;
+    }
+}
+
+/* App-screen pieces (Taste app-screen rules): sentence-case pills, one section header pattern, quiet empties. */
+@layer utilities {
+    .fd-section-head {
+        @apply mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2;
+    }
+    .fd-section-title {
+        @apply text-[16px] font-semibold leading-tight;
+    }
+    .fd-section-meta {
+        @apply text-[13px] text-muted-foreground;
+    }
+    .fd-empty {
+        @apply rounded-lg border border-dashed border-border px-4 py-5 text-[14px] text-muted-foreground;
+    }
+    .fd-btn-sm {
+        @apply h-9 rounded-lg px-3 text-[13px];
+    }
+}
