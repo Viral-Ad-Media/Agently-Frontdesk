@@ -79,3 +79,11 @@ test("the loop stops after the step limit and must answer", async () => {
   assert.equal(calls, 4);
   assert.equal(r.reply, "Here is what I found.");
 });
+
+test("business_facts includes the summary and the website quotes read at setup", () => {
+  const tenant = { name: "Peak Roofing", trade: "roofing", serviceArea: "Denver", words: { visitLong: "free roof inspection" }, setup: { summary: "Family roofer since 1998.", evidence: [{ field: "serviceArea", quote: "Serving the Denver metro" }, { field: "services", quote: "Storm damage repair" }] } };
+  const out = TOOLS.business_facts.run({ tenant });
+  assert.equal(out.about, "Family roofer since 1998.");
+  assert.deepEqual(out.facts, ['serviceArea: "Serving the Denver metro"', 'services: "Storm damage repair"']);
+  assert.deepEqual(TOOLS.business_facts.run({ tenant: { name: "X" } }).facts, []);
+});
