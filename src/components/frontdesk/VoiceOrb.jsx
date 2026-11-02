@@ -1,5 +1,6 @@
 // The voice front desk's face: one circle whose rings breathe with the conversation state.
-// Animates transform and opacity only; respects reduced motion through the global rule.
+// The core is the AI orb (two blurred conic gradients, see .ai-orb). Animates transform and opacity only;
+// respects reduced motion through the global rule.
 const labels = { idle: "Tap to talk", listening: "Listening", thinking: "Thinking", speaking: "Speaking" };
 
 export default function VoiceOrb({ state = "idle", size = 120, onClick, disabled }) {
@@ -22,7 +23,7 @@ export default function VoiceOrb({ state = "idle", size = 120, onClick, disabled
       >
         <span className={`absolute inset-0 rounded-full border-2 border-primary/50 ${ring}`} aria-hidden />
         <span className={`absolute inset-[14%] rounded-full border border-dashed border-primary/60 ${state === "thinking" ? "animate-[orb-spin_2.4s_linear_infinite_reverse]" : ring}`} aria-hidden />
-        <span className={`absolute inset-[30%] rounded-full ${state === "idle" ? "bg-primary/80" : "bg-primary"} ${state === "speaking" ? "animate-[orb-breathe_0.45s_ease-in-out_infinite]" : ""}`} aria-hidden />
+        <span className={`ai-orb absolute inset-[30%] ${state === "speaking" ? "animate-[orb-breathe_0.45s_ease-in-out_infinite]" : ""}`} data-state={state} aria-hidden />
       </button>
       <span className="font-spec text-[11px] uppercase text-muted-foreground" aria-live="polite">
         {labels[state]}

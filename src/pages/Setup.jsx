@@ -78,7 +78,7 @@ export default function Setup() {
       </header>
 
       <main className="mx-auto max-w-[1100px] px-4 py-10 md:px-8 md:py-16">
-        <h1 className="max-w-[18ch] text-4xl leading-[1.05] md:text-5xl">Your front desk, built from your website.</h1>
+        <h1 className="font-display-tight max-w-[18ch] text-[44px] leading-[1.02] md:text-[64px]">Your front desk, built from your website.</h1>
         <p className="mt-4 max-w-[56ch] text-[17px] text-muted-foreground">Paste the address of a roofing company or a med spa. The desk reads the site, finds the services, prices and service area it states, and writes its own greeting. You check every fact before it goes live.</p>
 
         <form onSubmit={run} className="mt-8 flex max-w-[680px] flex-col gap-2 sm:flex-row">

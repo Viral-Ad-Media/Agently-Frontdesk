@@ -30,6 +30,11 @@ test("homeowner: describe, address, photo, outlined assessment, draft range, thr
   await page.getByRole("button", { name: /See your roof repaired/ }).click();
   await expect(page.getByRole("img", { name: /after the repair/ })).toBeVisible({ timeout: AI });
   await expect(page.getByText(/confirmed at the free inspection/)).toBeVisible();
+  // The before/after slider is a native range: arrow keys move the CSS --pos variable that drives the clip.
+  const compare = page.getByRole("slider", { name: /Compare the roof/ });
+  await compare.focus();
+  await compare.press("End");
+  await expect(page.locator("figure [style*='--pos']")).toHaveAttribute("style", /--pos:\s*100%/);
   // Mock measures the rehearsed outline; a real provider may find no outline on the synthetic drawing. Both are honest.
   await expect(page.getByText(/m² from the outline|no measurement|no square-metre/i).first()).toBeVisible();
   await page.getByRole("button", { name: "9:00 AM" }).first().click();
