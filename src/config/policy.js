@@ -39,6 +39,6 @@ export const policyFor = (trade) => POLICY[trade] || POLICY.roofing;
 // without overrides every tier uses the configured Muse Spark model and only the effort changes.
 export const ROUTER_TIERS = {
   small: { label: "Small", effort: "low" },
-  medium: { label: "Medium", effort: "medium" },
+  medium: { label: "Medium", effort: "low" }, // low effort for speed: a medium-effort judge took 34 s on Meta (2 Nov)
   large: { label: "Large", effort: "high" },
 };
