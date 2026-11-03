@@ -1,5 +1,5 @@
 // Gateway contract: the return shapes every provider must honour.
-// Run it against any provider module (mock today, interim and Meta later).
+// Run it against any provider module (mock or Meta).
 import assert from "node:assert/strict";
 
 const inRange = (n) => typeof n === "number" && n >= 0 && n <= 1000;

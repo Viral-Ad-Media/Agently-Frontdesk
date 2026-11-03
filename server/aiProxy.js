@@ -1,18 +1,10 @@
-// One forwarding function for every AI provider, used by the Vite dev middleware and the Vercel
-// serverless route alike. The browser never sees a key; the provider is chosen by the URL.
-//   anthropic → https://api.anthropic.com/v1/messages            (ANTHROPIC_API_KEY)
-//   meta      → https://api.meta.ai/v1/<path>                    (META_API_KEY or MODEL_API_KEY)
+// Forwards AI calls to the Meta Model API, used by the Vite dev middleware and the Vercel serverless
+// route alike. The browser never sees a key.
+//   meta → https://api.meta.ai/v1/<path>   (META_API_KEY or MODEL_API_KEY)
 // For meta the request body carries { path, body }: the caller names the upstream path
 // (chat/completions, responses, asr/transcribe, images/generations) and the JSON to send.
 
 const UPSTREAM = {
-  anthropic: {
-    url: () => "https://api.anthropic.com/v1/messages",
-    key: (env) => env.ANTHROPIC_API_KEY,
-    missing: "ANTHROPIC_API_KEY is not set",
-    headers: (key) => ({ "x-api-key": key, "anthropic-version": "2023-06-01" }),
-    body: (raw) => raw,
-  },
   meta: {
     url: (parsed) => `https://api.meta.ai/v1/${String(parsed.path || "chat/completions").replace(/^\/+/, "")}`,
     key: (env) => env.META_API_KEY || env.MODEL_API_KEY,

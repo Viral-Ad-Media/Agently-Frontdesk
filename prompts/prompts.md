@@ -2,7 +2,7 @@
 
 Version 0.1 (27 Oct 2026). Every prompt the gateway sends lives here, never scattered through code.
 The mock provider does not call a model; it follows the same rules deterministically so the UI can be rehearsed.
-Providers `initial` (Phase 1) and `meta` (Phase 4) read these verbatim.
+The `meta` provider reads these verbatim.
 
 Shared rules for every prompt:
 - USD only. Draft ranges only. Never a final price.
