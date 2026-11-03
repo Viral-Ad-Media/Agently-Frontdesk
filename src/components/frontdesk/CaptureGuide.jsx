@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { Camera } from "lucide-react";
+import SamplePhotos from "@/components/frontdesk/SamplePhotos";
 
 const shots = [
   ["Wide", "the whole roof section from the ground"],
@@ -17,7 +18,7 @@ const spaShots = [
 ];
 
 // Guided capture: tells the customer what to shoot and takes the photo. Retake prompts arrive in Phase 1.
-export default function CaptureGuide({ onPhoto, onLiveEye, busy, spa = false }) {
+export default function CaptureGuide({ onPhoto, onLiveEye, onSample = null, onSkip = null, busy, spa = false }) {
   const fileRef = useRef(null);
   return (
     <section className="fd-card p-5" aria-label="Add a photo">
@@ -33,7 +34,7 @@ export default function CaptureGuide({ onPhoto, onLiveEye, busy, spa = false }) 
           </li>
         ))}
       </ul>
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" capture="environment" hidden onChange={(e) => e.target.files[0] && onPhoto(e.target.files[0])} />
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" className="sr-only" tabIndex={-1} aria-label={spa ? "Choose a photo of the area" : "Choose a photo of the damage"} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onPhoto(f); }} />
       <div className="mt-4 flex flex-wrap gap-2">
         {onLiveEye && (
           <button type="button" disabled={busy} onClick={onLiveEye} className="fd-btn-primary">
@@ -43,7 +44,17 @@ export default function CaptureGuide({ onPhoto, onLiveEye, busy, spa = false }) 
         <button type="button" disabled={busy} onClick={() => fileRef.current.click()} className={onLiveEye ? "fd-btn-outline" : "fd-btn-primary"}>
           Choose a photo or short video
         </button>
+        {onSkip && (
+          <button type="button" disabled={busy} onClick={onSkip} className="fd-btn-outline">
+            Skip the photo and book an inspection
+          </button>
+        )}
       </div>
+      {!spa && onSample && (
+        <div className="mt-4 border-t border-border pt-4">
+          <SamplePhotos onPick={(s, file) => onSample(s, file)} busy={busy} />
+        </div>
+      )}
       <p className="mt-2 text-[13px] text-muted-foreground">The Live Eye uses your camera with a level and your phone's tilt sensor, and captures when the shot is steady. One photo is enough; a short video works too.</p>
     </section>
   );

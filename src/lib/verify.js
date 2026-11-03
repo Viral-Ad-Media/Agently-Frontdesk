@@ -15,6 +15,29 @@ const BANNED = [
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
+// Which part of the building a piece of text is about. Water, stains and leaks are symptoms that any roof
+// fault can cause, so they never count as a part. Generic outline labels ("damaged covering") count as the covering.
+const PARTS = [
+  ["gutter", /\b(gutters?|downspouts?|down ?pipes?|fascia|soffit)\b/i],
+  ["flashing", /\b(flashing|chimney|vent pipe|skylight|valley)\b/i],
+  ["roof covering", /\b(shingles?|tabs?|tiles?|slates?|covering|underlay|ridge|metal sheet)\b/i],
+];
+const partsIn = (text) => PARTS.filter(([, re]) => re.test(String(text || ""))).map(([name]) => name);
+
+// Layer 1, coded: does the photo evidence (what SAM outlined) contradict what the customer described?
+// Returns a contradiction issue, or null. Deterministic, so the model can neither skip nor talk past it.
+export function photoContradiction(description = "", segmentation = null) {
+  const said = partsIn(description);
+  const labels = (segmentation?.regions || []).map((r) => r.label).filter(Boolean);
+  const seen = partsIn(labels.join(" ; "));
+  if (!said.length || !seen.length || said.some((p) => seen.includes(p))) return null;
+  return {
+    type: "contradiction",
+    detail: `The customer describes the ${said.join(" and ")}, but the photo shows ${labels.join(", ")}. Ask the customer for a photo of the ${said[0]} before quoting.`,
+    layer: "coded",
+  };
+}
+
 // Checklist items for the job's trade, each PROVEN / NOT PROVEN / ESCALATED with the evidence or the gap named.
 export function checklist(c, policy) {
   const a = c.assessment || {};
@@ -70,6 +93,10 @@ export function layer1(c, { tenant, slots = [], now = Date.now() } = {}) {
   if (c.photo) {
     const regions = c.segmentation?.regions?.length || 0;
     add("segmentation", "assessment", "Damage outlined", !c.segmentation ? "pending" : regions ? "pass" : "fail", !c.segmentation ? "Not outlined yet." : regions ? `${regions} region${regions > 1 ? "s" : ""} outlined by SAM.` : "Segmentation failed: escalate to a person.");
+  }
+  if (!spa && c.segmentation?.regions?.length) {
+    const clash = photoContradiction(c.description, c.segmentation);
+    add("consistency", "assessment", "Photo matches the description", clash ? "fail" : "pass", clash ? clash.detail : "The outlined damage is consistent with what the customer described.");
   }
   if (!spa && c.measurement) {
     const claimsArea = c.measurement.areaM2 != null;
