@@ -123,7 +123,7 @@ export default function VerificationPanel({ c, js }) {
                   <div className="flex gap-2">
                     {mark(r.judge.verdict === "PASS" ? "pass" : "fail")}
                     <span>
-                      <span className="font-medium">Review {r.attempt}: {r.judge.verdict}</span>
+                      <span className="font-medium">Review {r.attempt}: {r.judge.verdict}{r.judge.layer === "coded" ? " (coded check, escalated without retrying)" : ""}</span>
                       <span className="block text-[12px] text-muted-foreground">Drafted on the {r.route.tier} tier, {r.route.effort} effort</span>
                     </span>
                   </div>
