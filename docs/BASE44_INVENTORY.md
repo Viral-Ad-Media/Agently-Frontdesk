@@ -85,7 +85,7 @@ The stack already matches the brief's target (React + Vite + Tailwind). No stack
 **Preserve:** app shell, routing, Tailwind + shadcn component library, Home layout (re-pointed at the roofing tenant), chat page structure and orb, browser voice input, emergency banner concept, Front desk and Dispatch page skeletons, haversine routing, synthetic artisan profiles (as the "artisans in general" track for later).
 
 **Replace, in the brief's order:**
-1. Base44 `InvokeLLM` call → AI Gateway (`src/gateway/`) with five capabilities, `AI_PROVIDER=initial|meta|mock`, prompts in `prompts/prompts.md`, every call logged and labelled.
+1. Base44 `InvokeLLM` call → AI Gateway (`src/gateway/`) with five capabilities, `AI_PROVIDER=meta|mock`, prompts in `prompts/prompts.md`, every call logged and labelled.
 2. Booking form → real slot calendar in the case store; dashboard schedule reads the same source.
 3. Dispatch "accept" → human approval flow (draft → awaiting approval → approved → sent) on every quote and reactivation message.
 4. Base44 entities → one case record in a local seed store (synthetic data only). Base44 SDK removed from the journey; the owner has asked for Base44 to go entirely, which this path delivers.

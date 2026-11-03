@@ -1,4 +1,4 @@
-// Vercel serverless route: POST /api/ai/anthropic or /api/ai/meta. Keys come from the project's
+// Vercel serverless route: POST /api/ai/meta. Keys come from the project's
 // environment variables, never from the browser. Same forwarding code as the dev server.
 import { forward } from "../../server/aiProxy.js";
 

@@ -125,7 +125,7 @@ Fast path: the lookups a question plainly needs (picked from its wording by `pla
 
 ## Layout
 
-- `src/gateway/` — the AI Gateway: `segmentDamage`, `assess`, `converse`, `reactivateMessage`, `renderReportVisual`, `transcribeCall`. Providers: `mock` (deterministic), `initial` (Phase 1), `meta` (Phase 4). Every call is logged with capability, latency and provider.
+- `src/gateway/` — the AI Gateway: `segmentDamage`, `assess`, `converse`, `reactivateMessage`, `renderReportVisual`, `transcribeCall`. Providers: `mock` (deterministic rehearsal) and `meta` (Meta models). Every call is logged with capability, latency and provider.
 - `prompts/prompts.md` — every prompt, versioned.
 - `src/lib/store.js` — the case record, calendar slots and gateway log (localStorage, synthetic data only).
 - `src/lib/seed.js` — demo tenants (fictional, names locked), placeholder rate card, inspection slots.
@@ -144,8 +144,4 @@ npm run build
 
 `tests/golden.test.js` scores the Eye against `tests/golden/manifest.json` (hand-checked outlines, reference objects, materials): outline IoU, area within 20% when a reference is present, material right on most. Two synthetic photos are in it today; the brief's 12 real photos (3 materials × 2 damage types × 2 angles) go in the same manifest. `GOLDEN_PROVIDER=mock` is the default.
 
-`tests/contract.js` is the gateway contract. The same contract runs against the interim and Meta providers when they are configured, so a provider swap is proven by the same tests.
-
-## Phased plan
-
-Phase 0 (today) boss test → Phase 1 interim provider, guided capture retakes, video frame snapshot, contract tests → Phase 2 reactivation, daily summary → Phase 3 med spa tenant, report visual → Phase 4 Meta swap, voice calls → Phase 5 golden tests, demo video, submission.
+`tests/contract.js` is the gateway contract. The same contract runs against the Meta provider when it is configured, so both providers are proven by the same tests.
