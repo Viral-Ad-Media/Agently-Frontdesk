@@ -271,6 +271,31 @@ export async function reactivateMessage({ lead = {}, tenant = { name: "the busin
   return { message: String(out.message || ""), generic };
 }
 
+// ----- Talk to your desk -----
+
+export async function deskCommand({ utterance = "", snapshot = {}, tenant = { name: "the business" } } = {}) {
+  const ids = [...(snapshot.quotes || []), ...(snapshot.reopeners || [])].map((x) => x.id);
+  const out = await sparkJson({
+    system: fill(section("deskCommand"), { tenant }),
+    user: JSON.stringify({ owner_said: utterance, desk: snapshot }),
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        intent: { type: "string", enum: ["brief", "approve_quote", "send_quote", "approve_reopener", "send_reopener", "none"] },
+        targetId: { type: ["string", "null"] },
+        reply: { type: "string" },
+      },
+      required: ["intent", "targetId", "reply"],
+    },
+    name: "desk",
+    model: MODELS.sparkLight,
+  });
+  // The model may only point at something that is on the desk.
+  const targetId = ids.includes(out.targetId) ? out.targetId : null;
+  return { intent: out.intent || "none", targetId, reply: String(out.reply || "") };
+}
+
 // ----- Instant setup -----
 
 const NULLABLE_NUM = { type: ["number", "null"] };

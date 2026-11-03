@@ -20,6 +20,7 @@
 // Coordinates are normalised 0-1000 on both axes.
 
 import { areaPercent } from "../../lib/eye.js";
+import { readUtterance } from "../../lib/desk.js";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -416,3 +417,17 @@ export async function previewRepair({ photoDataUrl, segmentation } = {}) {
   }
   return { imageDataUrl: canvas.toDataURL("image/jpeg", 0.85) };
 }
+
+// Talk to your desk: a keyword reading of the owner's words, so the voice flow rehearses offline.
+export async function deskCommand({ utterance = "", snapshot = { quotes: [], reopeners: [], summary: "" } } = {}) {
+  await wait(500);
+  const r = readUtterance(utterance, snapshot);
+  const reply =
+    r.intent === "brief"
+      ? snapshot.summary
+      : r.intent === "none"
+        ? "I can brief you on today, or approve and send a quote or a re-opener. Try \"brief me\" or \"approve the Larkspur quote\"."
+        : "";
+  return { ...r, reply };
+}
+
