@@ -4,6 +4,31 @@ The AI front desk that turns a photo of a problem into an assessed job, a draft 
 
 **Live:** https://agently-frontdesk.vercel.app (product page at `/`, the demo business site at `/site`, the owner's desk at `/frontdesk`). It runs on Meta models: Muse Spark for chat, assessment and review, Muse Image for pictures, Muse Voice Transcribe for calls. Every screen says which provider answered. All businesses, customers, prices and photos are synthetic.
 
+![Agently product page](docs/screenshots/product-page.webp)
+
+## Screenshots
+
+Captured from a local build on the mock provider (no keys, deterministic answers), so the badge on screen reads "Mock provider". The live site runs the same screens on Meta models. All businesses, people, prices and photos are synthetic.
+
+| | |
+|---|---|
+| ![Roofing business site](docs/screenshots/site-roofing.webp) | ![Med spa business site](docs/screenshots/site-medspa.webp) |
+| **Each trade gets its own site** (`/site`). Roofing above, med spa beside it; plumbing, AC and appliance repair, salon and barber use the same spine. | The customer starts a chat from the hero, or talks to Aura by voice with "Talk to us". |
+| ![Assessment card with draft quote](docs/screenshots/chat-assessment.webp) | ![See it fixed slider](docs/screenshots/see-it-fixed.webp) |
+| **The assessment card.** Finding, material, measurement basis (scaled from a reference object) and a draft USD range priced line by line from the rate card. | **See it fixed.** A before and after slider of the customer's own photo, drawn with Muse Image on Meta. |
+| ![Owner dashboard](docs/screenshots/owner-dashboard.webp) | ![Verification panel](docs/screenshots/verification.webp) |
+| **The owner's desk** (`/frontdesk`). Today in numbers, the daily summary, leads with their score and status, and the calendar. Approve, Edit, Send. | **Verification.** Coded checks, the checklist against the evidence, the reviewer pass and the owner's sign-off, plus every model call with its tier, tokens and time. |
+| ![Storm radar](docs/screenshots/storm-radar.webp) | ![Ask your desk](docs/screenshots/ask-your-desk.webp) |
+| **Storm Radar.** Customers in a storm's path, opted-out people excluded, check-ins drafted for approval. (The rehearsal storm is shown; the map tiles did not load in the capture environment.) | **Ask your desk.** The owner asks by text or voice ("brief me", "send the Larkspur quote") and confirms before anything is sent. |
+| ![Dead leads](docs/screenshots/dead-leads.webp) | ![Phone call transcript](docs/screenshots/phone-call.webp) |
+| **Dead leads.** Re-openers drafted from each lead's history; opted-out leads are excluded and counted. | **Phone calls.** A rehearsed call is transcribed and qualified into a lead, the same as a chat. |
+| ![Claim pack](docs/screenshots/claim-pack.webp) | ![Set up from a website](docs/screenshots/setup-from-website.webp) |
+| **Claim pack (draft).** Weather on record, the photo evidence, the estimate and the timeline, ready to print for the insurer. | **Set up from your website** (`/setup`). The desk reads the business's site, shows where each fact came from, and launches after the owner reviews it. |
+
+![Eval set results](docs/screenshots/eval.webp)
+
+**The eval set** (`/eval`): 21 synthetic jobs run through the real pipeline, each with the expected outcome, the result, the router's choice, reviews, checklist coverage, tokens and time.
+
 ## Built during the hackathon (27 Oct to 4 Nov 2026)
 
 Everything in this repository was built during the event, except the starting UI shell: a Base44 template export, committed first and marked "pre-hackathon, not event work" (`abe112b`), then removed piece by piece (see `docs/BASE44_INVENTORY.md`). Built at the event:
@@ -44,7 +69,7 @@ Rehearsal photos: `public/demo/roof-test.jpg` (reference object in frame) and `p
 
 ## Walkthrough (10 minutes, no keys needed)
 
-1. **Home** (`/`): the demo tenant's page. Type a problem in the field and press Start.
+1. **Product page** (`/`) explains the product. Press "Try it as a customer" to open the demo business site (`/site`), type a problem in the field and press Start.
 2. **Chat** (`/chat`): answer the address question, then add `public/demo/roof-test.jpg` (or any roof photo). Watch the outline, the assessment card, the measurement basis and the draft range with its maths. Pick a slot, confirm. Try "Talk instead" for the voice mode.
 3. **Front desk** (`/frontdesk`): the lead is there with "Awaiting approval". Approve, then Send; the customer's chat now shows the confirmed range. "Show assessment" → "Correct the outline": drag a point and save; the range recomputes. "Prepare damage report" downloads the branded report.
 4. **Dead leads** (right column): "Draft re-openers", open a lead, Approve, Send, then play the reply "Yes, book me in". The counter rises by one and the booking is on the calendar. Opted-out leads are excluded and counted.
@@ -130,7 +155,9 @@ Fast path: the lookups a question plainly needs (picked from its wording by `pla
 - `src/lib/store.js` — the case record, calendar slots and gateway log (localStorage, synthetic data only).
 - `src/lib/seed.js` — demo tenants (fictional, names locked), placeholder rate card, inspection slots.
 - `src/lib/eye.js`, `src/lib/quote.js` — measurement and quote maths, pure functions.
-- `src/pages/Chat.jsx`, `src/pages/Frontdesk.jsx`, `src/pages/Home.jsx` — the three screens.
+- `src/pages/` — the screens: `Product.jsx` (`/`), `Home.jsx` (the business site, `/site`), `Chat.jsx` (`/chat`), `Frontdesk.jsx` (`/frontdesk`), `ClaimPack.jsx` (`/claim/:id`), `Setup.jsx` (`/setup`) and `Eval.jsx` (`/eval`).
+- `src/config/` — per-trade settings (`trades.js`), site copy (`siteCopy.js`), photos (`media.js`) and verification checklists (`policy.js`).
+- `docs/screenshots/` — the images in this README. `scripts/guide-shots.mjs` retakes the full set of screens with Playwright.
 - `docs/BASE44_INVENTORY.md` — what the starting build contained and what was replaced.
 
 ## Checks
