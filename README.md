@@ -1,8 +1,22 @@
 # Agently Front Desk
 
-The AI front desk that turns a photo of a problem into an assessed job, a draft quote and a booked appointment, for roofing companies and med spas first, then handiwork artisans in general. Built for the Meta Global AI Developer Hackathon (submission 4 November 2026).
+The AI front desk that turns a photo of a problem into an assessed job, a draft quote and a booked appointment. Six desks run on one spine: roofing, med spa, plumbing, AC and appliance repair, hair salon and barber. Built for the Meta Global AI Developer Hackathon (submission 4 November 2026).
 
-**Status (28 Oct):** every feature in the brief runs end to end on the **mock provider**, labelled on every screen: roofing and med spa journeys, dead-lead reactivation, phone-call path, voice mode, branded report, drag-to-correct outline, daily summary. The interim provider (Claude, `VITE_AI_PROVIDER=initial`) is written and goes live once `ANTHROPIC_API_KEY` is set in `.env.local`; the Meta provider is the Phase 4 swap. Both are proven by the same contract and golden tests.
+**Live:** https://agently-frontdesk.vercel.app (product page at `/`, the demo business site at `/site`, the owner's desk at `/frontdesk`). It runs on Meta models: Muse Spark for chat, assessment and review, Muse Image for pictures, Muse Voice Transcribe for calls. Every screen says which provider answered. All businesses, customers, prices and photos are synthetic.
+
+## Built during the hackathon (27 Oct to 4 Nov 2026)
+
+Everything in this repository was built during the event, except the starting UI shell: a Base44 template export, committed first and marked "pre-hackathon, not event work" (`abe112b`), then removed piece by piece (see `docs/BASE44_INVENTORY.md`). Built at the event:
+
+- The Eye: outline, measurement only with a reference object in frame, assessment and a rate-card draft quote (roofing).
+- Menu engine for service trades: the concern is matched to the business's own published menu and priced from it, never by measurement (med spa, plumbing, AC, salon, barber).
+- Verification: coded checks, a separate reviewer pass with up to 3 retries, a router that picks the model tier, and human sign-off with an audit trail. Eval set of 21 synthetic jobs.
+- The desk agent: plan, look up (calendar, rates, business facts, history, storms), answer only from what it found.
+- Owner desk: approve, edit and send quotes; dead-lead reactivation; Storm Radar and weather check-ins per trade (freeze for plumbing, heat for AC); phone-call transcription; daily summary; talk to your desk by voice.
+- Customer extras: "See it fixed" (roofing) and "Preview the look" (salon, barber) with Muse Image; insurance claim pack draft (roofing); salon colour bookings held 48 hours after the patch test; med spa aftercare reminder drafts the clinician approves; live voice conversation with the desk ("Talk to us"), which introduces itself as Aura and names the business.
+- Set up a new business from its own website (`/setup`).
+
+Nothing is sent, booked or priced without a person's approval. Draft quotes are USD ranges. The med spa desk never diagnoses or gives medical advice.
 
 ## The journey
 
@@ -11,8 +25,6 @@ The AI front desk that turns a photo of a problem into an assessed job, a draft 
 3. The customer books a real inspection slot in three taps.
 4. The owner sees the lead on the dashboard (`/frontdesk`), taps Approve, then Send. Status moves one way: draft → awaiting approval → approved → sent. The customer's chat shows the sent range.
 
-**Live demo (mock provider):** https://agently-frontdesk.vercel.app
-
 ## Run locally
 
 ```bash
@@ -20,7 +32,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. No keys are needed for the mock provider. Set `VITE_AI_PROVIDER` (and the optional router and price variables above) in `.env.local`.
+Open http://localhost:5173. No keys are needed for the mock provider. To run on Meta, copy `.env.example` to `.env.local`, set `VITE_AI_PROVIDER=meta` and `META_API_KEY`.
 
 On Windows PowerShell with script execution disabled, use `npm.cmd` instead of `npm`.
 
@@ -69,22 +81,24 @@ Built on 2 Nov 2026 from the Agents 101, Agents 102 and Fireworks sessions. Ever
 | Task | Tier | Effort | Human review |
 |---|---|---|---|
 | Chat turns, re-openers, voice desk | small | low | no |
-| Clear single-problem assessment, reviewer pass | medium | low (was medium; a medium-effort review took 34 s on Meta) | no |
+| Clear single-problem assessment | medium | low | no |
+| Reviewer pass on a single-problem job | small | low (a medium-effort review took 34 s on Meta; the reviewer also gets a 512 px image) | no |
 | Safety hazard, photo vs description conflict, several problems | large | high | forced |
 | Retry after a failed review | next tier up | higher | after 3 failures |
 
 Model ids come from env (`VITE_META_TIER_SMALL_MODEL`, `_MEDIUM_`, `_LARGE_`). Without them, every tier uses the configured Muse Spark model and only the reasoning effort changes; nothing invents a model name. Every call is logged per job with model, tier, effort, tokens, latency and router reason. Cost appears only when `VITE_META_PRICE_IN_PER_M` and `VITE_META_PRICE_OUT_PER_M` are set. It is never estimated.
 
-**Eval set** (`src/eval/jobs.js`) has 14 synthetic jobs:
+**Eval set** (`src/eval/jobs.js`) has 21 synthetic jobs:
 - 3 clear roofing jobs.
 - 8 edge cases: blurry photo, no reference, missing address, description contradicts photo, price off the rate card, sparks near water, unsure material, two problems in one photo.
 - 3 med spa jobs, one with no consent recorded.
+- 7 jobs across plumbing, AC and appliance repair, salon and barber.
 
 To run it:
-- `npm run eval` runs the mock and writes [docs/EVAL.md](docs/EVAL.md), currently 14/14.
+- `npm run eval` runs the mock and writes [docs/EVAL.md](docs/EVAL.md), currently 21/21 on the mock.
 - `/eval` runs the same jobs live through the gateway, so on Meta it records real tokens and time.
 
-Plumbing, carpentry and bricklaying are not built in this submission.
+Carpentry and bricklaying are not built in this submission.
 
 **Rehearse the failure on purpose:** start a chat with "The gutter is hanging off the front of the house and water pours down the wall", then add `public/demo/roof-test.jpg`. Here is what happens:
 1. The reviewer flags the contradiction 3 times.
@@ -119,7 +133,7 @@ Fast path: the lookups a question plainly needs (picked from its wording by `pla
 
 ```bash
 npm test        # Eye maths, quote rules, verification, router, gateway contract against the mock provider
-npm run eval    # the 14-job eval set on the mock; writes docs/EVAL.md
+npm run eval    # the 21-job eval set on the mock; writes docs/EVAL.md
 npm run lint
 npm run build
 ```
