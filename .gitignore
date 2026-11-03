@@ -42,3 +42,6 @@ base44/.app.jsonc
 test-results/
 playwright-report/
 footage/
+
+# Claude Code local settings (kept off GitHub)
+.claude/
