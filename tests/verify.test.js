@@ -92,3 +92,20 @@ test("mock reviewer flags a contradiction between the description and the photo,
   const good = await mock.judgeAssessment({ trade: "roofing", description: "Water through the ceiling", segmentation: seg, measurement, assessment, quote: base().quote });
   assert.equal(good.verdict, "PASS");
 });
+
+test("coded check: a photo that contradicts the description escalates at once, before the model reviewer", async () => {
+  const { photoContradiction } = await import("../src/lib/verify.js");
+  const { assessAndVerify } = await import("../src/lib/pipeline.js");
+  const shingles = { regions: [{ label: "missing and lifted shingle tabs" }] };
+  assert.match(photoContradiction("The gutter is hanging off the front of the house", shingles).detail, /describes the gutter/);
+  assert.equal(photoContradiction("Water dripping through the bedroom ceiling", shingles), null, "symptoms are not a part");
+  assert.equal(photoContradiction("Shingles blew off in the storm", shingles), null);
+  assert.equal(photoContradiction("The gutter is loose", { regions: [{ label: "damaged covering" }, { label: "sagging gutter" }] }), null);
+  let judged = 0;
+  const ai = { ...mock, judgeAssessment: (x) => (judged++, mock.judgeAssessment(x)) };
+  const out = await assessAndVerify({ ai, trade: "roofing", description: "The gutter is hanging off the front of the house", seg: { ...seg, regions: [{ ...seg.regions[0], label: "missing and lifted shingle tabs" }] }, measurement, tenant: TENANTS["summit-ridge"] });
+  assert.equal(judged, 0, "the model reviewer is not asked when the coded check already failed");
+  assert.equal(out.verification.escalated, true);
+  assert.equal(out.verification.runs.length, 1);
+  assert.equal(out.verification.runs[0].judge.layer, "coded");
+});
