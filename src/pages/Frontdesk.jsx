@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, Check, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, ImageOff, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
-import { useStore, moveQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
+import { CalendarDays, Check, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, ImageOff, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { useStore, moveQuote, rejectQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
+import { jobStatus } from "@/lib/verify";
+import VerificationPanel, { VerifyPill } from "@/components/frontdesk/VerificationPanel";
 import { clearGatewayCache } from "@/gateway";
 import { STATUS_LABEL } from "@/lib/quote";
 import Logo from "@/components/shared/Logo";
@@ -89,6 +91,9 @@ export default function Frontdesk() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <ProviderBadge className="md:hidden" />
+            <Link to="/eval" className="fd-btn-sm inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground" title="Run the eval set">
+              <FlaskConical className="h-4 w-4" /> <span className="hidden sm:inline">Eval</span>
+            </Link>
             <button type="button" onClick={reset} className="fd-btn-sm inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground" title="Reset demo data">
               <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Reset demo</span>
             </button>
@@ -115,7 +120,7 @@ export default function Frontdesk() {
             <DailySummary flat tenant={tenant} cases={cases} slots={slots} leads={tenantLeads} />
           </section>
 
-          <Panel title="Leads" icon={Inbox} tint="var(--ios-blue)" delay={80} meta={cases.length ? `${cases.length} total · ${waiting} waiting on you` : "Newest first"} className="lg:col-span-8 lg:h-[380px]" bodyClassName="overflow-y-auto">
+          <Panel title="Leads" icon={Inbox} tint="var(--ios-blue)" delay={80} meta={cases.length ? `${cases.length} total · ${waiting} waiting on you` : "Newest first"} className={`lg:col-span-8 ${openId ? "" : "lg:h-[380px]"}`} bodyClassName="overflow-y-auto">
             {cases.length === 0 ? (
               <Empty>
                 No enquiries yet. Open the{" "}
@@ -133,7 +138,7 @@ export default function Frontdesk() {
             )}
           </Panel>
 
-          <Panel title="Calendar" icon={CalendarDays} tint="var(--ios-red)" delay={140} meta={schedule.length ? `${schedule.length} ${tenant.words.visit}${schedule.length === 1 ? "" : "s"} booked` : "A taken slot is never offered twice"} className="lg:col-span-4 lg:h-[380px]" bodyClassName="overflow-y-auto">
+          <Panel title="Calendar" icon={CalendarDays} tint="var(--ios-red)" delay={140} meta={schedule.length ? `${schedule.length} ${tenant.words.visit}${schedule.length === 1 ? "" : "s"} booked` : "A taken slot is never offered twice"} className={`lg:col-span-4 ${openId ? "" : "lg:h-[380px]"}`} bodyClassName="overflow-y-auto">
             {schedule.length === 0 ? (
               <Empty>Nothing booked yet. A booking made in chat appears here at once.</Empty>
             ) : (
@@ -178,7 +183,11 @@ function Empty({ children }) {
 
 function LeadCard({ c, tenant, slot, open, onToggle }) {
   const stormRuns = useStore((s) => s.stormRuns);
+  const allSlots = useStore((s) => s.slots);
   const storm = tenant.trade === "roofing" ? stormForCase(c, stormRuns) : null;
+  const js = jobStatus(c, { tenant, slots: allSlots });
+  const [signOff, setSignOff] = useState(null); // null | "approve" | "reject"
+  const [why, setWhy] = useState("");
   const [editing, setEditing] = useState(false);
   const [outlining, setOutlining] = useState(false);
   const [low, setLow] = useState(c.quote?.low ?? "");
@@ -186,7 +195,15 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
   const q = c.quote;
   const status = q?.status;
   const spa = tenant.trade === "medspa";
-  const canApprove = q && q.low !== null && (status === "draft" || status === "awaiting_approval");
+  const canApprove = q && q.low !== null && (status === "draft" || status === "awaiting_approval" || status === "rejected");
+  const needsReason = js.status !== "verified" && !q?.override;
+  const approve = () => (needsReason ? (setSignOff("approve"), setWhy("")) : moveQuote(c.id, "approved"));
+  const confirmSignOff = () => {
+    if (!why.trim()) return;
+    if (signOff === "approve") moveQuote(c.id, "approved", { override: why.trim() });
+    else rejectQuote(c.id, why.trim());
+    setSignOff(null);
+  };
   const canSend = q && status === "approved";
 
   const save = () => {
@@ -217,6 +234,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
           {c.customer.address && !spa && <p className="truncate text-[13px] text-muted-foreground">{c.customer.address}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {c.assessment ? <Severity value={c.assessment.severity} spa={spa} /> : <span className="fd-pill-neutral">{c.source === "reactivation" ? "Reactivated" : c.source === "storm" ? "Storm check-in" : c.source === "call" ? "Phone call, needs photo" : "In conversation"}</span>}
+            {c.assessment && <VerifyPill status={js.status} />}
             {q && <span className={status === "sent" ? "fd-pill-ok" : status === "approved" ? "fd-pill-strong" : "fd-pill-neutral"}>{STATUS_LABEL[status]}</span>}
             {spa && c.consent && <span className="fd-pill-neutral">Photo consent</span>}
             {c.repairPreview && <span className="fd-pill-accent">Saw it repaired</span>}
@@ -253,10 +271,28 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
 
       {q && (
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
-          {!editing ? (
+          {signOff ? (
+            <form
+              className="flex w-full flex-wrap items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                confirmSignOff();
+              }}
+            >
+              <label className="min-w-0 flex-1 basis-[240px]">
+                <span className="sr-only">{signOff === "approve" ? "Reason for approving over failed checks" : "Reason for rejecting"}</span>
+                <input autoFocus value={why} onChange={(e) => setWhy(e.target.value)} placeholder={signOff === "approve" ? "Why approve despite the failed checks?" : "Why reject this draft?"} className="h-10 w-full rounded-full border border-border bg-secondary px-4 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ios-blue)/0.45)]" />
+              </label>
+              <button type="submit" disabled={!why.trim()} className={signOff === "approve" ? "fd-btn-primary fd-btn-sm" : "fd-btn-ink fd-btn-sm"}>
+                {signOff === "approve" ? <><Check className="h-4 w-4" /> Approve with reason</> : <><X className="h-4 w-4" /> Reject</>}
+              </button>
+              <button type="button" onClick={() => setSignOff(null)} className="fd-btn-outline fd-btn-sm">Cancel</button>
+              {signOff === "approve" && <span className="basis-full text-[13px] text-muted-foreground">This job didn't pass every check. Your reason is saved in its audit trail.</span>}
+            </form>
+          ) : !editing ? (
             <>
-              <button type="button" disabled={!canApprove} onClick={() => moveQuote(c.id, "approved")} className="fd-btn-primary fd-btn-sm">
-                <Check className="h-4 w-4" /> Approve
+              <button type="button" disabled={!canApprove} onClick={approve} className="fd-btn-primary fd-btn-sm">
+                <Check className="h-4 w-4" /> {needsReason ? "Review & approve" : "Approve"}
               </button>
               <button type="button" disabled={status === "sent"} onClick={() => setEditing(true)} className="fd-btn-outline fd-btn-sm">
                 <Pencil className="h-4 w-4" /> Edit
@@ -264,7 +300,11 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
               <button type="button" disabled={!canSend} onClick={() => moveQuote(c.id, "sent")} className="fd-btn-ink fd-btn-sm">
                 <Send className="h-4 w-4" /> Send
               </button>
+              <button type="button" disabled={status === "sent" || status === "rejected"} onClick={() => (setSignOff("reject"), setWhy(""))} className="fd-btn-outline fd-btn-sm">
+                <X className="h-4 w-4" /> Reject
+              </button>
               <ReportButton c={c} tenant={tenant} />
+              {status === "rejected" && <span className="basis-full text-[13px] text-muted-foreground">Rejected: {q.history?.at(-1)?.note}. Edit the range or correct the outline, then approve.</span>}
               {status === "sent" && <span className="basis-full text-[13px] text-muted-foreground">Sent. The customer's chat shows the confirmed range.</span>}
               {status === "awaiting_approval" && <span className="order-last basis-full text-[13px] text-muted-foreground">{q.low === null ? "Customer booked. Enter a range with Edit, then approve and send it." : spa ? "Client booked. Clinician approves the plan, then sends it." : "Customer booked. Approve the range, then send it."}</span>}
             </>
@@ -288,6 +328,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
 
       {open && c.assessment && (
         <div className="pop space-y-4 border-t border-border p-4">
+          <VerificationPanel c={c} js={js} />
           {c.photo && c.segmentation && status !== "sent" && (
             <div className="flex flex-wrap items-center gap-2">
               {!outlining && (

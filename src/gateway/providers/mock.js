@@ -431,3 +431,30 @@ export async function deskCommand({ utterance = "", snapshot = { quotes: [], reo
   return { ...r, reply };
 }
 
+
+// Layer 2 on the mock: a deterministic reviewer that reads the evidence and the drafted card and flags
+// contradictions, unsupported claims and missing hazards, so the bounded retry and escalation can be rehearsed.
+const OTHER_PARTS = [
+  [/\bgutters?\b/, "gutter"],
+  [/\bchimney\b/, "chimney"],
+  [/\bskylight\b/, "skylight"],
+  [/\bsolar panels?\b/, "solar panels"],
+  [/\bflat roof\b/, "flat roof"],
+  [/\bsiding\b/, "siding"],
+];
+export async function judgeAssessment({ trade = "roofing", description = "", segmentation = null, measurement = null, assessment = null, quote = null, route = null } = {}) {
+  await wait(600);
+  const issues = [];
+  const text = String(description).toLowerCase();
+  if (trade === "medspa") {
+    if (/\byou have\b|\bdiagnos/i.test(assessment?.summary || "")) issues.push({ type: "unsupported", detail: "The summary reads as a diagnosis; it must only describe what the client said." });
+  } else {
+    const label = segmentation?.regions?.[0]?.label || "";
+    const part = OTHER_PARTS.find(([re]) => re.test(text) && !re.test(label) && !re.test(String(assessment?.failedPart || "").toLowerCase()));
+    if (part) issues.push({ type: "contradiction", detail: `The customer describes the ${part[1]}, but the photo and the card are about ${label || "the roof covering"}.` });
+    if (measurement?.areaM2 != null && !measurement.reference) issues.push({ type: "unsupported", detail: "An area in square metres is claimed with no reference object in the photo." });
+    if (quote?.low != null && measurement?.areaM2 == null) issues.push({ type: "unsupported", detail: "A dollar range is given without a measurement." });
+    if (/\b(spark|sparking|burning smell|exposed wir|live wire)/.test(text) && !assessment?.emergency) issues.push({ type: "missing", detail: "The customer describes an electrical hazard that the card does not flag." });
+  }
+  return { verdict: issues.length ? "FAIL" : "PASS", issues, usage: { model: "mock", effort: route?.effort || "medium", tokens: null } };
+}

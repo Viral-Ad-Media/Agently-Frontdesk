@@ -9,14 +9,14 @@ const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 const whoOf = (c) => c.customer?.name || c.customer?.address || (c.description ? c.description.slice(0, 40) : "an enquiry");
 
 // The compact view of the desk the model is allowed to see and act on.
-export function deskSnapshot({ tenant, cases = [], leads = [], summary = "" }) {
+export function deskSnapshot({ tenant, cases = [], leads = [], summary = "", isVerified = () => true }) {
   return {
     business: tenant?.name || "the business",
     trade: tenant?.trade || "roofing",
     summary,
     quotes: cases
       .filter((c) => c.quote && c.quote.status !== "sent")
-      .map((c) => ({ id: c.id, who: whoOf(c), low: c.quote.low, high: c.quote.high, status: c.quote.status })),
+      .map((c) => ({ id: c.id, who: whoOf(c), low: c.quote.low, high: c.quote.high, status: c.quote.status, verified: isVerified(c) })),
     reopeners: leads
       .filter((l) => l.message && !l.optOut && l.message.status !== "sent")
       .map((l) => ({ id: l.id, name: l.name, status: l.message.status })),
@@ -33,6 +33,7 @@ export function planAction({ intent, targetId }, snap) {
   if (isQuote) {
     if (item.low === null || item.low === undefined) return { error: `${item.who} has no range yet. Enter one on the card first.` };
     if (intent === "approve_quote" && item.status === "approved") return { error: `${item.who}'s quote is already approved. Say "send it" to send it.` };
+    if (item.status !== "approved" && item.verified === false) return { error: `${item.who}'s quote hasn't passed its checks. Open it on the dashboard to see why; approving it needs a written reason.` };
     const range = `${money(item.low)} to ${money(item.high)}`;
     return {
       action: {

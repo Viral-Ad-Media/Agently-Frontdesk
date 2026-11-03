@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { LayoutDashboard, Mic, MicOff, RotateCcw } from "lucide-react";
 import { gateway } from "@/gateway";
-import { appendMessage, createCase, getCase, setActiveTenant, updateCase, useStore } from "@/lib/store";
+import { appendMessage, createCase, getCase, getState, setActiveTenant, updateCase, useStore } from "@/lib/store";
+import { route } from "@/lib/router";
+import { assessAndVerify } from "@/lib/pipeline";
+import { jobStatus, customerMaySee } from "@/lib/verify";
 import { measure } from "@/lib/eye";
-import { draftQuote, draftServiceQuote, STATUS_LABEL } from "@/lib/quote";
+import { STATUS_LABEL } from "@/lib/quote";
 import { readPhoto } from "@/lib/photo";
 import useVoice from "@/hooks/useVoice";
 import Logo from "@/components/shared/Logo";
@@ -98,6 +101,8 @@ export default function Chat() {
           trade: after.trade,
           messages: after.messages.map(({ role, content }) => ({ role, content })),
           tenant: t,
+          route: route("converse"),
+          caseId: id,
           caseState: {
             description: after.description,
             address: after.customer.address,
@@ -171,22 +176,22 @@ export default function Chat() {
           const cur = getCase(caseId);
           const t = tenants[cur.tenantId];
           setProgress(spa ? "Noting the area…" : "Outlining the damage…");
-          const seg = await gateway.segmentDamage({ trade: cur.trade, photoName: photo.name, width: photo.width, height: photo.height, dataUrl: photo.dataUrl });
+          const seg = await gateway.segmentDamage({ trade: cur.trade, photoName: photo.name, width: photo.width, height: photo.height, dataUrl: photo.dataUrl, caseId });
           const region = seg.regions[0];
           const sensorTilt = Number.isFinite(photo.sensor?.deviceTiltDeg) ? photo.sensor.deviceTiltDeg : null;
           const m = !spa && region ? { ...measure({ polygon: region.polygon, reference: seg.reference, tiltDeg: sensorTilt ?? seg.tiltDeg }), tiltSource: sensorTilt !== null ? "phone sensors" : "estimated from the photo" } : null;
           updateCase(caseId, { segmentation: seg, measurement: m });
           setProgress(spa ? "Matching to our services…" : "Working out what failed…");
-          const a = await gateway.assess({ trade: cur.trade, description: cur.description, urgency: cur.urgency, segmentation: seg, measurement: m, dataUrl: photo.dataUrl, tenant: t });
-          setProgress(spa ? "Looking up the published price…" : "Drafting your price range…");
-          const base = spa
-            ? draftServiceQuote({ service: (t.services || []).find((s) => s.id === a.serviceMatch?.[0]?.serviceId), disclaimer: t.disclaimer })
-            : draftQuote({ material: a.material.name, measurement: m, rateCard: t.rateCard });
-          const q = { ...base, status: "draft", history: [{ status: "draft", at: new Date().toISOString(), by: "ai" }] };
-          updateCase(caseId, { assessment: a, quote: q, status: "assessed", lastQuestion: "none", provider: seg.provider });
+          const { assessment: a, quote: q, verification } = await assessAndVerify({ ai: gateway, trade: cur.trade, description: cur.description, urgency: cur.urgency, seg, measurement: m, dataUrl: photo.dataUrl, tenant: t, caseId, onProgress: setProgress });
+          updateCase(caseId, { assessment: a, quote: q, verification, status: "assessed", lastQuestion: "none", provider: seg.provider });
+          const held = q.low != null && !customerMaySee(getCase(caseId), jobStatus(getCase(caseId), { tenant: t, slots: getState().slots }));
           const reply = a.emergency?.isEmergency
-            ? "Make it safe first. Once you have, here is what I can see and a draft range."
-            : spa
+            ? held
+              ? `Make it safe first. A ${t.words.pro} is checking your photo before we share a range; you can book an ${t.words.visit} now.`
+              : "Make it safe first. Once you have, here is what I can see and a draft range."
+            : held
+              ? `Here's what I can see. A ${t.words.pro} is double-checking it before we share a range, so pick an ${t.words.visit} time below.`
+              : spa
               ? `Here's what we've noted and the published range for the matched service. A clinician reviews it before anything is recommended. Pick a ${t.words.visit} time below.`
               : `Here's what I can see, with a draft range. A ${t.words.pro} confirms the price on site, so pick an ${t.words.visit} time below.`;
           appendMessage(caseId, { role: "assistant", kind: "assessment", content: reply });
@@ -287,7 +292,7 @@ export default function Chat() {
                   {m.kind === "assessment" && c.assessment && (
                     <>
                       <EmergencyBanner emergency={c.assessment?.emergency} />
-                      <AssessmentCard segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} compact />
+                      <AssessmentCard segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={customerQuote(c, tenant, slots)} tenant={tenant} compact />
                       <RepairPreview c={c} tenant={tenant} />
                     </>
                   )}
@@ -345,3 +350,11 @@ export default function Chat() {
     </div>
   );
 }
+
+// What the customer sees of the quote: the range only once the job verifies or a person signs it off.
+function customerQuote(c, tenant, slots) {
+  if (!c.quote || c.quote.low == null) return c.quote; // no range to hold back
+  if (customerMaySee(c, jobStatus(c, { tenant, slots }))) return c.quote;
+  return { ...c.quote, low: null, high: null, total: null, lines: [], reason: `A ${tenant.words?.pro || "person"} is checking this one before a range is shared. Nothing is lost: book a time and they'll bring it.` };
+}
+
