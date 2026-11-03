@@ -6,6 +6,7 @@
 // Pure module: no React, no store import, so it runs in node tests and in the browser alike.
 
 import { mentions } from "../config/trades.js";
+import { trustFor, TRUST_NOTE } from "./trust.js";
 
 export const MAX_STEPS = 3;
 
@@ -51,9 +52,12 @@ export const TOOLS = {
   },
   business_facts: {
     label: "Checked the business facts",
-    describe: "What is on record about the business: name, trade, service area, what the first visit is, a short summary and quotes from its own website read at setup. Anything not listed is unknown.",
+    describe: "What is on record about the business: name, trade, service area, what the first visit is, a short summary, its licence, insurance, warranty and reviews as the business states them, and quotes from its own website read at setup. Anything not listed is unknown.",
     run({ tenant = {} }) {
+      const trust = trustFor(tenant);
       return {
+        credentials: trust.lines.map((l) => `${l.label}: ${l.value}`),
+        credentialsSource: trust.lines.length ? TRUST_NOTE[trust.source] : null,
         name: tenant.name,
         trade: tenant.trade,
         serviceArea: tenant.serviceArea || null,
@@ -99,7 +103,7 @@ export const NEEDS = [
   ["customer_history", /\b(last time|before|again|already|earlier|previous|still waiting|follow(?:ing)? up)\b/i],
   ["check_calendar", /\b(available|availability|slots?|appointment|come (?:out|over|by)|today|tomorrow|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|when can)\b/i],
   ["rate_card", /\b(how much|cost|costs|price|prices|pricing|rates?|charge|expensive|cheap)\b/i],
-  ["business_facts", /\b(area|serve|cover|near|insured|insurance|licen[cs]ed|warranty|guarantee|hours|open on|located|who are you)\b/i],
+  ["business_facts", /\b(area|serve|cover|near|insured|insurance|licen[cs]ed?|reviews?|rated|rating|legit|trust|warranty|guarantee|hours|open on|located|who are you)\b/i],
   ["storm_reports", /\b(was there a storm|storm (?:last|yesterday|this)|hail (?:last|yesterday|this))\b/i],
 ];
 export const SKIN = /\b(skin|acne|breakouts?|spots|dull|dry|wrinkles?|lines|tone|pores|scars?|redness)\b/i;

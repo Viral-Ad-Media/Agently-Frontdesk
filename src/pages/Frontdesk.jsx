@@ -20,6 +20,9 @@ import OutlineEditor from "@/components/frontdesk/OutlineEditor";
 import StormRadar from "@/components/frontdesk/StormRadar";
 import { BeforeAfter } from "@/components/frontdesk/RepairPreview";
 import AftercareCard from "@/components/frontdesk/AftercareCard";
+import FollowUpsCard from "@/components/frontdesk/FollowUpsCard";
+import TakeOver from "@/components/frontdesk/TakeOver";
+import { scoreLead, SCORE_LABEL } from "@/lib/leadScore";
 import Panel from "@/components/frontdesk/Panel";
 import DeskAssistant from "@/components/frontdesk/DeskAssistant";
 import { stormForCase, weatherFor } from "@/lib/storm";
@@ -227,6 +230,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
     setSignOff(null);
   };
   const canSend = q && status === "approved";
+  const score = scoreLead(c, { storm, slot });
 
   const save = () => {
     const l = Number(low);
@@ -259,9 +263,13 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
             {c.assessment && <VerifyPill status={js.status} />}
             {q && <span className={status === "sent" ? "fd-pill-ok" : status === "approved" ? "fd-pill-strong" : "fd-pill-neutral"}>{STATUS_LABEL[status]}</span>}
             {people && c.consent && <span className="fd-pill-neutral">Photo consent</span>}
+            <span className={score.level === "hot" ? "fd-pill-strong" : score.level === "warm" ? "fd-pill-accent" : "fd-pill-neutral"} title={score.reasons.join(", ")} data-testid="lead-score">{SCORE_LABEL[score.level]}</span>
+            {c.insurance?.claiming && <span className="fd-pill-neutral">Insurance claim</span>}
+            {c.takenOver && <span className="fd-pill-neutral">You're replying</span>}
             {c.repairPreview && <span className="fd-pill-accent">{c.repairPreview.kind === "look" ? "Previewed the look" : "Saw it repaired"}</span>}
           </div>
           <p className="mt-2 line-clamp-2 text-[14px] text-muted-foreground">{c.assessment?.failedPart || c.description || "Waiting for the customer's description."}</p>
+          {score.reasons.length > 0 && <p className="mt-1 text-[12px] text-muted-foreground">Why {score.level}: {score.reasons.join(" · ")}</p>}
           {q && (
             <p className="mt-1.5 text-[15px]">
               {q.low !== null ? (
@@ -354,6 +362,8 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
       )}
 
       <AftercareCard c={c} tenant={tenant} booked={!!slot} />
+      <FollowUpsCard c={c} tenant={tenant} />
+      {c.messages?.some((m) => m.role === "user") && <TakeOver c={c} tenant={tenant} />}
 
       {open && c.assessment && (
         <div className="pop space-y-4 border-t border-border p-4">

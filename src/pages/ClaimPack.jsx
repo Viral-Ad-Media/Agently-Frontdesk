@@ -47,6 +47,17 @@ export default function ClaimPack() {
           </div>
         </header>
 
+        {c.insurance?.claiming && (
+          <section className="mt-6 break-inside-avoid" data-testid="claim-insurance">
+            <h2 className="text-lg">Insurance details (from the homeowner)</h2>
+            <dl className="mt-3 grid gap-x-6 gap-y-2 rounded-lg border border-border p-4 text-[14px] sm:grid-cols-3">
+              <div><dt className="text-muted-foreground">Insurer</dt><dd>{c.insurance.carrier}</dd></div>
+              <div><dt className="text-muted-foreground">Claim number</dt><dd>{c.insurance.claimNumber || "Not filed yet"}</dd></div>
+              <div><dt className="text-muted-foreground">Storm date (as told)</dt><dd>{c.insurance.stormDate ? new Date(`${c.insurance.stormDate}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "Not given"}</dd></div>
+            </dl>
+          </section>
+        )}
+
         <section className="mt-6">
           <h2 className="text-lg">1 · Weather on record</h2>
           {storm ? (
