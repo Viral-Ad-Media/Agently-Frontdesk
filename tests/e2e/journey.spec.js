@@ -142,7 +142,7 @@ test("talk to your desk: brief, then a spoken send waits for yes and moves the q
   await expect(page.locator(".fd-pill-ok", { hasText: "Sent" }).first()).toBeVisible();
 });
 
-test("verification: a job whose photo contradicts the description fails review 3 times, is held from the customer and needs a reason to approve", async ({ page }) => {
+test("verification: a job whose photo contradicts the description fails the coded consistency check, escalates without retrying, is held from the customer and needs a reason to approve", async ({ page }) => {
   await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("The gutter is hanging off the front of the house and water pours down the wall")}`);
   await replied(page, 1);
   await page.getByLabel("Message").fill("9 Aspen Court, Lyons");
@@ -156,7 +156,7 @@ test("verification: a job whose photo contradicts the description fails review 3
   await page.goto(`${BASE}/frontdesk`);
   await expect(page.getByText("Escalated to you").first()).toBeVisible();
   await page.getByRole("button", { name: /^Assessment/ }).first().click();
-  await expect(page.getByText(/Review 3: FAIL/)).toBeVisible();
+  await expect(page.getByText(/Review 1: FAIL \(coded check/)).toBeVisible();
   await expect(page.getByText(/describes the gutter/).first()).toBeVisible();
   await page.getByRole("button", { name: /Review & approve/ }).click();
   const approve = page.getByRole("button", { name: /Approve with reason/ });
@@ -188,4 +188,37 @@ test("smart desk: looks up prices and open times before answering, and the owner
   await expect(how).toBeVisible();
   await expect(how.getByText(/How much do you charge/)).toBeVisible();
   await expect(how.getByText(/Every time and price in the reply came from a lookup/).first()).toBeVisible();
+});
+
+test("judge path: a sample photo with no camera runs to a draft quote, the booking lands on the calendar, and Reset wipes it", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=summit-ridge`);
+  await replied(page, 1);
+  await page.getByRole("button", { name: /Use the sample photo: Lifted shingles/ }).click();
+  await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/Draft quote/i)).toBeVisible({ timeout: 90000 });
+  await expect(page.getByText(/Sample job:/)).toBeVisible();
+  const slotBtn = page.getByRole("button", { name: /^\d{1,2}:\d{2} (AM|PM)$/ }).first();
+  const label = await slotBtn.textContent();
+  await slotBtn.click();
+  await page.getByRole("button", { name: /Confirm booking/ }).click();
+  await expect(page.getByText(/You're booked/).first()).toBeVisible();
+
+  // A second roofing case asks to book by text: the picker appears, and the taken slot is not offered twice.
+  await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("Can I book an inspection? Shingles came off")}`);
+  await replied(page, 1);
+  await expect(page.getByRole("region", { name: /^Book a free inspection/ })).toBeVisible({ timeout: AI });
+
+  await page.goto(`${BASE}/frontdesk?tenant=summit-ridge`);
+  await expect(page.getByRole("region", { name: "Calendar" }).getByText(label.trim()).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Claim pack \(draft\)/ }).first()).toBeVisible();
+
+  // Reset: two taps, no browser pop-up. After a reload nothing from the test is left, on either business.
+  await page.getByRole("button", { name: /Reset demo/ }).click();
+  await page.getByRole("button", { name: /Tap again to reset/ }).click();
+  await expect(page.getByText("Demo reset")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("14 Larkspur Lane, Austin, TX")).toHaveCount(0);
+  await expect(page.getByText(/Nothing booked yet/).first()).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("frontdesk.v3") || "null"));
+  expect(stored === null || stored.cases.every((c) => !String(c.description || "").includes("Shingles lifted"))).toBe(true);
 });

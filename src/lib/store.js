@@ -5,7 +5,9 @@ import { seedState, seedSlots } from "@/lib/seed";
 import { QUOTE_STATUSES, draftQuote } from "@/lib/quote";
 import { measure, bboxOf, areaPercent } from "@/lib/eye";
 
-const KEY = "frontdesk.v2";
+const KEY = "frontdesk.v3";
+// Older keys from earlier builds. A visitor who tested an earlier build starts clean instead of seeing that test data.
+const OLD_KEYS = ["frontdesk.v2", "frontdesk.v1", "frontdesk"];
 const listeners = new Set();
 let state = normalize(load());
 
@@ -14,10 +16,15 @@ function load() {
     const raw = window.localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.version === 2) return parsed;
+      if (parsed && parsed.version === 3) return parsed;
     }
   } catch {
     /* fall through to a fresh seed */
+  }
+  try {
+    OLD_KEYS.forEach((k) => window.localStorage.removeItem(k));
+  } catch {
+    /* storage blocked: nothing to clear */
   }
   return seedState();
 }
@@ -64,7 +71,14 @@ export function useStore(selector = (s) => s) {
   return useSyncExternalStore(subscribe, () => selector(state), () => selector(state));
 }
 
+// Reset: every lead, booking, calendar event, draft, re-opener, storm run, added business and counter goes back
+// to the seed, for every business at once. The saved copy is removed first, so a reload cannot bring old data back.
 export function resetDemo() {
+  try {
+    [KEY, ...OLD_KEYS].forEach((k) => window.localStorage.removeItem(k));
+  } catch {
+    /* storage blocked: the in-memory reset below still applies */
+  }
   commit(seedState());
 }
 

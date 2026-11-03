@@ -39,7 +39,7 @@ export default function ClaimPack() {
         <header className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-5">
           <div>
             <p className="font-spec text-[11px] uppercase text-muted-foreground">{tenant.name} · storm damage evidence</p>
-            <h1 className="mt-1 text-3xl">Claim pack</h1>
+            <h1 className="mt-1 flex items-center gap-3 text-3xl">Claim pack <span className="rounded-md border border-[hsl(var(--primary-deep))] px-2 py-0.5 font-spec text-[12px] uppercase tracking-wide text-[hsl(var(--primary-deep))]">Draft</span></h1>
           </div>
           <div className="text-right text-[14px]">
             <p>{c.customer.name || "Homeowner"}</p>
@@ -109,7 +109,7 @@ export default function ClaimPack() {
         </section>
 
         <footer className="mt-10 border-t border-border pt-4 text-[12px] text-muted-foreground">
-          Prepared by {tenant.name}'s front desk from its own records. This pack states facts and their sources. It is not an insurance determination and does not predict whether a claim will be approved.{storm && !rehearsal ? " Weather data from the US National Weather Service." : ""}
+          Prepared by {tenant.name}'s front desk from its own records. This pack states facts and their sources. It is a DRAFT for the homeowner and their adjuster. It is not an insurance determination and makes no guarantee or prediction about any insurer's decision.{storm && !rehearsal ? " Weather data from the US National Weather Service." : ""}
         </footer>
       </article>
     </div>
