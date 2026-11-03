@@ -26,6 +26,7 @@ export const CAPABILITY_MODEL = {
   segmentDamage: "SAM 3.1",
   assess: "Muse Spark",
   converse: "Muse Spark",
+  agentStep: "Muse Spark (agent loop)",
   reactivateMessage: "Muse Spark",
   renderReportVisual: "Muse Image",
   previewRepair: "Muse Image",
@@ -142,6 +143,8 @@ export const gateway = {
   segmentDamage: (input) => call("segmentDamage", input),
   assess: (input) => call("assess", input),
   converse: (input) => call("converse", input),
+  // Only offered when the active provider implements it; the agent falls back to converse otherwise.
+  ...(PROVIDERS[PROVIDER].agentStep ? { agentStep: (input) => call("agentStep", input) } : {}),
   reactivateMessage: (input) => call("reactivateMessage", input),
   renderReportVisual: (input) => call("renderReportVisual", input),
   previewRepair: (input) => call("previewRepair", input),
