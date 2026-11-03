@@ -1,13 +1,12 @@
 // The AI Gateway. The UI calls only this module, never a provider directly.
 // Five capabilities plus call transcription; the provider is chosen by one setting.
-//   VITE_AI_PROVIDER = initial | meta | mock
+//   VITE_AI_PROVIDER = meta | mock
 // Return shapes never change between providers. See prompts/prompts.md for every prompt.
 import { logGatewayCall } from "@/lib/store";
 import * as mock from "./providers/mock";
-import * as initial from "./providers/initial";
 import * as meta from "./providers/meta";
 
-const PROVIDERS = { mock, initial, meta };
+const PROVIDERS = { mock, meta };
 
 const requested = (import.meta.env.VITE_AI_PROVIDER || "mock").trim().toLowerCase();
 export const PROVIDER = PROVIDERS[requested] ? requested : "mock";
@@ -17,7 +16,6 @@ if (!PROVIDERS[requested]) {
 
 export const PROVIDER_LABEL = {
   mock: "Mock provider",
-  initial: initial.LABEL,
   meta: "Meta models",
 }[PROVIDER];
 
