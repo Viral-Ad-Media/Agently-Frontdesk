@@ -648,6 +648,8 @@ function answerFrom(o, tenant, trade, text = "") {
   }
   if (o.tool === "business_facts") {
     const bits = [r.serviceArea ? `We cover ${r.serviceArea}.` : "", r.firstVisit ? `The first step is a ${r.firstVisit}.` : ""].filter(Boolean);
+    const asked = /licen|insur|warrant|guarantee|review|rated|rating|legit|trust/i.test(text);
+    if (asked && r.credentials?.length) return `${bits.join(" ")} ${r.credentials.join(". ")}.${r.credentialsSource ? ` (${r.credentialsSource})` : ""}`.trim();
     return `${bits.join(" ")} Anything else, like insurance or warranty details, isn't on my record, so I've noted it for the team to confirm.`.trim();
   }
   if (o.tool === "customer_history") {
