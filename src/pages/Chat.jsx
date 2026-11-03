@@ -10,6 +10,7 @@ import AgentChecks from "@/components/frontdesk/AgentChecks";
 import { jobStatus, customerMaySee } from "@/lib/verify";
 import { measure } from "@/lib/eye";
 import { STATUS_LABEL } from "@/lib/quote";
+import { isMenu, tradeProfile, withArticle } from "@/config/trades";
 import { readPhoto } from "@/lib/photo";
 import useVoice from "@/hooks/useVoice";
 import Logo from "@/components/shared/Logo";
@@ -30,7 +31,7 @@ import TypingDots from "@/components/shared/TypingDots";
 import ReportButton from "@/components/frontdesk/ReportButton";
 
 // The customer's front desk: one case, from first message to booked visit. Chat or voice, same case.
-const BOOK_INTENT = /\b(book|booking|schedule|appointment|reserve|inspection|consultation|come out|come by|come over)\b/i;
+const BOOK_INTENT = /\b(book|booking|schedule|appointment|reserve|inspection|consultation|come out|come by|come over|send someone|the chair)\b/i;
 const SAMPLE_ADDRESS = "14 Larkspur Lane, Austin, TX"; // synthetic demo address
 
 export default function Chat() {
@@ -54,9 +55,13 @@ export default function Chat() {
   const endRef = useRef(null);
   const sendRef = useRef(null);
   const voiceModeRef = useRef(false);
+  const assessRef = useRef(null);
   voiceModeRef.current = voiceMode;
   const voice = useVoice({ onFinal: (t) => sendRef.current(t) });
-  const spa = tenant.trade === "medspa";
+  // "spa" = the service-menu engine (med spa, plumbing, AC, salon, barber); the trade profile says the rest.
+  const prof = tradeProfile(tenant.trade);
+  const spa = isMenu(tenant.trade);
+  const medspa = tenant.trade === "medspa";
 
   // Open a case for the requested tenant and get the first question. A ?q= from the home page becomes the first message.
   useEffect(() => {
@@ -133,6 +138,9 @@ export default function Chat() {
         if (BOOK_INTENT.test(text)) updateCase(id, { bookingOffered: true });
         appendMessage(id, { role: "assistant", content: res.reply, trace: res.trace });
         say(res.reply);
+        // A menu trade that has the description but no photo coming can be matched from the text straight away.
+        const now = getCase(id);
+        if (res.nextAction === "assess" && isMenu(now.trade) && now.trade !== "medspa" && !now.photo && !now.assessment && now.description) setTimeout(() => assessRef.current?.(), 0);
       } catch (e) {
         setFailure({ message: e.message, retry: () => converseWith(id, text) });
       } finally {
@@ -200,14 +208,14 @@ export default function Chat() {
       setBusy(true);
       setFailure(null);
       updateCase(caseId, { photo: { dataUrl: photo.dataUrl, width: photo.width, height: photo.height, name: photo.name, fromVideo: photo.fromVideo, quality: photo.quality, sensor: photo.sensor || null, at: new Date().toISOString() } });
-      appendMessage(caseId, { role: "user", content: spa ? "Here's a photo of the area." : "Here's a photo of the damage.", photo: true });
+      appendMessage(caseId, { role: "user", content: medspa ? "Here's a photo of the area." : spa ? "Here's a photo." : "Here's a photo of the damage.", photo: true });
       const run = async () => {
         setBusy(true);
         setFailure(null);
         try {
           const cur = getCase(caseId);
           const t = tenants[cur.tenantId];
-          setProgress(spa ? "Noting the area…" : "Outlining the damage…");
+          setProgress(medspa ? "Noting the area…" : spa ? "Looking at your photo…" : "Outlining the damage…");
           const seg = await gateway.segmentDamage({ trade: cur.trade, photoName: photo.name, width: photo.width, height: photo.height, dataUrl: photo.dataUrl, caseId });
           const region = seg.regions[0];
           const sensorTilt = Number.isFinite(photo.sensor?.deviceTiltDeg) ? photo.sensor.deviceTiltDeg : null;
@@ -219,16 +227,16 @@ export default function Chat() {
           const held = q.low != null && !customerMaySee(getCase(caseId), jobStatus(getCase(caseId), { tenant: t, slots: getState().slots }));
           const clash = verification.contradiction;
           const reply = clash && !a.emergency?.isEmergency
-            ? `Thanks. The photo seems to show ${(seg.regions || []).map((r) => r.label).join(", ") || "something different"}, which doesn't match what you described, so a ${t.words.pro} is checking it before we share a range. If you can, describe it again or send a photo of the part you mean. You can book an ${t.words.visit} below either way.`
+            ? `Thanks. The photo seems to show ${(seg.regions || []).map((r) => r.label).join(", ") || "something different"}, which doesn't match what you described, so a ${t.words.pro} is checking it before we share a range. If you can, describe it again or send a photo of the part you mean. You can book ${withArticle(t.words.visit)} below either way.`
             : a.emergency?.isEmergency
             ? held
-              ? `Make it safe first. A ${t.words.pro} is checking your photo before we share a range; you can book an ${t.words.visit} now.`
+              ? `Make it safe first. A ${t.words.pro} is checking your photo before we share a range; you can book ${withArticle(t.words.visit)} now.`
               : "Make it safe first. Once you have, here is what I can see and a draft range."
             : held
-              ? `Here's what I can see. A ${t.words.pro} is double-checking it before we share a range, so pick an ${t.words.visit} time below.`
+              ? `Here's what I can see. A ${t.words.pro} is double-checking it before we share a range, so pick ${withArticle(t.words.visit)} time below.`
               : spa
-              ? `Here's what we've noted and the published range for the matched service. A clinician reviews it before anything is recommended. Pick a ${t.words.visit} time below.`
-              : `Here's what I can see, with a draft range. A ${t.words.pro} confirms the price on site, so pick an ${t.words.visit} time below.`;
+              ? `Here's what we've noted and the published range for the matched service. ${medspa ? "A clinician reviews it before anything is recommended" : `The ${t.words.pro} confirms it ${prof.onSite ? "on site" : "with you"}`}. Pick ${withArticle(t.words.visit)} time below.`
+              : `Here's what I can see, with a draft range. A ${t.words.pro} confirms the price on site, so pick ${withArticle(t.words.visit)} time below.`;
           appendMessage(caseId, { role: "assistant", kind: "assessment", content: reply });
           say(reply);
         } catch (e) {
@@ -240,21 +248,56 @@ export default function Chat() {
       };
       await run();
     },
-    [caseId, busy, tenants, spa, say]
+    [caseId, busy, tenants, spa, medspa, prof, say]
   );
+
+  // Service-menu trades can be matched from the description alone: no photo needed for a published price.
+  const assessFromText = useCallback(async () => {
+    if (!caseId) return;
+    setBusy(true);
+    setFailure(null);
+    try {
+      const cur = getCase(caseId);
+      const t = tenants[cur.tenantId];
+      setProgress("Matching it to our services…");
+      const { assessment: a, quote: q, verification } = await assessAndVerify({ ai: gateway, trade: cur.trade, description: cur.description, urgency: cur.urgency, seg: null, measurement: null, dataUrl: null, tenant: t, caseId, onProgress: setProgress });
+      updateCase(caseId, { assessment: a, quote: q, verification, status: "assessed", lastQuestion: "none" });
+      const held = q.low != null && !customerMaySee(getCase(caseId), jobStatus(getCase(caseId), { tenant: t, slots: getState().slots }));
+      const reply = a.emergency?.isEmergency
+        ? `Make it safe first: ${a.emergency.actions?.[0] || "stay clear of it"}. Then pick ${withArticle(t.words.visit)} time below and we'll call you straight back.`
+        : held || q.low == null
+          ? `Thanks. The ${t.words.pro} looks at this before we share a price. Pick ${withArticle(t.words.visit)} time below.`
+          : `Here's the match from our menu and its published price range. The ${t.words.pro} confirms it ${prof.onSite ? "on site" : "with you"}. Pick ${withArticle(t.words.visit)} time below.`;
+      appendMessage(caseId, { role: "assistant", kind: "assessment", content: reply });
+      say(reply);
+    } catch (e) {
+      setFailure({ message: e.message, retry: assessFromText });
+    } finally {
+      setProgress(null);
+      setBusy(false);
+    }
+  }, [caseId, tenants, prof, say]);
+  assessRef.current = assessFromText;
 
   const onConsent = () => {
     updateCase(caseId, { consent: { at: new Date().toISOString(), scope: "photo for service match and consultation" }, lastQuestion: "ask_photo" });
-    appendMessage(caseId, { role: "assistant", content: "Thank you. Add a photo of the area when you're ready: natural light, no filters." });
+    appendMessage(caseId, { role: "assistant", content: `Thank you. Add ${prof.photoAsk} when you're ready: natural light, no filters.` });
   };
 
   const onSkipPhoto = () => {
+    // Plumbing, AC, salon and barber can still be matched to the menu from what the customer wrote.
+    if (spa && !medspa && getCase(caseId)?.description) {
+      updateCase(caseId, { lastQuestion: "none" });
+      appendMessage(caseId, { role: "user", content: "No photo, thanks." });
+      assessFromText();
+      return;
+    }
     updateCase(caseId, { lastQuestion: "none", status: "assessed" });
     appendMessage(caseId, {
       role: "assistant",
       kind: "assessment",
       content: spa
-        ? "No problem. A clinician will go through it with you in person. Pick a consultation time below."
+        ? `No problem. ${medspa ? "A clinician" : `Your ${tenant.words.pro}`} will go through it with you in person. Pick ${withArticle(tenant.words.visit)} time below.`
         : `No problem. Without a photo there's no assessment or price yet; the ${tenant.words?.pro || "roofer"} looks at it on site. Pick a free ${tenant.words?.visit || "inspection"} time below.`,
     });
   };
@@ -263,8 +306,10 @@ export default function Chat() {
     updateCase(caseId, (prev) => ({
       quote: prev.quote ? { ...prev.quote, status: "awaiting_approval", history: [...(prev.quote.history || []), { status: "awaiting_approval", at: new Date().toISOString(), by: "customer" }] } : prev.quote,
     }));
-    const text = spa
+    const text = medspa
       ? `You're booked for ${fmtDay(slot.start)} at ${fmtTime(slot.start)}. A clinician is reviewing your notes and will confirm the plan at your consultation.`
+      : spa
+      ? `You're booked for ${fmtDay(slot.start)} at ${fmtTime(slot.start)}. ${prof.onSite ? `The ${tenant.words.pro} confirms the price on site before any work starts.` : `Your ${tenant.words.pro} confirms the service and price when you arrive.`}`
       : `You're booked for ${fmtDay(slot.start)} at ${fmtTime(slot.start)}. The front desk is reviewing your draft quote and will send the confirmed range before the visit.`;
     appendMessage(caseId, { role: "assistant", kind: "booking", content: text });
     say(text);
@@ -284,7 +329,7 @@ export default function Chat() {
 
   if (!c) return null;
   const bookedSlot = c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null;
-  const showConsent = spa && !c.consent && c.lastQuestion === "ask_consent" && !busy && !pending;
+  const showConsent = prof.personPhoto && !c.consent && c.lastQuestion === "ask_consent" && !busy && !pending;
   const showGuide = !c.photo && c.lastQuestion === "ask_photo" && !busy && !pending && !liveEye;
   const showLiveEye = liveEye && !c.photo && !busy && !pending;
   // The time picker appears after the assessment, after "skip the photo", or as soon as the customer asks to book.
@@ -293,7 +338,7 @@ export default function Chat() {
   const orbState = voice.listening ? "listening" : busy ? "thinking" : voice.speaking ? "speaking" : "idle";
 
   return (
-    <div className={`site-${spa ? "medspa" : "roofing"} flex h-[100svh] flex-col bg-background`}>
+    <div className={`site-${prof.look === "studio" ? "medspa" : "roofing"} flex h-[100svh] flex-col bg-background`}>
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-8">
         <div className="min-w-0 [&_*]:truncate">
           <Logo to="/site" word={tenant.name} as="h1" />
@@ -357,10 +402,10 @@ export default function Chat() {
                       <p className="mt-1 text-lg">
                         {fmtDay(bookedSlot.start)} · {fmtTime(bookedSlot.start)}–{fmtTime(bookedSlot.end)}
                       </p>
-                      <p className="text-[15px] text-muted-foreground">{spa ? `${tenant.name}, ${tenant.serviceArea}` : c.customer.address}</p>
+                      <p className="text-[15px] text-muted-foreground">{prof.onSite ? c.customer.address : `${tenant.name}, ${tenant.serviceArea}`}</p>
                       {c.quote && (
                         <p className="mt-3 text-[14px]">
-                          {spa ? "Plan status" : "Quote status"}: <span className="font-medium">{STATUS_LABEL[c.quote.status] || "Draft"}</span>
+                          {medspa ? "Plan status" : "Quote status"}: <span className="font-medium">{STATUS_LABEL[c.quote.status] || "Draft"}</span>
                           {c.quote.status === "sent" && c.quote.low !== null && <span className="text-muted-foreground"> · confirmed range ${c.quote.low}–${c.quote.high}</span>}
                         </p>
                       )}
@@ -395,8 +440,8 @@ export default function Chat() {
           {pending && <PhotoCheck photo={pending} onRetake={onPhoto} onUse={() => acceptPhoto(pending)} />}
           {showConsent && <ConsentCard tenant={tenant} onConsent={onConsent} onSkip={onSkipPhoto} />}
           {showLiveEye && <LiveEye onCapture={onPhoto} onClose={() => setLiveEye(false)} spa={spa} />}
-          {showGuide && <CaptureGuide onPhoto={onPhoto} onLiveEye={() => setLiveEye(true)} onSample={onSample} onSkip={spa ? null : onSkipPhoto} busy={busy} spa={spa} />}
-          {!spa && !c.photo && !c.description && !busy && !pending && !liveEye && c.messages.length <= 2 && (
+          {showGuide && <CaptureGuide onPhoto={onPhoto} onLiveEye={() => setLiveEye(true)} onSample={onSample} onSkip={medspa ? null : onSkipPhoto} busy={busy} spa={spa} trade={tenant.trade} />}
+          {prof.engine === "measure" && !c.photo && !c.description && !busy && !pending && !liveEye && c.messages.length <= 2 && (
             <div className="fd-card p-4">
               <SamplePhotos onPick={onSample} busy={busy} compact />
               <p className="mt-2 text-[12px] text-muted-foreground">Fills in a made-up description and address, then runs the photo through the same outline, assessment and draft quote as a real one.</p>
@@ -407,7 +452,7 @@ export default function Chat() {
         </div>
       </div>
 
-      <Composer value={input} onChange={setInput} onSend={() => send()} onPhoto={onPhoto} voice={voice} busy={busy} placeholder={spa ? "Tell us what you've noticed…" : "Describe the problem…"} />
+      <Composer value={input} onChange={setInput} onSend={() => send()} onPhoto={onPhoto} voice={voice} busy={busy} placeholder={medspa ? "Tell us what you've noticed…" : spa && !prof.onSite ? "Tell us what you'd like…" : "Describe the problem…"} />
     </div>
   );
 }

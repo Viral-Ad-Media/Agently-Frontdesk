@@ -33,7 +33,7 @@ export default function ReportButton({ c, tenant, className = "" }) {
     <span className={`inline-flex flex-col gap-1 ${className}`}>
       <button type="button" onClick={make} disabled={busy} className="fd-btn-outline">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileImage className="h-4 w-4" />}
-        {busy ? "Preparing report…" : tenant.trade === "medspa" ? "Prepare consultation notes" : "Prepare damage report"}
+        {busy ? "Preparing report…" : tenant.trade === "medspa" ? "Prepare consultation notes" : tenant.trade === "roofing" ? "Prepare damage report" : "Prepare job notes"}
       </button>
       {error && <span className="text-[13px] text-destructive">{error}</span>}
     </span>

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Check, CloudLightning, MessageSquareReply, Pencil, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Check, CloudLightning, MessageSquareReply, Pencil, RefreshCw, Send, Snowflake, Sparkles, Sun } from "lucide-react";
 import { gateway } from "@/gateway";
 import { useStore, startStormRun, setStormDraft, editStormDraft, moveStormDraft, moveAllStormDrafts, stormReply } from "@/lib/store";
 import { STATUS_LABEL } from "@/lib/quote";
-import { fetchLiveStorms, rehearsalStorm, customersInStorm, stormWhen, leadArea } from "@/lib/storm";
+import { fetchLiveStorms, rehearsalFor, customersInStorm, stormWhen, leadArea, weatherFor } from "@/lib/storm";
+import { tradeProfile } from "@/config/trades";
 import ProviderBadge from "@/components/shared/ProviderBadge";
 import StormMap from "@/components/frontdesk/StormMap";
 import Panel from "@/components/frontdesk/Panel";
@@ -14,19 +15,25 @@ const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString("en-US", { weekday:
 // Storm Radar: live severe-weather alerts on a map with the roofer's customers. When a storm path covers
 // customers, one tap drafts a personal check-in for each; opt-outs are excluded and counted; the owner
 // approves and sends; a reply that books lands on the calendar carrying the storm for the claim pack.
+// The same panel watches each trade's own weather: hail and wind for roofers, hard freezes for plumbers,
+// heat waves for AC repair (config/trades.js `weather`).
+const ICONS = { storm: CloudLightning, freeze: Snowflake, heat: Sun };
+
 export default function StormRadar({ tenant, className = "", delay = 0 }) {
+  const kind = tradeProfile(tenant.trade).weather || "storm";
+  const w = weatherFor(kind);
   const allLeads = useStore((s) => s.leads);
   const runs = useStore((s) => s.stormRuns);
   const leads = allLeads.filter((l) => l.tenantId === tenant.id);
   const [live, setLive] = useState({ state: "loading", storms: [], at: null, error: null });
   const [selectedId, setSelectedId] = useState(null);
   const [drafting, setDrafting] = useState(false);
-  const [rehearsal] = useState(() => rehearsalStorm());
+  const [rehearsal] = useState(() => rehearsalFor(kind));
 
   const load = async () => {
     setLive((l) => ({ ...l, state: "loading", error: null }));
     try {
-      const storms = await fetchLiveStorms("TX");
+      const storms = await fetchLiveStorms("TX", fetch, kind);
       setLive({ state: "ok", storms, at: new Date(), error: null });
     } catch (e) {
       setLive({ state: "error", storms: [], at: new Date(), error: e.message || "The weather service could not be reached." });
@@ -68,7 +75,7 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
       await Promise.all(
         toDraft.slice(i, i + 4).map(async (lead) => {
           try {
-            const r = await gateway.reactivateMessage({ lead, tenant, storm: { event: storm.event, area: leadArea(lead), when: stormWhen(storm), hailIn: storm.hailIn, windMph: storm.windMph } });
+            const r = await gateway.reactivateMessage({ lead, tenant, storm: { kind, event: storm.event, area: leadArea(lead), when: stormWhen(storm), hailIn: storm.hailIn, windMph: storm.windMph, lowF: storm.lowF ?? null, heatIndexF: storm.heatIndexF ?? null } });
             setStormDraft(runId, lead.id, { message: r.message, provider: r.providerLabel });
           } catch (e) {
             console.warn("storm check-in failed", lead.id, e);
@@ -81,15 +88,15 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
 
   return (
     <Panel
-      title="Storm radar"
-      icon={CloudLightning}
+      title={w.title}
+      icon={ICONS[kind]}
       tint="var(--ios-indigo)"
       delay={delay}
       className={className}
       meta={
         <>
           {live.state === "loading" && "Checking the National Weather Service for Texas…"}
-          {live.state === "ok" && (live.storms.length ? `${live.storms.length} live storm alert${live.storms.length === 1 ? "" : "s"} with a path in Texas` : "No live storm warnings in Texas right now")}
+          {live.state === "ok" && (live.storms.length ? `${live.storms.length} live ${w.alertWord}${live.storms.length === 1 ? "" : "s"} with an area in Texas` : `No live ${w.alertWord}s in Texas right now`)}
           {live.state === "error" && `Live alerts unavailable: ${live.error}`}
           {live.at && ` · checked ${fmtClock(live.at)}`}
         </>
@@ -100,7 +107,7 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
         </button>
       }
     >
-      <div className="no-scrollbar flex gap-2 overflow-x-auto p-3" role="radiogroup" aria-label="Pick a storm">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto p-3" role="radiogroup" aria-label={`Pick a ${w.noun}`}>
         {options.map((s) => {
           const on = s.id === storm.id;
           const n = customersInStorm(leads, s).hit.length;
@@ -109,7 +116,7 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
               <span className="block text-[12px] text-muted-foreground">{s.source === "rehearsal" ? "Rehearsal, not a real alert" : `Live · ${s.severity}`}</span>
               <span className="block max-w-[220px] truncate font-medium">{s.event}</span>
               <span className="block max-w-[220px] truncate text-muted-foreground">
-                {s.source === "rehearsal" ? "Dallas-Fort Worth" : s.areaDesc.split(";").slice(0, 2).join(",")} · {n} customer{n === 1 ? "" : "s"}
+                {s.source === "rehearsal" ? s.areaLabel || "Rehearsal area" : s.areaDesc.split(";").slice(0, 2).join(",")} · {n} customer{n === 1 ? "" : "s"}
               </span>
             </button>
           );
@@ -129,11 +136,17 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
 
         <div className="space-y-4 border-t border-border p-4 xl:border-t-0">
           <div>
-            <p className="text-[12px] text-muted-foreground">{isRehearsal ? "Rehearsal storm · synthetic" : storm.sender}</p>
+            <p className="text-[12px] text-muted-foreground">{isRehearsal ? `Rehearsal ${w.noun} · synthetic` : storm.sender}</p>
             <p className="mt-1 text-[15px] font-medium leading-snug">{storm.headline}</p>
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[14px]">
-              <div><dt className="text-muted-foreground">Hail</dt><dd className="tabular-nums">{storm.hailIn ? `${storm.hailIn} in` : "not reported"}</dd></div>
-              <div><dt className="text-muted-foreground">Gusts</dt><dd className="tabular-nums">{storm.windMph ? `${storm.windMph} mph` : "not reported"}</dd></div>
+              {kind === "storm" && (
+                <>
+                  <div><dt className="text-muted-foreground">Hail</dt><dd className="tabular-nums">{storm.hailIn ? `${storm.hailIn} in` : "not reported"}</dd></div>
+                  <div><dt className="text-muted-foreground">Gusts</dt><dd className="tabular-nums">{storm.windMph ? `${storm.windMph} mph` : "not reported"}</dd></div>
+                </>
+              )}
+              {kind === "freeze" && <div className="col-span-2"><dt className="text-muted-foreground">Lows</dt><dd className="tabular-nums">{storm.lowF != null ? `near ${storm.lowF}°F` : "not reported"}</dd></div>}
+              {kind === "heat" && <div className="col-span-2"><dt className="text-muted-foreground">Heat index</dt><dd className="tabular-nums">{storm.heatIndexF != null ? `up to ${storm.heatIndexF}°F` : "not reported"}</dd></div>}
               <div><dt className="text-muted-foreground">Started</dt><dd>{fmtWhen(storm.onset)}</dd></div>
               <div><dt className="text-muted-foreground">Until</dt><dd>{fmtWhen(storm.ends)}</dd></div>
             </dl>
@@ -142,7 +155,7 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
           <div className="border-t border-border pt-4">
             <div className="grid grid-cols-3 divide-x divide-border">
               {[
-                ["In the path", hit.length],
+                [kind === "storm" ? "In the path" : "In the area", hit.length],
                 ["Opted out", optedOut.length],
                 ["Booked", booked],
               ].map(([label, n]) => (
@@ -154,10 +167,10 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
             </div>
             <button type="button" onClick={draftAll} disabled={drafting || toDraft.length === 0} className="fd-btn-primary mt-4 w-full justify-center">
               {drafting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" strokeWidth={1.75} />}
-              {drafting ? "Drafting check-ins…" : toDraft.length ? `Draft storm check-ins (${toDraft.length})` : hit.length ? "All check-ins drafted" : "No customers in this path"}
+              {drafting ? "Drafting check-ins…" : toDraft.length ? `Draft ${w.plural} (${toDraft.length})` : hit.length ? "All check-ins drafted" : "No customers in this area"}
             </button>
             <p className="mt-2 text-[12px] text-muted-foreground">
-              {optedOut.length ? `${optedOut.length} opted-out ${optedOut.length === 1 ? "person is" : "people are"} in the path and will never be contacted. ` : ""}
+              {optedOut.length ? `${optedOut.length} opted-out ${optedOut.length === 1 ? "person is" : "people are"} in the area and will never be contacted. ` : ""}
               Nothing is sent until you approve it.
             </p>
           </div>
@@ -181,7 +194,7 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
           </div>
           <ul className="mt-3 max-h-[520px] divide-y divide-border overflow-y-auto pr-1">
             {draftList.map((l) => (
-              <CheckinRow key={l.id} runId={run.id} lead={l} d={drafts[l.id]} />
+              <CheckinRow key={l.id} runId={run.id} lead={l} d={drafts[l.id]} tenant={tenant} kind={kind} />
             ))}
           </ul>
         </div>
@@ -190,7 +203,7 @@ export default function StormRadar({ tenant, className = "", delay = 0 }) {
   );
 }
 
-function CheckinRow({ runId, lead, d }) {
+function CheckinRow({ runId, lead, d, tenant, kind }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(d.text);
   return (
@@ -234,7 +247,7 @@ function CheckinRow({ runId, lead, d }) {
         <p className="mt-2 rounded-lg bg-secondary p-3 text-[14px]">
           <span className="font-medium text-muted-foreground">Reply · </span>
           {d.reply.text}
-          {d.caseId && <span className="mt-1 block text-[13px] text-[hsl(var(--primary-deep))]">Booked into the next open inspection. The storm is on the case for the claim pack.</span>}
+          {d.caseId && <span className="mt-1 block text-[13px] text-[hsl(var(--primary-deep))]">{kind === "storm" ? "Booked into the next open inspection. The storm is on the case for the claim pack." : `Booked into the next open ${tenant.words.visit}. The ${weatherFor(kind).noun} is on the case.`}</span>}
         </p>
       )}
     </li>

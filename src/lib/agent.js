@@ -5,6 +5,8 @@
 // grounding check holds back any time or price the observations do not contain.
 // Pure module: no React, no store import, so it runs in node tests and in the browser alike.
 
+import { mentions } from "../config/trades.js";
+
 export const MAX_STEPS = 3;
 
 // Same formatting as the slot picker, so the desk says exactly what the customer sees on screen.
@@ -29,12 +31,12 @@ export const TOOLS = {
   },
   rate_card: {
     label: "Checked the price list",
-    describe: "The business's published prices. Roofing: prices by service printed on its website, material rate per square metre and labour per hour (never a total). Med spa: the published menu with low-high prices. args.topic: optional service the customer named.",
+    describe: "The business's published prices. Roofing: prices by service printed on its website, material rate per square metre and labour per hour (never a total). Every other trade (med spa, plumbing, AC and fridge repair, salon, barber): the published menu with low-high prices. args.topic: optional service the customer named.",
     run({ tenant = {}, args = {} }) {
-      if (tenant.trade === "medspa") {
+      if (tenant.trade && tenant.trade !== "roofing") {
         const q = String(args.topic || "").toLowerCase();
         const menu = (tenant.services || []).map((s) => ({ name: s.name, from: s.priceLow, to: s.priceHigh, concerns: s.concerns || [] }));
-        const hits = q ? menu.filter((s) => s.name.toLowerCase().includes(q) || s.concerns.some((c) => q.includes(c) || c.includes(q))) : [];
+        const hits = q ? menu.filter((s) => s.name.toLowerCase().includes(q) || s.concerns.some((c) => mentions(q, c) || c === q)) : [];
         return { currency: tenant.currency || "USD", services: (hits.length ? hits : menu).slice(0, 4).map(({ name, from, to }) => ({ name, from, to })) };
       }
       const rc = tenant.rateCard || {};

@@ -30,6 +30,19 @@ const CITY_CENTRES = {
   "fort worth": [32.7555, -97.3308],
 };
 
+// The weather each trade watches (config/trades.js `weather`). Roofers watch hail and wind; plumbers watch
+// hard freezes (burst pipes); AC repair watches heat waves (units fail at peak load).
+export const FREEZE_EVENTS = ["Hard Freeze Warning", "Extreme Cold Warning", "Wind Chill Warning", "Winter Storm Warning", "Freeze Warning", "Hard Freeze Watch", "Freeze Watch", "Winter Weather Advisory", "Cold Weather Advisory"];
+export const HEAT_EVENTS = ["Extreme Heat Warning", "Excessive Heat Warning", "Extreme Heat Watch", "Excessive Heat Watch", "Heat Advisory"];
+
+export const WEATHER = {
+  storm: { kind: "storm", title: "Storm radar", noun: "storm", plural: "storm check-ins", events: null, alertWord: "storm alert" },
+  freeze: { kind: "freeze", title: "Freeze radar", noun: "freeze", plural: "freeze check-ins", events: FREEZE_EVENTS, alertWord: "freeze alert" },
+  heat: { kind: "heat", title: "Heat radar", noun: "heat wave", plural: "heat check-ins", events: HEAT_EVENTS, alertWord: "heat alert" },
+};
+export const weatherFor = (kind) => WEATHER[kind] || WEATHER.storm;
+const eventsFor = (kind) => weatherFor(kind).events || STORM_EVENTS;
+
 function hash(str) {
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
@@ -85,10 +98,10 @@ const num = (v) => {
 };
 
 // One NWS GeoJSON feature to the shape the panel uses, or null when it is not a storm with a polygon.
-export function normalizeAlert(feature) {
+export function normalizeAlert(feature, kind = "storm") {
   const p = feature?.properties || {};
   const g = feature?.geometry;
-  if (!g || !STORM_EVENTS.includes(p.event)) return null;
+  if (!g || !eventsFor(kind).includes(p.event)) return null;
   let rings = [];
   if (g.type === "Polygon") rings = [g.coordinates[0]];
   else if (g.type === "MultiPolygon") rings = g.coordinates.map((poly) => poly[0]);
@@ -98,6 +111,7 @@ export function normalizeAlert(feature) {
   return {
     id: p.id || feature.id,
     source: "live",
+    kind,
     event: p.event,
     headline: p.headline || p.event,
     areaDesc: p.areaDesc || "",
@@ -111,16 +125,17 @@ export function normalizeAlert(feature) {
   };
 }
 
-export function parseAlerts(geojson) {
-  const out = (geojson?.features || []).map(normalizeAlert).filter(Boolean);
-  return out.sort((a, b) => STORM_EVENTS.indexOf(a.event) - STORM_EVENTS.indexOf(b.event));
+export function parseAlerts(geojson, kind = "storm") {
+  const events = eventsFor(kind);
+  const out = (geojson?.features || []).map((f) => normalizeAlert(f, kind)).filter(Boolean);
+  return out.sort((a, b) => events.indexOf(a.event) - events.indexOf(b.event));
 }
 
 // Live alerts for a US state. Throws on a network failure so the panel can say so plainly.
-export async function fetchLiveStorms(area = "TX", fetchImpl = fetch) {
+export async function fetchLiveStorms(area = "TX", fetchImpl = fetch, kind = "storm") {
   const res = await fetchImpl(`${NWS_ALERTS_URL}?area=${encodeURIComponent(area)}`, { headers: { accept: "application/geo+json" } });
   if (!res.ok) throw new Error(`The weather service answered ${res.status}.`);
-  return parseAlerts(await res.json());
+  return parseAlerts(await res.json(), kind);
 }
 
 // A rehearsal storm for the demo: a hail line across Dallas-Fort Worth. Synthetic and labelled as such
@@ -131,6 +146,8 @@ export function rehearsalStorm(now = new Date()) {
   return {
     id: "rehearsal-dfw-hail",
     source: "rehearsal",
+    kind: "storm",
+    areaLabel: "Dallas-Fort Worth",
     event: "Severe Thunderstorm Warning",
     headline: "Rehearsal storm: severe thunderstorm with 1.75 in hail and 70 mph gusts across Dallas-Fort Worth",
     areaDesc: "Tarrant, TX; Dallas, TX (rehearsal)",
@@ -152,9 +169,73 @@ export function rehearsalStorm(now = new Date()) {
   };
 }
 
+// Rehearsal weather for the other trades, synthetic and labelled the same way.
+// A hard freeze over Dallas-Fort Worth (plumbing) and a heat wave over San Antonio and Austin (AC repair).
+export function rehearsalFreeze(now = new Date()) {
+  const onset = new Date(now.getTime() + 8 * 3600 * 1000);
+  const ends = new Date(onset.getTime() + 14 * 3600 * 1000);
+  return {
+    id: "rehearsal-dfw-freeze",
+    source: "rehearsal",
+    kind: "freeze",
+    areaLabel: "Dallas-Fort Worth",
+    event: "Hard Freeze Warning",
+    headline: "Rehearsal freeze: a hard freeze with lows near 17°F across Dallas-Fort Worth tonight",
+    areaDesc: "Tarrant, TX; Dallas, TX (rehearsal)",
+    severity: "Severe",
+    onset: onset.toISOString(),
+    ends: ends.toISOString(),
+    lowF: 17,
+    sender: "Rehearsal data (not a real alert)",
+    rings: [
+      [
+        [-97.62, 32.98],
+        [-96.58, 32.96],
+        [-96.5, 32.66],
+        [-97.55, 32.58],
+        [-97.62, 32.98],
+      ],
+    ],
+  };
+}
+
+export function rehearsalHeat(now = new Date()) {
+  const onset = new Date(now.getTime() + 18 * 3600 * 1000);
+  const ends = new Date(onset.getTime() + 3 * 24 * 3600 * 1000);
+  return {
+    id: "rehearsal-satx-heat",
+    source: "rehearsal",
+    kind: "heat",
+    areaLabel: "San Antonio and Austin",
+    event: "Excessive Heat Warning",
+    headline: "Rehearsal heat wave: heat index up to 111°F across San Antonio and Austin for three days",
+    areaDesc: "Bexar, TX; Travis, TX (rehearsal)",
+    severity: "Severe",
+    onset: onset.toISOString(),
+    ends: ends.toISOString(),
+    heatIndexF: 111,
+    sender: "Rehearsal data (not a real alert)",
+    rings: [
+      [
+        [-98.82, 29.22],
+        [-98.3, 29.2],
+        [-97.55, 30.05],
+        [-97.5, 30.5],
+        [-97.95, 30.52],
+        [-98.85, 29.62],
+        [-98.82, 29.22],
+      ],
+    ],
+  };
+}
+
+export const rehearsalFor = (kind, now = new Date()) => (kind === "freeze" ? rehearsalFreeze(now) : kind === "heat" ? rehearsalHeat(now) : rehearsalStorm(now));
+
 // The plain-English line a message and a claim pack quote. Never adds anything the alert did not say.
 export function stormFacts(storm) {
   const bits = [];
+  if (storm.lowF != null) bits.push(`lows near ${storm.lowF}°F`);
+  if (storm.heatIndexF != null) bits.push(`a heat index up to ${storm.heatIndexF}°F`);
   if (storm.hailIn) bits.push(`hail up to ${storm.hailIn} in`);
   if (storm.windMph) bits.push(`gusts to ${storm.windMph} mph`);
   return bits.join(" and ");
@@ -167,7 +248,10 @@ export function stormWhen(storm) {
   const y = new Date(today);
   y.setDate(today.getDate() - 1);
   const part = d.getHours() < 12 ? "morning" : d.getHours() < 17 ? "afternoon" : d.getHours() < 21 ? "evening" : "night";
-  if (d.toDateString() === today.toDateString()) return `this ${part}`;
+  if (d.toDateString() === today.toDateString()) return part === "night" ? "tonight" : `this ${part}`;
+  const tm = new Date(today);
+  tm.setDate(today.getDate() + 1);
+  if (d.toDateString() === tm.toDateString()) return part === "night" ? "tomorrow night" : `tomorrow ${part}`;
   if (d.toDateString() === y.toDateString()) return part === "night" ? "last night" : `yesterday ${part}`;
   return `on ${d.toLocaleDateString("en-US", { weekday: "long" })}`;
 }

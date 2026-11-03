@@ -21,7 +21,8 @@ import StormRadar from "@/components/frontdesk/StormRadar";
 import { BeforeAfter } from "@/components/frontdesk/RepairPreview";
 import Panel from "@/components/frontdesk/Panel";
 import DeskAssistant from "@/components/frontdesk/DeskAssistant";
-import { stormForCase } from "@/lib/storm";
+import { stormForCase, weatherFor } from "@/lib/storm";
+import { tradeProfile, tradeLabel } from "@/config/trades";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 
 const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -35,6 +36,9 @@ export default function Frontdesk() {
   const cases = allCases.filter((c) => c.tenantId === tenant.id);
   const slots = allSlots.filter((s) => s.tenantId === tenant.id);
   const spa = tenant.trade === "medspa";
+  const prof = tradeProfile(tenant.trade);
+  const people = prof.personPhoto;
+  const visitWord = spa ? "consultation" : tenant.trade === "roofing" ? "inspection" : tenant.words?.visit || "visit";
   const tenantLeads = leads.filter((l) => l.tenantId === tenant.id);
 
   const answered = cases.filter((c) => c.messages.some((m) => m.role === "assistant")).length;
@@ -98,7 +102,7 @@ export default function Frontdesk() {
             <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
             <h1 className="mt-0.5 text-[34px] font-bold leading-[1.1] tracking-[-0.03em]">Today</h1>
             <p className="mt-1 text-[14px] text-muted-foreground">
-              {tenant.name} · {spa ? "med spa" : "roofing"}
+              {tenant.name} · {tradeLabel(tenant.trade).toLowerCase()}
               {tenant.serviceArea ? ` · ${tenant.serviceArea}` : ""}
             </p>
           </div>
@@ -119,8 +123,8 @@ export default function Frontdesk() {
             <div className="grid grid-cols-3 divide-x divide-border">
               {[
                 ["Answered", answered, "enquiries", MessageCircle, "var(--ios-blue)"],
-                ["Booked", booked, spa ? "consultations" : "inspections", CircleCheck, "var(--ios-green)"],
-                ["Reactivated", reactivated, spa ? "clients" : "jobs", Sparkles, "var(--ios-orange)"],
+                ["Booked", booked, `${visitWord}s`, CircleCheck, "var(--ios-green)"],
+                ["Reactivated", reactivated, people ? "clients" : "jobs", Sparkles, "var(--ios-orange)"],
               ].map(([label, n, unit, Icon, tint]) => (
                 <div key={label} role="group" aria-label={`${label} ${unit}`} className="min-w-0 px-4 py-3.5 sm:px-5 sm:py-4">
                   <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-muted-foreground">
@@ -165,10 +169,10 @@ export default function Frontdesk() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[14px] font-medium">
-                        {fmtTime(s.start)} · {s.case?.customer?.name || (spa ? "Client" : "Homeowner")}
+                        {fmtTime(s.start)} · {s.case?.customer?.name || (people ? "Client" : "Homeowner")}
                       </p>
                       <p className="truncate text-[13px] text-muted-foreground">
-                        {s.case?.source === "reactivation" ? "Reactivated lead" : s.case?.source === "storm" ? "Storm check-in" : spa ? s.case?.description || "Consultation" : s.case?.customer?.address || "Address to confirm"}
+                        {s.case?.source === "reactivation" ? "Reactivated lead" : s.case?.source === "storm" ? `${weatherFor(prof.weather).noun.replace(/^./, (x) => x.toUpperCase())} check-in` : !prof.onSite ? s.case?.description || "Appointment" : s.case?.customer?.address || "Address to confirm"}
                       </p>
                     </div>
                     <button type="button" onClick={() => cancelBooking(s.caseId)} aria-label={`Cancel the ${fmtTime(s.start)} booking`} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground">
@@ -180,8 +184,8 @@ export default function Frontdesk() {
             )}
           </Panel>
 
-          {!spa && <StormRadar tenant={tenant} className="lg:col-span-8" delay={200} />}
-          <CallPanel tenant={tenant} delay={260} className={spa ? "lg:col-span-12" : "lg:col-span-4"} />
+          {prof.weather && <StormRadar tenant={tenant} className="lg:col-span-8" delay={200} />}
+          <CallPanel tenant={tenant} delay={260} className={prof.weather ? "lg:col-span-4" : "lg:col-span-12"} />
 
           <ReactivationPanel tenant={tenant} delay={320} className="lg:col-span-12" />
         </div>
@@ -198,7 +202,10 @@ function Empty({ children }) {
 function LeadCard({ c, tenant, slot, open, onToggle }) {
   const stormRuns = useStore((s) => s.stormRuns);
   const allSlots = useStore((s) => s.slots);
-  const storm = tenant.trade === "roofing" ? stormForCase(c, stormRuns) : null;
+  const prof = tradeProfile(tenant.trade);
+  const storm = prof.weather ? stormForCase(c, stormRuns) : null;
+  const wx = weatherFor(storm?.kind || prof.weather);
+  const people = prof.personPhoto;
   const js = jobStatus(c, { tenant, slots: allSlots });
   const [signOff, setSignOff] = useState(null); // null | "approve" | "reject"
   const [why, setWhy] = useState("");
@@ -241,16 +248,16 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <h3 className="min-w-0 truncate text-[16px] font-semibold leading-snug">
-            {c.customer.name || (spa ? "Client" : "Homeowner")}
+            {c.customer.name || (people ? "Client" : "Homeowner")}
             </h3>
             <span className="shrink-0 pt-0.5 text-[13px] tabular-nums text-muted-foreground">{new Date(c.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
           </div>
-          {c.customer.address && !spa && <p className="truncate text-[13px] text-muted-foreground">{c.customer.address}</p>}
+          {c.customer.address && prof.onSite && <p className="truncate text-[13px] text-muted-foreground">{c.customer.address}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {c.assessment ? <Severity value={c.assessment.severity} spa={spa} /> : <span className="fd-pill-neutral">{c.source === "reactivation" ? "Reactivated" : c.source === "storm" ? "Storm check-in" : c.source === "call" ? "Phone call, needs photo" : "In conversation"}</span>}
+            {c.assessment ? <Severity value={c.assessment.severity} spa={spa} trade={tenant.trade} /> : <span className="fd-pill-neutral">{c.source === "reactivation" ? "Reactivated" : c.source === "storm" ? `${wx.noun.replace(/^./, (x) => x.toUpperCase())} check-in` : c.source === "call" ? "Phone call, needs photo" : "In conversation"}</span>}
             {c.assessment && <VerifyPill status={js.status} />}
             {q && <span className={status === "sent" ? "fd-pill-ok" : status === "approved" ? "fd-pill-strong" : "fd-pill-neutral"}>{STATUS_LABEL[status]}</span>}
-            {spa && c.consent && <span className="fd-pill-neutral">Photo consent</span>}
+            {people && c.consent && <span className="fd-pill-neutral">Photo consent</span>}
             {c.repairPreview && <span className="fd-pill-accent">Saw it repaired</span>}
           </div>
           <p className="mt-2 line-clamp-2 text-[14px] text-muted-foreground">{c.assessment?.failedPart || c.description || "Waiting for the customer's description."}</p>
@@ -261,7 +268,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
                   <span className="font-semibold tabular-nums">{money(q.low)} – {money(q.high)}</span> <span className="text-[13px] text-muted-foreground">draft, {Math.round((c.assessment?.confidence || 0) * 100)}% confidence</span>
                 </>
               ) : (
-                <span className="text-[14px] text-[hsl(var(--primary-deep))]">{q.reason || (spa ? "No published match: clinician advises at consultation." : "No total yet. Enter the range after the inspection.")}</span>
+                <span className="text-[14px] text-[hsl(var(--primary-deep))]">{q.reason || (spa ? "No published match: clinician advises at consultation." : prof.engine === "menu" ? `No published match: the ${prof.reviewer} prices it at the ${tenant.words?.visit || "visit"}.` : "No total yet. Enter the range after the inspection.")}</span>
               )}
             </p>
           )}
@@ -270,17 +277,19 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
               <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.75} /> {tenant.words.visit} {fmtDay(slot.start)}, {fmtTime(slot.start)}
             </p>
           )}
-          {(storm || (c.trade !== "medspa" && (c.assessment || c.photo))) && (
+          {(storm || (tenant.trade === "roofing" && (c.assessment || c.photo))) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {storm && (
                 <span className="fd-pill-accent max-w-full truncate">
-                  <CloudLightning className="h-3.5 w-3.5 shrink-0" /> Storm on record{storm.source === "rehearsal" ? " (rehearsal)" : ""} · {storm.event}
+                  <CloudLightning className="h-3.5 w-3.5 shrink-0" /> {wx.noun.replace(/^./, (x) => x.toUpperCase())} on record{storm.source === "rehearsal" ? " (rehearsal)" : ""} · {storm.event}
                 </span>
               )}
               {/* Every roofing lead with a photo or an assessment gets a draft claim pack: the card, photo and draft quote. */}
-              <Link to={`/claim/${c.id}`} className="inline-flex items-center gap-1 text-[13px] text-foreground underline underline-offset-2">
-                <FileText className="h-3.5 w-3.5" /> Claim pack (draft)
-              </Link>
+              {tenant.trade === "roofing" && (
+                <Link to={`/claim/${c.id}`} className="inline-flex items-center gap-1 text-[13px] text-foreground underline underline-offset-2">
+                  <FileText className="h-3.5 w-3.5" /> Claim pack (draft)
+                </Link>
+              )}
             </div>
           )}
         </div>
