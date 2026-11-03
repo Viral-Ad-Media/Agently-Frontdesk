@@ -16,7 +16,7 @@ export default function Hero() {
       <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--deep))] via-[hsl(var(--deep)/0.55)] to-[hsl(var(--deep)/0.35)]" />
 
       <div className="relative z-10 mx-auto w-full max-w-[1200px] px-6 pb-14 pt-40 md:px-8 md:pb-20">
-        <h1 className="max-w-3xl text-[clamp(2.4rem,6.5vw,5.2rem)] font-semibold leading-[1.02] text-white">
+        <h1 className="font-display-tight max-w-3xl text-[clamp(2.8rem,7.5vw,6rem)] leading-[0.98] text-white">
           {tenant.words.heroTitle}
         </h1>
         <p className="mt-5 max-w-xl text-lg text-white">
