@@ -416,3 +416,51 @@
     font-weight: 400;
     letter-spacing: -0.01em;
 }
+
+/* Newer trades: each keeps its base look (trade or studio) and gets its own accent on top. */
+.site-plumbing {
+    --deep: 212 28% 7%;
+    --primary: 204 88% 56%;
+    --primary-deep: 206 80% 44%;
+    --ring: 204 88% 56%;
+}
+.site-hvac {
+    --deep: 200 22% 7%;
+    --primary: 188 82% 48%;
+    --primary-deep: 190 80% 38%;
+    --ring: 188 82% 48%;
+}
+.site-salon {
+    --deep: 330 14% 7%;
+    --background: 330 9% 5%;
+    --card: 330 9% 8%;
+    --primary: 18 70% 72%;
+    --primary-deep: 16 56% 58%;
+    --ring: 18 70% 72%;
+}
+.site-barber {
+    --deep: 30 10% 6%;
+    --background: 30 8% 5%;
+    --card: 30 8% 8%;
+    --primary: 40 78% 56%;
+    --primary-deep: 36 70% 44%;
+    --ring: 40 78% 56%;
+}
+.site-barber .site-headline {
+    font-family: var(--font-display);
+    font-style: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+}
+
+/* Native dropdown lists (Windows/Edge draw them with the page's text colour on a white list, so the names
+   vanished on hover): give the list the dark card colours. */
+select option {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { samplesFor } from "@/config/media";
+import { tradeLabel } from "@/config/trades";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -43,6 +45,50 @@ const FAQ = [
   ["Which businesses does it support?", "Six trades today: roofing, med spa, plumbing, AC and fridge repair, hair salon and barber. Each has its own rules on the same system: roofers get photo outlines, measured estimates, storm alerts and claim packs; plumbers get freeze alerts and a coded emergency rule for gas, bursts and flooding; AC techs get heat alerts and labels read from the photo; med spas, salons and barbers get photo consent first, a patch-test flag for colour, and published-menu pricing."],
   ["What happens when a storm hits?", "Storm radar reads live National Weather Service alerts, finds the customers inside the warning area and drafts a personal check-in for each. Anyone who opted out is never contacted."],
 ];
+
+// "Sees the problem": cycles through the six trades every few seconds, three synthetic sample photos each
+// (made with Meta's Muse Image). Roofing keeps its hand-drawn outlines; the rest show a focus frame on the subject.
+const ROOF_POLYS = ["47,20 76,19 78,41 49,42", "30,10 70,7 82,20 62,58 28,62 20,40", "18,24 36,6 62,1 72,20 58,40 48,58 34,36"];
+function TradeEyes() {
+  const order = ["roofing", "medspa", "plumbing", "hvac", "salon", "barber"];
+  const [i, setI] = useState(0);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (paused || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return undefined;
+    const t = setInterval(() => setI((n) => (n + 1) % order.length), 4000);
+    return () => clearInterval(t);
+  }, [paused, order.length]);
+  const trade = order[i];
+  const shots = samplesFor(trade);
+  return (
+    <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <div className="mb-2 flex flex-wrap gap-1.5" role="tablist" aria-label="Trades">
+        {order.map((t, n) => (
+          <button key={t} type="button" role="tab" aria-selected={n === i} onClick={() => setI(n)} className={`rounded-full px-2.5 py-1 text-[11px] font-medium leading-none transition-colors ${n === i ? "bg-white text-black" : "bg-white/[0.06] text-white/55 hover:text-white"}`}>
+            {tradeLabel(t)}
+          </button>
+        ))}
+      </div>
+      <div key={trade} className="grid h-full min-h-[150px] grid-cols-3 gap-2 motion-safe:animate-[fade-in_400ms_ease-out]">
+        {shots.map((sh, n) => (
+          <div key={sh.id} className="relative min-h-[120px] overflow-hidden rounded-xl bg-[#2b2f36]">
+            <img src={sh.src} alt={`${sh.title} (synthetic sample photo)`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+            <svg viewBox="0 0 100 75" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
+              {trade === "roofing" ? (
+                <polygon points={ROOF_POLYS[n]} fill="hsl(16 88% 54% / 0.25)" stroke="hsl(16 88% 60%)" strokeWidth="0.9" strokeLinejoin="round" />
+              ) : (
+                <g fill="none" stroke="hsl(16 88% 60%)" strokeWidth="1.1" strokeLinecap="round">
+                  <path d="M26 20 v-6 h8 M66 14 h8 v6 M74 55 v6 h-8 M34 61 h-8 v-6" />
+                </g>
+              )}
+            </svg>
+            <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] leading-none text-white/80">{sh.title}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Window({ title, children, className = "" }) {
   return (
@@ -279,18 +325,8 @@ export default function Product() {
             <SectionHead eyebrow="// features" title="Everything a great front desk does. All day, every day." />
           </Reveal>
           <div className="mt-10 grid auto-rows-[minmax(0,auto)] gap-4 md:grid-cols-6">
-            <Tile icon={Camera} title="Sees the damage" text="SAM 3.1 outlines the problem in the customer's photo and measures it, so the draft price is grounded in what is actually there." className="md:col-span-4">
-              <div className="grid h-full min-h-[150px] grid-cols-3 gap-2">
-                {[["Lifted shingles", "roof-lifted-shingles", "Roof with lifted and missing shingles"], ["Flashing gap", "chimney-flashing", "Gap in the metal flashing around a chimney"], ["Ceiling stain", "ceiling-stain", "Water stain on a bedroom ceiling"]].map(([t, img, alt], i) => (
-                  <div key={t} className="relative min-h-[120px] overflow-hidden rounded-xl bg-[#2b2f36]">
-                    <img src={`/images/${img}.webp`} alt={alt} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
-                    <svg viewBox="0 0 100 75" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
-                      <polygon points={["47,20 76,19 78,41 49,42", "30,10 70,7 82,20 62,58 28,62 20,40", "18,24 36,6 62,1 72,20 58,40 48,58 34,36"][i]} fill="hsl(16 88% 54% / 0.25)" stroke="hsl(16 88% 60%)" strokeWidth="0.9" strokeLinejoin="round" />
-                    </svg>
-                    <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] leading-none text-white/80">{t}</span>
-                  </div>
-                ))}
-              </div>
+            <Tile icon={Camera} title="Sees the problem, in every trade" text="SAM 3.1 outlines what's wrong in the customer's photo: the roof damage, the leak, the iced AC line, the brassy colour. Roofing measures it; every other trade matches it to the business's own published menu." className="md:col-span-4">
+              <TradeEyes />
             </Tile>
             <Tile icon={ShieldCheck} title="You approve every price" text="Drafts only. Nothing reaches a customer until you tap approve." className="md:col-span-2" delay={0.05}>
               <div className="space-y-2">
