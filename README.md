@@ -69,7 +69,7 @@ Built on 2 Nov 2026 from the Agents 101, Agents 102 and Fireworks sessions. Ever
 | Task | Tier | Effort | Human review |
 |---|---|---|---|
 | Chat turns, re-openers, voice desk | small | low | no |
-| Clear single-problem assessment, reviewer pass | medium | medium | no |
+| Clear single-problem assessment, reviewer pass | medium | low (was medium; a medium-effort review took 34 s on Meta) | no |
 | Safety hazard, photo vs description conflict, several problems | large | high | forced |
 | Retry after a failed review | next tier up | higher | after 3 failures |
 
@@ -98,12 +98,12 @@ Each customer message runs a short plan-act-observe loop (`src/lib/agent.js`, at
 | Tool | Reads |
 |---|---|
 | `check_calendar` | Real open slots for the next 7 days, optionally on a named day |
-| `rate_card` | Published roofing rates per m² and labour per hour (never a total), or the med spa menu |
-| `business_facts` | Name, service area, first visit, facts confirmed at setup. Anything else is "not on my record" |
+| `rate_card` | Published roofing rates per m², labour per hour and service prices printed on the business's website (never a job total), or the med spa menu |
+| `business_facts` | Name, service area, first visit, the setup summary and the quotes read from the business's own website at setup. Anything else is "not on my record" |
 | `customer_history` | Earlier enquiries from the same address |
 | `storm_reports` | Weather-service storm reports on record |
 
-The answer may state only facts a tool returned. A coded grounding check holds back any clock time or dollar figure that no lookup, no earlier message and no approved quote contains. The customer sees small "Checked the calendar" chips under a reply. The owner sees "How the desk answered" on the lead: each plan, each lookup and what it found, and whether the reply passed grounding. A question is never taken as the job description or the address, and the desk carries on qualifying the job after answering. Tests: `tests/agent.test.js` (9) and the "smart desk" e2e journey.
+Fast path: the lookups a question plainly needs (picked from its wording by `planLookups`) run in code before the model is called, so a question like "how much, and can you come tomorrow?" takes one Muse Spark call instead of two or three. The model can still ask for a lookup the planner missed. The answer may state only facts a tool returned. A coded grounding check holds back any clock time or dollar figure that no lookup, no earlier message and no approved quote contains. The customer sees small "Checked the calendar" chips under a reply. The owner sees "How the desk answered" on the lead: each plan, each lookup and what it found, and whether the reply passed grounding. A question is never taken as the job description or the address, and the desk carries on qualifying the job after answering. Tests: `tests/agent.test.js` (10) and the "smart desk" e2e journey.
 
 ## Layout
 

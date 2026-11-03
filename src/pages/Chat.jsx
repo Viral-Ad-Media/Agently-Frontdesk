@@ -68,7 +68,7 @@ export default function Chat() {
       if (q) {
         await converseWith(id, q);
       } else {
-        appendMessage(id, { role: "assistant", content: `Hi, this is the front desk at ${t.name}. ${t.words.greeting}` });
+        appendMessage(id, { role: "assistant", content: `Hi, this is the front desk at ${t.name.replace(/\.$/, "")}. ${t.words.greeting}` });
         updateCase(id, { lastQuestion: "ask_description" });
       }
     })();
@@ -256,7 +256,7 @@ export default function Chat() {
   const orbState = voice.listening ? "listening" : busy ? "thinking" : voice.speaking ? "speaking" : "idle";
 
   return (
-    <div className="flex h-[100svh] flex-col bg-background">
+    <div className={`site-${spa ? "medspa" : "roofing"} flex h-[100svh] flex-col bg-background`}>
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-8">
         <div className="min-w-0 [&_*]:truncate">
           <Logo to="/site" word={tenant.name} as="h1" />
@@ -277,6 +277,7 @@ export default function Chat() {
       {voiceMode && (
         <div className="flex flex-col items-center gap-1 border-b border-border bg-card py-4">
           <VoiceOrb state={orbState} size={104} onClick={() => (voice.listening ? voice.stop() : voice.start())} disabled={busy} />
+          <p className="text-[13px] text-muted-foreground" aria-live="polite">{voice.listening ? "Take your time. Tap the circle when you're done." : voice.speaking ? "Speaking. Tap the circle to cut in." : busy ? "Thinking…" : " "}</p>
           <p className="font-spec text-[11px] uppercase text-muted-foreground">Browser voice · Muse Voice Transcribe at the Meta swap</p>
         </div>
       )}
@@ -294,7 +295,17 @@ export default function Chat() {
               ) : (
                 <div className="space-y-4" data-testid="assistant-message">
                   <p className="text-[13px] text-muted-foreground">{tenant.name}</p>
-                  <p className="text-[17px] leading-relaxed">{m.content}</p>
+                  <p className="text-[17px] leading-relaxed">
+                    {voiceMode && voice.spoken.text === m.content && voice.spoken.upTo < m.content.length && i === c.messages.length - 1 ? (
+                      // On a call, each word appears as it is spoken; the rest keeps its space so nothing jumps.
+                      <>
+                        {m.content.slice(0, voice.spoken.upTo)}
+                        <span className="opacity-0" aria-hidden>{m.content.slice(voice.spoken.upTo)}</span>
+                      </>
+                    ) : (
+                      m.content
+                    )}
+                  </p>
                   <AgentChecks trace={m.trace} />
                   {m.kind === "assessment" && c.assessment && (
                     <>

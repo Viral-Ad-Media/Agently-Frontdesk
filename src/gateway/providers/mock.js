@@ -21,6 +21,7 @@
 
 import { areaPercent } from "../../lib/eye.js";
 import { readUtterance } from "../../lib/desk.js";
+import { QUESTION, NEEDS, DAY_WORD, THOUGHT } from "../../lib/agent.js";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -464,19 +465,10 @@ export async function judgeAssessment({ trade = "roofing", description = "", seg
 //   -> { action: "tool", tool, args, thought } | { action: "answer", reply, extracted, nextAction, thought }
 // Mock: picks tools from the question's wording, then answers only from what the tools returned,
 // and carries on qualifying the job with the same questions as converse().
-const QUESTION = /\?|^\s*(do|does|did|can|could|are|is|how|what|when|where|will|would|any|have|got)\b/i;
-const NEEDS = [
-  ["customer_history", /\b(last time|before|again|already|earlier|previous|still waiting|follow(?:ing)? up)\b/i],
-  ["check_calendar", /\b(available|availability|slots?|appointment|come (?:out|over|by)|today|tomorrow|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|when can)\b/i],
-  ["rate_card", /\b(how much|cost|costs|price|prices|pricing|rates?|charge|expensive|cheap)\b/i],
-  ["business_facts", /\b(area|serve|cover|near|insured|insurance|licen[cs]ed|warranty|guarantee|hours|open on|located|who are you)\b/i],
-  ["storm_reports", /\b(was there a storm|storm (?:last|yesterday|this)|hail (?:last|yesterday|this))\b/i],
-];
 const DAMAGE = {
   roofing: /\b(leak|leaking|drip|dripping|water|shingles?|tiles?|hail damage|damage|missing|crack|hole|gutter|flashing|stain|ceiling|attic|blown|lifted)\b/i,
   medspa: /\b(skin|acne|breakouts?|spots|dull|dry|wrinkles?|lines|tone|pores|scars?|redness)\b/i,
 };
-const DAY_WORD = /\b(today|tomorrow|mon|tue|wed|thu|fri|sat|sun)[a-z]*\b/i;
 
 function qualifyOnly(trade, caseState) {
   if (trade === "medspa") {
@@ -494,7 +486,7 @@ function qualifyOnly(trade, caseState) {
 const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
 const list = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
-function answerFrom(o, tenant, trade) {
+function answerFrom(o, tenant, trade, text = "") {
   const r = o.result || {};
   if (o.tool === "check_calendar") {
     if (!r.open?.length) return r.asked ? `I don't have an open slot on ${r.asked}. ${r.totalOpenThisWeek ? "There are other times this week." : "The calendar is full this week, so I'll ask the team to call you."}` : "The calendar is full this week, so I'll ask the team to call you.";
@@ -505,6 +497,8 @@ function answerFrom(o, tenant, trade) {
   if (o.tool === "rate_card") {
     if (trade === "medspa") return `From our menu: ${list((r.services || []).map((s) => `${s.name} ${money(s.from)} to ${money(s.to)}`))}. A clinician confirms what suits you at the consultation.`;
     if (!r.published) return "Our prices aren't published yet, so the team will confirm them at the visit.";
+    const named = (r.servicePrices || []).find((s) => s.name.toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
+    if (named) return `${named.name} is ${money(named.from)}${named.to !== named.from ? ` to ${money(named.to)}` : ""} on our published price list. The final price is confirmed at the ${r.visit || "visit"}.`;
     const [mat, rate] = Object.entries(r.materialsPerM2 || {})[0] || [];
     return `Our published rates are ${mat ? `${money(rate)} per square metre for ${mat}` : "on our rate card"}${r.labourPerHour != null ? ` plus ${money(r.labourPerHour)} an hour labour` : ""}. Your draft range comes from your photo, and the final price is confirmed at the ${r.visit}.`;
   }
@@ -527,13 +521,6 @@ function answerFrom(o, tenant, trade) {
   return "";
 }
 
-const THOUGHT = {
-  check_calendar: "They asked about timing. Check real open slots before offering any.",
-  rate_card: "They asked about price. Read the published rates; never invent a total.",
-  business_facts: "They asked about the business. Read what is on record; anything else is unknown.",
-  customer_history: "They referred to an earlier contact. Look up enquiries from this address.",
-  storm_reports: "They asked about the storm. Read the weather-service reports on record.",
-};
 
 export async function agentStep({ trade = "roofing", tenant = {}, messages = [], caseState = {}, observations = [], mustAnswer = false } = {}) {
   const text = ([...messages].reverse().find((m) => m.role === "user")?.content || "").trim();
@@ -546,8 +533,10 @@ export async function agentStep({ trade = "roofing", tenant = {}, messages = [],
     const day = text.match(DAY_WORD)?.[1]?.toLowerCase() || null;
     return { action: "tool", tool: next, args: next === "check_calendar" ? { day } : next === "rate_card" ? { topic: trade === "medspa" ? (text.match(DAMAGE.medspa)?.[0] || null) : null } : {}, thought: THOUGHT[next] };
   }
-  const answers = observations.map((o) => answerFrom(o, tenant, trade)).filter(Boolean);
-  const pureQuestion = needed.length > 0 && !DAMAGE[trade === "medspa" ? "medspa" : "roofing"].test(text);
+  const answers = observations.map((o) => answerFrom(o, tenant, trade, text)).filter(Boolean);
+  // A price question that names a listed service ("how much is leak detection?") is a question, not a description.
+  const namesService = (tenant.services || []).some((sv) => String(sv.name).toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
+  const pureQuestion = needed.length > 0 && (!DAMAGE[trade === "medspa" ? "medspa" : "roofing"].test(text) || (needed.includes("rate_card") && namesService));
   const base = pureQuestion ? { ...qualifyOnly(trade, caseState), extracted: {} } : await converse({ trade, messages, caseState });
   return {
     action: "answer",

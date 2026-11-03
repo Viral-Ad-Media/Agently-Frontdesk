@@ -79,3 +79,34 @@ test("the loop stops after the step limit and must answer", async () => {
   assert.equal(calls, 4);
   assert.equal(r.reply, "Here is what I found.");
 });
+
+test("business_facts includes the summary and the website quotes read at setup", () => {
+  const tenant = { name: "Peak Roofing", trade: "roofing", serviceArea: "Denver", words: { visitLong: "free roof inspection" }, setup: { summary: "Family roofer since 1998.", evidence: [{ field: "serviceArea", quote: "Serving the Denver metro" }, { field: "services", quote: "Storm damage repair" }] } };
+  const out = TOOLS.business_facts.run({ tenant });
+  assert.equal(out.about, "Family roofer since 1998.");
+  assert.deepEqual(out.facts, ['serviceArea: "Serving the Denver metro"', 'services: "Storm damage repair"']);
+  assert.deepEqual(TOOLS.business_facts.run({ tenant: { name: "X" } }).facts, []);
+});
+
+test("a roofer's website prices answer a question that names the service", async () => {
+  const site = { ...tenant, services: [{ name: "Leak detection", priceLow: 199, priceHigh: 199 }, { name: "Shingle repair", priceLow: 350, priceHigh: 900 }] };
+  const r = await runAgentTurn({ ai: mock, trade: "roofing", tenant: site, messages: [{ role: "user", content: "How much is leak detection?" }], caseState: {}, data, now });
+  assert.equal(r.trace.steps[0].tool, "rate_card");
+  assert.ok(r.reply.includes("Leak detection is $199"), r.reply);
+  assert.equal(r.trace.grounded, true);
+  assert.notEqual(r.extracted.description, "How much is leak detection?");
+  assert.deepEqual(TOOLS.rate_card.run({ tenant: site, args: { topic: "shingle repair" } }).servicePrices, [{ name: "Shingle repair", from: 350, to: 900 }]);
+});
+
+test("fast path: the lookups a question needs run first, so the model is called once", async () => {
+  let calls = 0;
+  const counting = { ...mock, agentStep: (a) => (calls++, mock.agentStep(a)) };
+  const r = await turn("How much is it, and can you come tomorrow?", {}, { ai: counting });
+  assert.equal(calls, 1);
+  assert.deepEqual(r.trace.steps.filter((s) => s.tool).map((s) => s.tool).sort(), ["check_calendar", "rate_card"]);
+  assert.ok(r.trace.steps.every((s) => !s.tool || s.prefetched));
+  assert.equal(r.trace.grounded, true);
+  calls = 0;
+  await turn("How much is it?", {}, { ai: counting, data: { ...data, prefetch: false } });
+  assert.equal(calls, 2, "without the fast path the model asks for the lookup first");
+});

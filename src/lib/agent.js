@@ -29,7 +29,7 @@ export const TOOLS = {
   },
   rate_card: {
     label: "Checked the price list",
-    describe: "The business's published prices. Roofing: material rate per square metre and labour per hour (never a total). Med spa: the published menu with low-high prices.",
+    describe: "The business's published prices. Roofing: prices by service printed on its website, material rate per square metre and labour per hour (never a total). Med spa: the published menu with low-high prices. args.topic: optional service the customer named.",
     run({ tenant = {}, args = {} }) {
       if (tenant.trade === "medspa") {
         const q = String(args.topic || "").toLowerCase();
@@ -38,20 +38,31 @@ export const TOOLS = {
         return { currency: tenant.currency || "USD", services: (hits.length ? hits : menu).slice(0, 4).map(({ name, from, to }) => ({ name, from, to })) };
       }
       const rc = tenant.rateCard || {};
-      if (rc.placeholder) return { currency: "USD", published: false };
-      return { currency: rc.currency || "USD", published: true, materialsPerM2: rc.materials || {}, labourPerHour: rc.labourPerHour ?? null, visit: tenant.words?.visitLong || "visit", rule: tenant.disclaimer || "" };
+      // Prices printed on the business's own website (read at setup and checked by the owner), by service.
+      const q = String(args.topic || "").toLowerCase();
+      const priced = (tenant.services || []).filter((s) => s.priceLow != null && s.priceLow > 0).map((s) => ({ name: s.name, from: s.priceLow, to: s.priceHigh ?? s.priceLow }));
+      const hits = q ? priced.filter((s) => s.name.toLowerCase().split(/\s+/).some((w) => w.length > 3 && q.includes(w))) : [];
+      const servicePrices = (hits.length ? hits : priced).slice(0, 4);
+      if (rc.placeholder) return { currency: "USD", published: servicePrices.length > 0, servicePrices };
+      return { currency: rc.currency || "USD", published: true, servicePrices, materialsPerM2: rc.materials || {}, labourPerHour: rc.labourPerHour ?? null, visit: tenant.words?.visitLong || "visit", rule: tenant.disclaimer || "" };
     },
   },
   business_facts: {
     label: "Checked the business facts",
-    describe: "What is on record about the business: name, trade, service area, what the first visit is, and any facts confirmed at setup. Anything not listed is unknown.",
+    describe: "What is on record about the business: name, trade, service area, what the first visit is, a short summary and quotes from its own website read at setup. Anything not listed is unknown.",
     run({ tenant = {} }) {
       return {
         name: tenant.name,
         trade: tenant.trade,
         serviceArea: tenant.serviceArea || null,
         firstVisit: tenant.words?.visitLong || null,
-        facts: (tenant.facts || []).map((f) => (typeof f === "string" ? f : f.text || f.value)).filter(Boolean).slice(0, 8),
+        about: tenant.setup?.summary || null,
+        // Facts on record: any set by hand, then the quotes read from the business's own website at setup
+        // (each one is the site's exact words, shown to the owner on the review screen before launch).
+        facts: [
+          ...(tenant.facts || []).map((f) => (typeof f === "string" ? f : f.text || f.value)),
+          ...(tenant.setup?.evidence || []).map((e) => (e?.quote ? `${e.field ? e.field + ": " : ""}"${e.quote}"` : null)),
+        ].filter(Boolean).slice(0, 8),
         unknownMeansUnknown: true,
       };
     },
@@ -77,6 +88,36 @@ export const TOOLS = {
     },
   },
 };
+
+// Fast path planner. The lookups a question plainly needs are picked from its wording and run in code before
+// the model is called, so most replies take one model call instead of two. The model can still ask for a
+// lookup the planner missed. Tools only read data, so an extra lookup costs nothing but a few microseconds.
+export const QUESTION = /\?|^\s*(do|does|did|can|could|are|is|how|what|when|where|will|would|any|have|got)\b/i;
+export const NEEDS = [
+  ["customer_history", /\b(last time|before|again|already|earlier|previous|still waiting|follow(?:ing)? up)\b/i],
+  ["check_calendar", /\b(available|availability|slots?|appointment|come (?:out|over|by)|today|tomorrow|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|when can)\b/i],
+  ["rate_card", /\b(how much|cost|costs|price|prices|pricing|rates?|charge|expensive|cheap)\b/i],
+  ["business_facts", /\b(area|serve|cover|near|insured|insurance|licen[cs]ed|warranty|guarantee|hours|open on|located|who are you)\b/i],
+  ["storm_reports", /\b(was there a storm|storm (?:last|yesterday|this)|hail (?:last|yesterday|this))\b/i],
+];
+export const SKIN = /\b(skin|acne|breakouts?|spots|dull|dry|wrinkles?|lines|tone|pores|scars?|redness)\b/i;
+export const DAY_WORD = /\b(today|tomorrow|mon|tue|wed|thu|fri|sat|sun)[a-z]*\b/i;
+export const THOUGHT = {
+  check_calendar: "They asked about timing. Check real open slots before offering any.",
+  rate_card: "They asked about price. Read the published rates; never invent a total.",
+  business_facts: "They asked about the business. Read what is on record; anything else is unknown.",
+  customer_history: "They referred to an earlier contact. Look up enquiries from this address.",
+  storm_reports: "They asked about the storm. Read the weather-service reports on record.",
+};
+
+export function planLookups(text = "", trade = "roofing") {
+  if (!QUESTION.test(text)) return [];
+  return NEEDS.filter(([, re]) => re.test(text)).map(([tool]) => ({
+    tool,
+    args: tool === "check_calendar" ? { day: text.match(DAY_WORD)?.[1]?.toLowerCase() || null } : tool === "rate_card" ? { topic: trade === "medspa" ? text.match(SKIN)?.[0] || null : text } : {},
+    thought: THOUGHT[tool],
+  }));
+}
 
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -113,6 +154,13 @@ export async function runAgentTurn({ ai, trade, tenant, messages, caseState, dat
   if (typeof ai.agentStep !== "function") {
     const res = await ai.converse({ trade, messages, caseState, tenant, route, caseId });
     return { ...res, trace: { steps, grounded: true, fallback: "converse" } };
+  }
+  // Fast path: run the lookups the question plainly needs now, in code, then ask the model once.
+  const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content || "";
+  for (const p of data.prefetch === false ? [] : planLookups(lastUser, trade)) {
+    const result = TOOLS[p.tool].run({ ...data, tenant, args: p.args, now });
+    observations.push({ tool: p.tool, args: p.args, result });
+    steps.push({ thought: p.thought, tool: p.tool, label: TOOLS[p.tool].label, args: p.args, result, prefetched: true });
   }
   for (let i = 0; i <= maxSteps; i++) {
     const out = await ai.agentStep({ trade, tenant, messages, caseState, observations, tools: toolList(), mustAnswer: i === maxSteps, route, caseId });

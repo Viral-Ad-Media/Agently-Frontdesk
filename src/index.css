@@ -385,3 +385,34 @@
         @apply h-9 rounded-full px-3.5 text-[14px];
     }
 }
+
+/* ---- Business sites (/site and the customer chat): each trade gets its own feel on the same dark base. ----
+   Roofing: steel-black, safety orange, a heavy upright sans headline. Med spa: plum-black, soft rose,
+   the italic serif. Only tokens change, so every button, link and focus ring follows. */
+.site-roofing {
+    --deep: 215 16% 6%;
+    --primary: 22 92% 52%;
+    --primary-deep: 20 88% 46%;
+    --ring: 22 92% 52%;
+}
+.site-roofing .site-headline {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.035em;
+    line-height: 0.92;
+}
+.site-medspa {
+    --deep: 340 16% 7%;
+    --background: 340 10% 5%;
+    --card: 340 10% 8%;
+    --primary: 345 72% 74%;
+    --primary-deep: 343 52% 56%;
+    --ring: 345 72% 74%;
+}
+.site-medspa .site-headline {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+}
