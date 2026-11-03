@@ -32,6 +32,36 @@ export const POLICY = {
   },
 };
 
+// Service-menu trades share one shape. On-site trades need the address and a safety check; trades whose photos
+// show a person need consent first (required, like the med spa).
+const onSiteMenu = (pro) => ({
+  coverageBar: 0.8,
+  thresholds: { quote: 0.6, booking: 0.5, followup: 0.4 },
+  maxRetries: 3,
+  checklist: [
+    { id: "concern", label: "What the customer described" },
+    { id: "service", label: "Matched to a published service", required: true },
+    { id: "safety", label: "Safety hazards" },
+    { id: "address", label: "Property address" },
+    { id: "flags", label: `${pro} checks noted` },
+  ],
+});
+const studioMenu = (pro) => ({
+  coverageBar: 0.75,
+  thresholds: { quote: 0.6, booking: 0.5, followup: 0.4 },
+  maxRetries: 3,
+  checklist: [
+    { id: "concern", label: "What the client asked for" },
+    { id: "consent", label: "Photo consent (if a photo was shared)", required: true },
+    { id: "service", label: "Matched to a published service" },
+    { id: "flags", label: `${pro} checks noted` },
+  ],
+});
+POLICY.plumbing = onSiteMenu("Plumber");
+POLICY.hvac = onSiteMenu("Technician");
+POLICY.salon = studioMenu("Stylist");
+POLICY.barber = studioMenu("Barber");
+
 export const policyFor = (trade) => POLICY[trade] || POLICY.roofing;
 
 // The model router (Fireworks session: don't pick one model, route by task and difficulty).

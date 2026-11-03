@@ -138,6 +138,7 @@ export default function VerificationPanel({ c, js }) {
           ) : (
             <p className="mt-2 text-[13px] text-muted-foreground">No review yet.</p>
           )}
+          {v?.held && <p className="mt-2 text-[13px] text-[hsl(var(--ios-orange))]">Held for you after one review: {v.held.detail}</p>}
           {v?.escalated && <p className="mt-2 text-[13px] text-[hsl(var(--ios-red))]">Failed {v.runs.length} reviews in a row, so it came to you instead of the customer.</p>}
 
           <p className="mt-4 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { siteCopy } from "@/config/siteCopy";
 
 // A flat field on the photo, no glass: ink text on white, one action.
 export default function HeroSearch() {
@@ -21,7 +22,7 @@ export default function HeroSearch() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder={tenant.words.placeholder}
-        aria-label={tenant.trade === "medspa" ? "What would you like help with" : "Describe the roof problem"}
+        aria-label={siteCopy(tenant.trade).ask}
         className="h-10 min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
       />
       <button type="submit" className="fd-btn-primary shrink-0">
