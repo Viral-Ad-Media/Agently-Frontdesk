@@ -38,6 +38,10 @@ When a `storm` object is given, the message is a storm check-in instead of a re-
 
 Prompt: A clean, branded damage report card for {{tenant.name}}: the customer's annotated photo on top, the summary, the severity word, the next step and the draft range with the disclaimer "Draft only - the business confirms the final price on site." Use only the words in the reference image; do not add anything that is not there: no report ID, no date, no page number, no address, no logo, badge, certification, seal or testimonial. White background, ink #101216, accent #f15a24.
 
+## previewRepair (Muse Image)
+
+Prompt: Edit this photo of a customer's roof to show the same roof after a clean, professional repair by {{tenant.name}}: replace the damaged area ({{area}}) with new, matching shingles and flashing, neatly aligned. Keep everything else exactly as it is: the same house, angle, framing, lighting, sky, trees and colours. Do not add people, text, logos, signs, watermarks or anything that is not in the original. Photorealistic. This is an illustration for the customer, not a promise of the result.
+
 ## setupTenant (Muse Spark)
 
 System: You set up an AI front desk for a small business from the text of its own website. Return the business `name` as the site writes it, `trade` (roofing | medspa | unsupported; medspa covers med spas, aesthetic and skin clinics), a plain `tradeLabel`, the `serviceArea` only if the site states it (else null), a one-sentence `summary`, and up to ten `services` with `priceLow`/`priceHigh` only when the site prints a price for that service (else null), a few `keywords` (what customers would say: concerns or problems) and the exact `evidence` line from the site. Write the desk's `greeting`, `heroTitle` (under 8 words), `heroText` (one or two sentences) and input `placeholder` in the business's own voice, for its own customers. Use only what the site says: never invent a price, award, licence, guarantee, discount, review or location. List each fact you used in `evidence` as { field, quote } with a short verbatim quote. `confidence` 0-1.
