@@ -222,3 +222,34 @@ test("judge path: a sample photo with no camera runs to a draft quote, the booki
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("frontdesk.v3") || "null"));
   expect(stored === null || stored.cases.every((c) => !String(c.description || "").includes("Shingles lifted"))).toBe(true);
 });
+
+test("plumbing: description and address, no photo, matched to the published menu, a gas smell goes to a person first", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=clearline-plumbing&q=${encodeURIComponent("Water dripping under the kitchen sink since yesterday")}`);
+  await expect(page.getByText(/address/i).last()).toBeVisible({ timeout: AI });
+  await page.getByRole("textbox").last().fill("210 Magnolia Ave, Fort Worth, TX");
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: /Skip the photo/ }).click();
+  await expect(page.getByText(/Leak repair \(pipe or fitting\)/).first()).toBeVisible({ timeout: AI });
+  await expect(page.getByText("$150 – $350")).toBeVisible();
+  await page.getByRole("button", { name: "2:00 PM" }).first().click();
+  await page.getByRole("button", { name: /Confirm booking/ }).click();
+  await page.goto(`${BASE}/frontdesk`);
+  await page.selectOption("select", "clearline-plumbing");
+  await expect(page.getByText("Freeze radar")).toBeVisible();
+  await expect(page.getByText(/Claim pack/)).toHaveCount(0);
+
+  await page.goto(`${BASE}/chat?tenant=clearline-plumbing&q=${encodeURIComponent("I can smell gas near the water heater")}`);
+  await expect(page.getByText(/address/i).last()).toBeVisible({ timeout: AI });
+  await page.getByRole("textbox").last().fill("77 Oak Lawn Ave, Dallas, TX");
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: /Skip the photo/ }).click();
+  await expect(page.getByText(/Make this safe before anything else/)).toBeVisible({ timeout: AI });
+});
+
+test("barber: consent first, skip the photo, cut matched to the menu price, chair booked", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=ironside-barbers&q=${encodeURIComponent("Skin fade and a beard line-up please")}`);
+  await expect(page.getByText(/Before you share a photo/i)).toBeVisible({ timeout: AI });
+  await page.getByRole("button", { name: /Skip the photo/ }).click();
+  await expect(page.getByText("$35 – $45")).toBeVisible({ timeout: AI });
+  await expect(page.getByRole("heading", { name: "Book a chair" })).toBeVisible();
+});

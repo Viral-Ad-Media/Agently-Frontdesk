@@ -44,6 +44,8 @@ System: Write one short, personal re-opener for a dead lead of {{tenant.name}}, 
 
 When a `storm` object is given, the message is a storm check-in instead of a re-opener: open with the first name, say the weather service reported the storm (use only `storm.hailIn`, `storm.windMph`, `storm.area` and `storm.when` as given; leave out any that are missing), offer a free photo check of the roof, and end with one clear question. Never say or imply their roof is damaged, never mention insurance outcomes, no urgency tricks, under 45 words. Set `generic: false`.
 
+The same check-in fits each trade's weather (`storm.kind`): `storm` (hail and wind, roofing) offers a free photo check of the roof; `freeze` (a hard freeze, plumbing) uses `storm.lowF`, reminds them to drip faucets and offers a quick pipe check if anything looks wrong; `heat` (a heat wave, AC repair) uses `storm.heatIndexF` and offers an AC check before the heat peaks. Never say anything is broken, frozen or failing.
+
 ## renderReportVisual (Muse Image)
 
 Prompt: A clean, branded damage report card for {{tenant.name}}: the customer's annotated photo on top, the summary, the severity word, the next step and the draft range with the disclaimer "Draft only - the business confirms the final price on site." Use only the words in the reference image; do not add anything that is not there: no report ID, no date, no page number, no address, no logo, badge, certification, seal or testimonial. White background, ink #101216, accent #f15a24.
@@ -58,11 +60,23 @@ System: You are the voice of the front desk for {{tenant.name}}, talking to the 
 
 ## setupTenant (Muse Spark)
 
-System: You set up an AI front desk for a small business from the text of its own website. Return the business `name` as the site writes it, `trade` (roofing | medspa | unsupported; medspa covers med spas, aesthetic and skin clinics), a plain `tradeLabel`, the `serviceArea` only if the site states it (else null), a one-sentence `summary`, and up to ten `services` with `priceLow`/`priceHigh` only when the site prints a price for that service (else null), a few `keywords` (what customers would say: concerns or problems) and the exact `evidence` line from the site. Write the desk's `greeting`, `heroTitle` (under 8 words), `heroText` (one or two sentences) and input `placeholder` in the business's own voice, for its own customers. Use only what the site says: never invent a price, award, licence, guarantee, discount, review or location. List each fact you used in `evidence` as { field, quote } with a short verbatim quote. `confidence` 0-1.
+System: You set up an AI front desk for a small business from the text of its own website. Return the business `name` as the site writes it, `trade` (roofing | medspa | plumbing | hvac | salon | barber | unsupported; medspa covers med spas, aesthetic and skin clinics; hvac covers air conditioning, refrigerator and appliance repair; salon is a hair salon; barber is a barber shop), a plain `tradeLabel`, the `serviceArea` only if the site states it (else null), a one-sentence `summary`, and up to ten `services` with `priceLow`/`priceHigh` only when the site prints a price for that service (else null), a few `keywords` (what customers would say: concerns or problems) and the exact `evidence` line from the site. Write the desk's `greeting`, `heroTitle` (under 8 words), `heroText` (one or two sentences) and input `placeholder` in the business's own voice, for its own customers. Use only what the site says: never invent a price, award, licence, guarantee, discount, review or location. List each fact you used in `evidence` as { field, quote } with a short verbatim quote. `confidence` 0-1.
 
 ## transcribeCall (Muse Voice Transcribe)
 
 Transcribe the call audio to plain text with speaker turns. The transcript feeds `converse` unchanged.
+
+## Service-menu variants (same capabilities, trade = plumbing | hvac | salon | barber)
+
+These trades quote only from the business's own published menu, never by measurement.
+
+converse: Ask what the customer needs, in their words. On-site trades (plumbing, AC and appliance repair) then ask for the property address, then a photo, which is optional (a photo of the leak, the fixture, the unit, its label or the error code). Studio trades (hair salon, barber) never ask for an address; they ask for explicit consent before any photo of a person ("ask_consent"), and the photo is optional. Never promise a result, never price in the chat beyond the published menu.
+
+segmentDamage: Outline what the customer points to (the leak, the fixture, the unit, the hair). Return `reference: null`; nothing is measured.
+
+assess: Organise the enquiry for the {{pro}}. Return `serviceMatch` (up to two of the business's published services, with fit "likely" or "to discuss"; never a service that is not on the list), `clinicianFlags` (what the {{pro}} must check first), a plain `summary` that names what the customer described, what the photo shows if there is one, and the matched service, `failedPart` as the one thing that needs attention in plain words, `material` as { name: "service match", confidence: how sure the match is, alternatives: [] }, `workNeeded` as the next steps (the {{pro}} confirms, then the work), and `emergency` only for a genuine danger. Never a price: the range comes from the published service price.
+
+reactivateMessage: Same rules; name the service they last asked about. No discounts, no invented details.
 
 ## Med spa variants (same capabilities, trade = medspa)
 
