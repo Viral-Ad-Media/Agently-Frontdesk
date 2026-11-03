@@ -147,3 +147,6 @@ export function mentions(text = "", concern = "") {
   const esc = c.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
   return new RegExp(`(^|[^a-z0-9])${esc}(s|es)?(?=[^a-z0-9]|$)`, "i").test(String(text));
 }
+
+// The CSS classes for a business's own site and chat: the base look, then the trade's own accent.
+export const siteClass = (trade) => `site-${tradeProfile(trade).look === "studio" ? "medspa" : "roofing"} site-${tradeProfile(trade).id}`;

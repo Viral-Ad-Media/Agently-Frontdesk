@@ -474,9 +474,10 @@ export async function setupTenant({ site = {} } = {}) {
 
 // "See it fixed" (rehearsal): paints matching new shingles over the outlined damage on the customer's own
 // photo, so the before/after flow can be rehearsed offline. Muse Image does the real edit on the meta provider.
-export async function previewRepair({ photoDataUrl, segmentation } = {}) {
+export async function previewRepair({ photoDataUrl, segmentation, kind = "repair" } = {}) {
   await wait(1400);
   const img = await loadImage(photoDataUrl);
+  if (kind === "look") return { imageDataUrl: lookGrade(img) };
   const W = Math.min(1200, img.width);
   const H = Math.round(img.height * (W / img.width));
   const canvas = document.createElement("canvas");
@@ -521,6 +522,28 @@ export async function previewRepair({ photoDataUrl, segmentation } = {}) {
     ctx.restore();
   }
   return { imageDataUrl: canvas.toDataURL("image/jpeg", 0.85) };
+}
+
+// "Preview the look" (rehearsal): a gentle polish grade with a warmer top third, so the before/after flow can be
+// rehearsed offline. Muse Image makes the real edit of the hair on the meta provider.
+function lookGrade(img) {
+  const W = Math.min(1200, img.width);
+  const H = Math.round(img.height * (W / img.width));
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.filter = "saturate(1.18) contrast(1.06) brightness(1.04)";
+  ctx.drawImage(img, 0, 0, W, H);
+  ctx.filter = "none";
+  const g = ctx.createLinearGradient(0, 0, 0, H * 0.45);
+  g.addColorStop(0, "rgba(214,160,96,0.22)");
+  g.addColorStop(1, "rgba(214,160,96,0)");
+  ctx.globalCompositeOperation = "soft-light";
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = "source-over";
+  return canvas.toDataURL("image/jpeg", 0.85);
 }
 
 // Talk to your desk: a keyword reading of the owner's words, so the voice flow rehearses offline.

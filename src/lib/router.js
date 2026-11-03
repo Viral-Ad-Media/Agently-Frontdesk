@@ -16,9 +16,14 @@ export function route(task, signals = {}) {
   } else if (emergency || conflict || regions > 1) {
     tier = "large";
     reason = emergency ? "Safety issue described: large tier, high effort, human review forced." : conflict ? "Photo and description disagree: large tier, human review forced." : "Several problems in one photo: large tier, human review forced.";
+  } else if (task === "judge") {
+    // The reviewer only answers PASS or FAIL with reasons against evidence it is given, so a clear
+    // single-problem job is checked on the light model; a retry still steps it up a tier.
+    tier = "small";
+    reason = "Independent check of a single-problem job: small tier, low effort.";
   } else {
     tier = "medium";
-    reason = task === "judge" ? "Independent check of a single-problem job: medium tier." : "Clear single-problem job: medium tier.";
+    reason = "Clear single-problem job: medium tier.";
   }
   // Step up one tier per retry (or on low confidence), never down.
   for (let i = 0; i < attempt + (lowConfidence ? 1 : 0); i++) {
