@@ -10,7 +10,7 @@ import AgentChecks from "@/components/frontdesk/AgentChecks";
 import { jobStatus, customerMaySee } from "@/lib/verify";
 import { measure } from "@/lib/eye";
 import { STATUS_LABEL } from "@/lib/quote";
-import { isMenu, tradeProfile, withArticle } from "@/config/trades";
+import { isMenu, tradeProfile, withArticle, siteClass } from "@/config/trades";
 import { readPhoto } from "@/lib/photo";
 import useVoice from "@/hooks/useVoice";
 import Logo from "@/components/shared/Logo";
@@ -32,7 +32,10 @@ import ReportButton from "@/components/frontdesk/ReportButton";
 
 // The customer's front desk: one case, from first message to booked visit. Chat or voice, same case.
 const BOOK_INTENT = /\b(book|booking|schedule|appointment|reserve|inspection|consultation|come out|come by|come over|send someone|the chair)\b/i;
-const SAMPLE_ADDRESS = "14 Larkspur Lane, Austin, TX"; // synthetic demo address
+import { SAMPLE_ADDRESS as SAMPLE_ADDRESSES } from "@/config/media";
+
+// The desk's own name, said when it greets a customer and when a voice call starts.
+const agentName = (t) => t?.words?.agentName || "Aura";
 
 export default function Chat() {
   const [params, setParams] = useSearchParams();
@@ -50,12 +53,14 @@ export default function Chat() {
   const [progress, setProgress] = useState(null);
   const [failure, setFailure] = useState(null);
   const [pending, setPending] = useState(null); // a photo waiting for the customer's "use it" tap
+  const [draft, setDraft] = useState(null); // the drafted card, shown while the reviewer checks it (price hidden)
   const [liveEye, setLiveEye] = useState(false); // camera capture open
   const [voiceMode, setVoiceMode] = useState(false);
   const endRef = useRef(null);
   const sendRef = useRef(null);
   const voiceModeRef = useRef(false);
   const assessRef = useRef(null);
+  const toggleVoiceRef = useRef(null);
   voiceModeRef.current = voiceMode;
   const voice = useVoice({ onFinal: (t) => sendRef.current(t) });
   // "spa" = the service-menu engine (med spa, plumbing, AC, salon, barber); the trade profile says the rest.
@@ -70,6 +75,8 @@ export default function Chat() {
     if (wanted && tenants[wanted]) setActiveTenant(wanted);
     const t = (wanted && tenants[wanted]) || activeTenant;
     const id = createCase({ tenantId: t.id, source: "chat" });
+    // ?voice=1 (the site's "Talk to us" button) opens straight into a voice call.
+    if (params.get("voice")) setTimeout(() => toggleVoiceRef.current?.(), 300);
     setCaseId(id);
     setParams({ case: id }, { replace: true });
     (async () => {
@@ -77,7 +84,7 @@ export default function Chat() {
       if (q) {
         await converseWith(id, q);
       } else {
-        appendMessage(id, { role: "assistant", content: `Hi, this is the front desk at ${t.name.replace(/\.$/, "")}. ${t.words.greeting}` });
+        appendMessage(id, { role: "assistant", content: `Hi, I'm ${agentName(t)}, the AI front desk for ${t.name.replace(/\.$/, "")}. ${t.words.greeting}` });
         updateCase(id, { lastQuestion: "ask_description" });
       }
     })();
@@ -185,12 +192,13 @@ export default function Chat() {
     async (sample, file) => {
       if (!caseId || busy) return;
       const cur = getCase(caseId);
+      const SAMPLE_ADDRESS = SAMPLE_ADDRESSES[cur.trade] || "";
       const addDesc = !cur.description;
-      const addAddr = !cur.customer?.address;
+      const addAddr = !!SAMPLE_ADDRESS && !cur.customer?.address;
       if (addDesc || addAddr) {
         updateCase(caseId, (prev) => ({
           description: prev.description || sample.description,
-          customer: { ...prev.customer, address: prev.customer?.address || SAMPLE_ADDRESS },
+          customer: { ...prev.customer, address: prev.customer?.address || SAMPLE_ADDRESS || "" },
           lastQuestion: "ask_photo",
         }));
         appendMessage(caseId, { role: "user", content: `Sample job: ${addDesc ? sample.description : ""}${addAddr ? `${addDesc ? " " : ""}Address: ${SAMPLE_ADDRESS}.` : ""}`.trim(), sample: true });
@@ -222,7 +230,7 @@ export default function Chat() {
           const m = !spa && region ? { ...measure({ polygon: region.polygon, reference: seg.reference, tiltDeg: sensorTilt ?? seg.tiltDeg }), tiltSource: sensorTilt !== null ? "phone sensors" : "estimated from the photo" } : null;
           updateCase(caseId, { segmentation: seg, measurement: m });
           setProgress(spa ? "Matching to our services…" : "Working out what failed…");
-          const { assessment: a, quote: q, verification } = await assessAndVerify({ ai: gateway, trade: cur.trade, description: cur.description, urgency: cur.urgency, seg, measurement: m, dataUrl: photo.dataUrl, tenant: t, caseId, onProgress: setProgress });
+          const { assessment: a, quote: q, verification } = await assessAndVerify({ ai: gateway, trade: cur.trade, description: cur.description, urgency: cur.urgency, seg, measurement: m, dataUrl: photo.dataUrl, tenant: t, caseId, onProgress: setProgress, onDraft: setDraft });
           updateCase(caseId, { assessment: a, quote: q, verification, status: "assessed", lastQuestion: "none", provider: seg.provider });
           const held = q.low != null && !customerMaySee(getCase(caseId), jobStatus(getCase(caseId), { tenant: t, slots: getState().slots }));
           const clash = verification.contradiction;
@@ -243,6 +251,7 @@ export default function Chat() {
           setFailure({ message: e.message, retry: run });
         } finally {
           setProgress(null);
+          setDraft(null);
           setBusy(false);
         }
       };
@@ -260,7 +269,7 @@ export default function Chat() {
       const cur = getCase(caseId);
       const t = tenants[cur.tenantId];
       setProgress("Matching it to our services…");
-      const { assessment: a, quote: q, verification } = await assessAndVerify({ ai: gateway, trade: cur.trade, description: cur.description, urgency: cur.urgency, seg: null, measurement: null, dataUrl: null, tenant: t, caseId, onProgress: setProgress });
+      const { assessment: a, quote: q, verification } = await assessAndVerify({ ai: gateway, trade: cur.trade, description: cur.description, urgency: cur.urgency, seg: null, measurement: null, dataUrl: null, tenant: t, caseId, onProgress: setProgress, onDraft: setDraft });
       updateCase(caseId, { assessment: a, quote: q, verification, status: "assessed", lastQuestion: "none" });
       const held = q.low != null && !customerMaySee(getCase(caseId), jobStatus(getCase(caseId), { tenant: t, slots: getState().slots }));
       const reply = a.emergency?.isEmergency
@@ -274,6 +283,7 @@ export default function Chat() {
       setFailure({ message: e.message, retry: assessFromText });
     } finally {
       setProgress(null);
+      setDraft(null);
       setBusy(false);
     }
   }, [caseId, tenants, prof, say]);
@@ -323,9 +333,19 @@ export default function Chat() {
       voice.stopSpeaking();
     } else {
       setVoiceMode(true);
-      voice.start();
+      voiceModeRef.current = true;
+      // Introduce itself and the business first, then listen. Mid-conversation it keeps it short.
+      const started = (getCase(caseId)?.messages || []).some((m) => m.role === "user");
+      const intro = started
+        ? `Hi, it's ${agentName(tenant)} from ${tenant.name}. I'm listening, go ahead.`
+        : `Hi, I'm ${agentName(tenant)}, the AI front desk for ${tenant.name}. ${tenant.words.greeting}`;
+      voice.speak(intro, () => {
+        if (voiceModeRef.current) voice.start();
+      });
     }
   };
+
+  toggleVoiceRef.current = toggleVoice;
 
   if (!c) return null;
   const bookedSlot = c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null;
@@ -338,7 +358,7 @@ export default function Chat() {
   const orbState = voice.listening ? "listening" : busy ? "thinking" : voice.speaking ? "speaking" : "idle";
 
   return (
-    <div className={`site-${prof.look === "studio" ? "medspa" : "roofing"} flex h-[100svh] flex-col bg-background`}>
+    <div className={`${siteClass(tenant.trade)} flex h-[100svh] flex-col bg-background`}>
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-8">
         <div className="min-w-0 [&_*]:truncate">
           <Logo to="/site" word={tenant.name} as="h1" />
@@ -356,11 +376,14 @@ export default function Chat() {
         </div>
       </header>
 
+      {/* Voice call: a slim bar, not a big panel, so the chat and the camera stay in view. */}
       {voiceMode && (
-        <div className="flex flex-col items-center gap-1 border-b border-border bg-card py-4">
-          <VoiceOrb state={orbState} size={104} onClick={() => (voice.listening ? voice.stop() : voice.start())} disabled={busy} />
-          <p className="text-[13px] text-muted-foreground" aria-live="polite">{voice.listening ? "Take your time. Tap the circle when you're done." : voice.speaking ? "Speaking. Tap the circle to cut in." : busy ? "Thinking…" : " "}</p>
-          <p className="font-spec text-[11px] uppercase text-muted-foreground">Browser voice · Muse Voice Transcribe at the Meta swap</p>
+        <div className="flex items-center gap-3 border-b border-border bg-card px-4 py-2 md:px-8">
+          <VoiceOrb state={orbState} size={36} onClick={() => (voice.listening ? voice.stop() : voice.start())} disabled={busy} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-medium">{agentName(tenant)} · {tenant.name}</p>
+            <p className="truncate text-[12px] text-muted-foreground" aria-live="polite">{voice.listening ? "Listening. Tap the dot when you're done." : voice.speaking ? "Speaking. Tap the dot to cut in." : busy ? "Thinking…" : "On the call"}</p>
+          </div>
         </div>
       )}
 
@@ -418,6 +441,12 @@ export default function Chat() {
           ))}
 
           {voice.listening && voice.interim && <p className="text-[15px] italic text-muted-foreground">{voice.interim}…</p>}
+          {busy && draft?.assessment && (
+            <div className="space-y-2" aria-label="Drafted card, being checked">
+              <AssessmentCard segmentation={c.segmentation} measurement={c.measurement} assessment={draft.assessment} quote={null} tenant={tenant} compact />
+              <p className="text-[13px] text-muted-foreground">Drafted. A second check runs before any price is shown.</p>
+            </div>
+          )}
           {progress && (
             <div className="flex items-center gap-3 text-[15px] text-muted-foreground" aria-live="polite">
               <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
@@ -441,9 +470,9 @@ export default function Chat() {
           {showConsent && <ConsentCard tenant={tenant} onConsent={onConsent} onSkip={onSkipPhoto} />}
           {showLiveEye && <LiveEye onCapture={onPhoto} onClose={() => setLiveEye(false)} spa={spa} />}
           {showGuide && <CaptureGuide onPhoto={onPhoto} onLiveEye={() => setLiveEye(true)} onSample={onSample} onSkip={medspa ? null : onSkipPhoto} busy={busy} spa={spa} trade={tenant.trade} />}
-          {prof.engine === "measure" && !c.photo && !c.description && !busy && !pending && !liveEye && c.messages.length <= 2 && (
+          {!prof.personPhoto && !c.photo && !c.description && !busy && !pending && !liveEye && c.messages.length <= 2 && (
             <div className="fd-card p-4">
-              <SamplePhotos onPick={onSample} busy={busy} compact />
+              <SamplePhotos onPick={onSample} busy={busy} compact trade={tenant.trade} />
               <p className="mt-2 text-[12px] text-muted-foreground">Fills in a made-up description and address, then runs the photo through the same outline, assessment and draft quote as a real one.</p>
             </div>
           )}

@@ -98,9 +98,37 @@ const orderRule = (trade) => {
 };
 // How each trade reads inside a prompt sentence ("a {{trade}} business").
 const TRADE_WORD = { roofing: "roofing", medspa: "med spa", plumbing: "plumbing", hvac: "cooling and appliance repair", salon: "hair salon", barber: "barber" };
-const fill = (text, v) => fillRaw(text, { ...v, trade: TRADE_WORD[v?.trade] || v?.trade });
+const fill = (text, v) => fillRaw(text, { ...v, trade: TRADE_WORD[v?.trade] || v?.trade, agentName: v?.tenant?.words?.agentName || "Aura" });
 const fillRaw = (text, vars) => text.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, p) => p.split(".").reduce((o, k) => (o ? o[k] : undefined), vars) ?? "unknown");
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, Number(n) || 0));
+
+// Speed: Muse Spark reads a smaller copy of the photo than SAM does. SAM keeps the full 1280 px frame for an
+// accurate outline; the reasoning passes only need to see what the outline and the labels already say, and an
+// image's token cost grows with its size. Browser only (canvas); elsewhere the image passes through unchanged.
+const shrunk = new Map();
+export async function shrinkDataUrl(dataUrl, maxEdge) {
+  if (!dataUrl || typeof document === "undefined" || typeof Image === "undefined") return dataUrl;
+  const key = `${maxEdge}:${dataUrl.length}:${dataUrl.slice(-48)}`;
+  if (shrunk.has(key)) return shrunk.get(key);
+  const out = await new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+      if (scale >= 1) return resolve(dataUrl);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+  shrunk.set(key, out);
+  return out;
+}
+export const ASSESS_EDGE = 768;
+export const JUDGE_EDGE = 512;
 
 // Muse Spark with a JSON schema (OpenAI-compatible chat completions, response_format json_schema).
 async function sparkJson({ system, user, image = null, schema, name, model = MODELS.spark, effort = "low" }) {
@@ -257,7 +285,7 @@ export async function assess({ trade = "roofing", description = "", urgency = nu
   const out = await sparkJson({
     system: fill(section("assess"), { trade, tenant }) + (spa ? `${menuRules(trade)}\nPublished services: ${JSON.stringify((tenant.services || []).map((s) => ({ id: s.id, name: s.name, concerns: s.concerns })))}` : ""),
     user: JSON.stringify({ description, urgency, segmentation, measurement, ...(feedback?.length ? { reviewerFeedback: feedback, rule: "A separate reviewer rejected your last card for these reasons. Fix each one from the evidence, or say the evidence is missing. Do not just reword." } : {}) }),
-    image: dataUrl,
+    image: await shrinkDataUrl(dataUrl, ASSESS_EDGE),
     schema: ASSESS_SCHEMA,
     name: "assessment",
     model: r.model,
@@ -283,7 +311,7 @@ export async function judgeAssessment({ trade = "roofing", description = "", seg
   const out = await sparkJson({
     system: fill(section("judgeAssessment"), { trade, tenant }),
     user: JSON.stringify({ evidence: { description, segmentation, measurement }, card: { assessment, quote: quote && { low: quote.low, high: quote.high, lines: quote.lines, reason: quote.reason } } }),
-    image: dataUrl,
+    image: await shrinkDataUrl(dataUrl, route?.tier === "large" ? ASSESS_EDGE : JUDGE_EDGE),
     schema: {
       type: "object",
       additionalProperties: false,
@@ -486,8 +514,10 @@ export async function renderReportVisual(input) {
 
 // "See it fixed": Muse Image edits the customer's own photo to show the roof after the repair.
 // Roofing only; the UI labels the result as an illustration, never a promise.
-export async function previewRepair({ photoDataUrl, segmentation, tenant }) {
+// kind "look" (salon, barber): the same person after the matched service, for "Preview the look".
+export async function previewRepair({ photoDataUrl, segmentation, tenant, kind = "repair", service = "" }) {
   const area = (segmentation?.regions || []).map((r) => r.label).filter(Boolean).join(", ") || "the outlined damage";
+  const prompt = kind === "look" ? fill(section("previewLook"), { tenant: tenant || {}, service: service || "the service they asked about" }) : fill(section("previewRepair"), { tenant: tenant || {}, area });
   const text = await post("responses", {
     model: MODELS.image,
     input: [
@@ -495,8 +525,8 @@ export async function previewRepair({ photoDataUrl, segmentation, tenant }) {
         type: "message",
         role: "user",
         content: [
-          { type: "input_text", text: fill(section("previewRepair"), { tenant: tenant || {}, area }) },
-          { type: "input_image", image_url: photoDataUrl },
+          { type: "input_text", text: prompt },
+          { type: "input_image", image_url: await shrinkDataUrl(photoDataUrl, 1024) },
         ],
       },
     ],
