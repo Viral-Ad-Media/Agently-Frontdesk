@@ -5,6 +5,7 @@ import { seedState, seedSlots } from "@/lib/seed";
 import { QUOTE_STATUSES, draftQuote } from "@/lib/quote";
 import { measure, bboxOf, areaPercent } from "@/lib/eye";
 import { earliestStart, PATCH_TEST_HOURS } from "./patchTest.js";
+import { demoTrust } from "./trust.js";
 
 const KEY = "frontdesk.v4";
 // Older keys from earlier builds. A visitor who tested an earlier build starts clean instead of seeing that test data.
@@ -35,6 +36,8 @@ function normalize(s) {
   s.tenant = s.tenants[s.activeTenantId] || s.tenants[Object.keys(s.tenants)[0]];
   s.rateCard = s.tenant.rateCard;
   if (!Array.isArray(s.stormRuns)) s.stormRuns = [];
+  // Demo businesses saved before the trust card existed pick up their demo credentials.
+  for (const t of Object.values(s.tenants)) if (!t.trust && !t.setup && demoTrust(t.id)) t.trust = demoTrust(t.id);
   return s;
 }
 
@@ -44,6 +47,21 @@ function persist() {
   } catch (e) {
     console.warn("Store persist failed (storage full?)", e);
   }
+}
+
+// Another tab (the customer's chat next to the owner's desk) changed the record: pick it up live.
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key !== KEY || !e.newValue) return;
+    try {
+      const next = JSON.parse(e.newValue);
+      if (next?.version !== 4) return;
+      state = normalize(next);
+      listeners.forEach((fn) => fn());
+    } catch {
+      /* ignore a half-written value */
+    }
+  });
 }
 
 export function getState() {
@@ -297,6 +315,46 @@ export function setAftercare(caseId, patch) {
     if (patch.status) next[`${patch.status}At`] = new Date().toISOString();
     c.aftercare = next;
   });
+}
+
+// ----- Follow-ups after a quote (day 3, 7, 14) -----
+
+// Same rules as every message: a draft until the owner approves it; Send only after approval; an edit
+// after approval puts it back to draft.
+export function setFollowUp(caseId, day, patch) {
+  update((s) => {
+    const c = s.cases.find((x) => x.id === caseId);
+    if (!c) return;
+    c.followUps = c.followUps || {};
+    const prev = c.followUps[day] || { text: patch.text || "", status: "draft" };
+    if (prev.status === "sent") return;
+    if (patch.status === "sent" && prev.status !== "approved") return;
+    const next = { ...prev, ...patch };
+    if (!patch.status && patch.text !== undefined && patch.text !== prev.text) next.status = "draft";
+    if (patch.status) next[`${patch.status}At`] = new Date().toISOString();
+    c.followUps[day] = next;
+  });
+}
+
+// ----- Insurance details (roofing, storm damage) -----
+
+export function setInsurance(caseId, info) {
+  updateCase(caseId, { insurance: { ...info, at: new Date().toISOString() } });
+}
+
+// ----- Owner takes over the conversation -----
+
+export function ownerReply(caseId, text, by) {
+  update((s) => {
+    const c = s.cases.find((x) => x.id === caseId);
+    if (!c || !text.trim()) return;
+    c.takenOver = true;
+    c.messages.push({ at: new Date().toISOString(), role: "owner", content: text.trim(), by });
+  });
+}
+
+export function handBack(caseId) {
+  updateCase(caseId, { takenOver: false });
 }
 
 // ----- Dead-lead reactivation -----

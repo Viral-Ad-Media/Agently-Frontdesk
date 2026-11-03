@@ -14,6 +14,10 @@ Everything in this repository was built during the event, except the starting UI
 - The desk agent: plan, look up (calendar, rates, business facts, history, storms), answer only from what it found.
 - Owner desk: approve, edit and send quotes; dead-lead reactivation; Storm Radar and weather check-ins per trade (freeze for plumbing, heat for AC); phone-call transcription; daily summary; talk to your desk by voice.
 - Customer extras: "See it fixed" (roofing) and "Preview the look" (salon, barber) with Muse Image; insurance claim pack draft (roofing); salon colour bookings held 48 hours after the patch test; med spa aftercare reminder drafts the clinician approves; live voice conversation with the desk ("Talk to us"), which introduces itself as Aura and names the business.
+- Trust card: licence, insurance, warranty and reviews on the site and in the chat, answered by the desk. Demo businesses carry made-up credentials labelled as demo data; a business set up from its website shows only the site's own words.
+- Insurance questions for storm damage (insurer, claim number, storm date), carried into the claim pack.
+- Follow-ups on day 3, 7 and 14 after a sent quote, drafted ahead and sent only after the owner approves; they stop when the customer books.
+- Lead score (hot, warm, cold) with its reasons, and "Take over the chat": the owner replies as a person and the AI pauses on that chat. Changes show live in another open tab.
 - Set up a new business from its own website (`/setup`).
 
 Nothing is sent, booked or priced without a person's approval. Draft quotes are USD ranges. The med spa desk never diagnoses or gives medical advice.
