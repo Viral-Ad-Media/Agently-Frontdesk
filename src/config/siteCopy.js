@@ -1,6 +1,12 @@
 // The customer site's words for each trade: nav button, how-it-works steps, the three promises and the footer
 // line. Roofing and med spa keep the copy they shipped with; the newer trades get their own in the same voice.
 const ROOFING = {
+  features: [
+    ["Damage outlined on your photo", "We draw the damaged area and measure it when something of known size is in frame."],
+    ["Storm check-ins", "When a weather-service storm warning covers your street, we check on you first."],
+    ["Insurance claim pack", "A draft pack with the weather on record, your outlined photo and the estimate, ready to print."],
+    ["See it fixed", "A picture of your own roof after the repair, clearly marked as an illustration."],
+  ],
   nav: "Describe your roof problem",
   ask: "Describe the roof problem",
   howLead: "From a leak to a booked inspection, in minutes, with a person approving every price before you see it.",
@@ -21,6 +27,12 @@ const ROOFING = {
 };
 
 const MEDSPA = {
+  features: [
+    ["Consent first", "Nothing is uploaded until you agree, and you can always skip the photo."],
+    ["Matched to our menu", "Your concern is matched to the treatments we actually offer, with the published price."],
+    ["Clinician review", "A clinician reads your notes and flags anything to check with you. Never a diagnosis."],
+    ["Aftercare reminders", "After your visit, a short aftercare note, written for you and approved by the clinic."],
+  ],
   nav: "Ask about a treatment",
   ask: "What would you like help with",
   howLead: "From a question to a booked consultation, in minutes, with a person deciding every step that matters.",
@@ -41,6 +53,12 @@ const MEDSPA = {
 };
 
 const PLUMBING = {
+  features: [
+    ["Emergencies first", "Gas, bursts, flooding or water near electrics: you get what to do right now and a call back."],
+    ["Freeze alerts", "When a hard freeze is forecast for your area, we check in before your pipes split."],
+    ["Matched to our menu", "Leak, drain, water heater or burst pipe: matched to the jobs we do, with our published price."],
+    ["A real visit time", "Pick a slot from our live calendar. It's never offered to anyone else."],
+  ],
   nav: "Tell us what's leaking",
   ask: "Describe the plumbing problem",
   howLead: "From a drip to a booked plumber, in minutes. Anything dangerous goes straight to a person.",
@@ -61,6 +79,12 @@ const PLUMBING = {
 };
 
 const HVAC = {
+  features: [
+    ["Label and error code read", "Snap the model plate or the display and we note the code exactly as printed."],
+    ["Heat alerts", "When a heat warning covers your area, we check your AC is ready before it's needed."],
+    ["Safety first", "A burning smell, smoke or sparks: switch it off at the breaker, and a person calls you."],
+    ["A real visit time", "Pick a technician slot from our live calendar."],
+  ],
   nav: "Tell us what's not cooling",
   ask: "Describe the AC or appliance problem",
   howLead: "From a warm house or a warm fridge to a booked technician, in minutes. Anything unsafe goes to a person first.",
@@ -81,6 +105,12 @@ const HVAC = {
 };
 
 const SALON = {
+  features: [
+    ["Consent first", "Your photo is only shared if you agree, and it's optional."],
+    ["Patch test built in", "Any colour service is booked at least 48 hours after your allergy patch test."],
+    ["Preview the look", "See an illustration of the colour or cut on your own photo before you come in."],
+    ["Matched to our menu", "Every price comes from our own menu, confirmed by your stylist."],
+  ],
   nav: "Ask about your hair",
   ask: "What would you like for your hair",
   howLead: "From an idea to a booked appointment, in minutes, with your stylist deciding everything that matters.",
@@ -101,6 +131,12 @@ const SALON = {
 };
 
 const BARBER = {
+  features: [
+    ["Book the chair in seconds", "Tell us the cut and pick a real time. No account, no forms."],
+    ["Preview the look", "See an illustration of the cut on your own photo before you sit down."],
+    ["Menu prices only", "Every price comes from our own menu, never a guess."],
+    ["We check in", "When it has been a while since your last cut, we send a friendly note, approved by the barber."],
+  ],
   nav: "Book a cut",
   ask: "What cut would you like",
   howLead: "From the cut you want to a booked chair, in minutes. The barber has the final say.",

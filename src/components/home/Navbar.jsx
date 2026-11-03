@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MessageSquare, Sparkles } from "lucide-react";
+import { Mic, MessageSquare, Sparkles } from "lucide-react";
 import Logo from "@/components/shared/Logo";
 import { useStore } from "@/lib/store";
 import { siteCopy } from "@/config/siteCopy";
@@ -17,7 +17,8 @@ export default function Navbar({ dark = false }) {
   }, []);
   const light = !scrolled && !dark;
   const links = [
-    ["How it works", "/#how"],
+    ["How it works", "#how"],
+    ["Services", "#services"],
     ["Front desk", "/frontdesk"],
   ];
   return (
@@ -31,9 +32,14 @@ export default function Navbar({ dark = false }) {
             </a>
           ))}
         </nav>
+        <div className="flex items-center gap-2">
+        <Link to="/chat?voice=1" className="fd-btn-outline hidden sm:inline-flex" aria-label={`Talk to ${tenant.words?.agentName || "Aura"}`}>
+          <Mic className="h-4 w-4" /> Talk to us
+        </Link>
         <Link to="/chat" className="fd-btn-primary">
           <MessageSquare className="h-4 w-4" /> {siteCopy(tenant.trade).nav}
         </Link>
+        </div>
       </div>
     </header>
   );

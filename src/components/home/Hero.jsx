@@ -12,7 +12,7 @@ export default function Hero() {
       {slide && (
         <>
           <div className="absolute inset-0">
-            <img src={slide.src} alt={slide.alt} fetchpriority="high" decoding="async" className="h-full w-full object-cover" />
+            <img src={slide.src} alt={slide.alt} {...{ fetchpriority: "high" }} decoding="async" className="h-full w-full object-cover" />
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--deep))] via-[hsl(var(--deep)/0.55)] to-[hsl(var(--deep)/0.35)]" />
         </>

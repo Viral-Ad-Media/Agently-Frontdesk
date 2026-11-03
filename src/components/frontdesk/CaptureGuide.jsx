@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Camera } from "lucide-react";
 import SamplePhotos from "@/components/frontdesk/SamplePhotos";
 import { tradeProfile } from "@/config/trades";
+import { samplesFor } from "@/config/media";
 
 const shots = [
   ["Wide", "the whole roof section from the ground"],
@@ -70,9 +71,9 @@ export default function CaptureGuide({ onPhoto, onLiveEye, onSample = null, onSk
           </button>
         )}
       </div>
-      {prof.engine === "measure" && onSample && (
+      {onSample && samplesFor(prof.id).length > 0 && (
         <div className="mt-4 border-t border-border pt-4">
-          <SamplePhotos onPick={(s, file) => onSample(s, file)} busy={busy} />
+          <SamplePhotos onPick={(s, file) => onSample(s, file)} busy={busy} trade={prof.id} />
         </div>
       )}
       <p className="mt-2 text-[13px] text-muted-foreground">The Live Eye uses your camera with a level and your phone's tilt sensor, and captures when the shot is steady. One photo is enough; a short video works too.</p>

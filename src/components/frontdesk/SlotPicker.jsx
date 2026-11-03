@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CalendarCheck, Check } from "lucide-react";
 import { useStore, bookSlot, updateCase } from "@/lib/store";
 import { tradeProfile, withArticle } from "@/config/trades";
+import { earliestStart, PATCH_TEST_HOURS } from "@/lib/patchTest";
 
 export const fmtDay = (iso) => new Date(iso).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
 export const fmtTime = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -15,7 +16,9 @@ export default function SlotPicker({ caseId, tenant, address, onBooked }) {
   const [phone, setPhone] = useState(c?.customer?.phone || "");
   const [error, setError] = useState(null);
 
-  const open = slots.filter((s) => s.tenantId === tenant.id && !s.caseId && new Date(s.start).getTime() > Date.now());
+  const from = earliestStart(c, tenant);
+  const patch = from > Date.now();
+  const open = slots.filter((s) => s.tenantId === tenant.id && !s.caseId && new Date(s.start).getTime() > from);
   const byDay = open.reduce((acc, s) => {
     const k = fmtDay(s.start);
     (acc[k] = acc[k] || []).push(s);
@@ -52,6 +55,7 @@ export default function SlotPicker({ caseId, tenant, address, onBooked }) {
       </div>
       <p className="mt-1 text-[14px] text-muted-foreground">{tenant.trade === "medspa" ? "A clinician goes through everything with you in person." : tradeProfile(tenant.trade).onSite ? `${withArticle(tenant.words.pro).replace(/^a/, "A")} confirms the price on site.` : `Your ${tenant.words.pro} confirms the service and price in person.`} Pick a time that suits you.</p>
 
+      {patch && <p className="mt-3 rounded-lg border border-border bg-secondary px-3 py-2 text-[14px]">Colour services start at least {PATCH_TEST_HOURS} hours after a quick allergy patch test, so the earliest times are from {fmtDay(new Date(from).toISOString())}. The salon books your patch test with you.</p>}
       {error && <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-[14px] text-destructive">{error}</p>}
 
       {!slot ? (

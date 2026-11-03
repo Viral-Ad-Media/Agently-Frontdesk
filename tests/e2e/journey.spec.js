@@ -111,6 +111,14 @@ test("med spa: consent before photo, service match, no diagnosis, consultation b
   await page.getByRole("button", { name: "2:00 PM" }).first().click();
   await page.getByRole("button", { name: /Confirm booking/ }).click();
   await expect(page.getByText(/consultation booked/i)).toBeVisible();
+  // Aftercare reminder: a draft on the booked lead; Send stays locked until the clinician approves it.
+  await page.goto(`${BASE}/frontdesk`);
+  const care = page.getByTestId("aftercare").first();
+  await expect(care.getByText("Draft", { exact: true })).toBeVisible();
+  await expect(care.getByRole("button", { name: "Send" })).toBeDisabled();
+  await care.getByRole("button", { name: "Approve" }).click();
+  await care.getByRole("button", { name: "Send" }).click();
+  await expect(care.getByText("Sent", { exact: true })).toBeVisible();
 });
 
 test("talk to your desk: brief, then a spoken send waits for yes and moves the quote exactly once", async ({ page }) => {
