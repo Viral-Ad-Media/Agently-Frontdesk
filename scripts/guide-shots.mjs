@@ -148,7 +148,7 @@ const lead = page.getByRole("region", { name: "Leads" }).locator("li").first();
 await shot("24-dash-lead-open", lead, { maxH: 760 });
 await shot("25-dash-verification", page.getByRole("region", { name: "Verification" }).first());
 await shot("26-dash-how-answered", page.getByRole("region", { name: "How the desk answered" }).first());
-const claimHref = await page.evaluate(() => { const c = JSON.parse(localStorage.getItem("frontdesk.v2")).cases.find((x) => x.assessment && x.tenantId === "summit-ridge"); return c ? `/claim/${c.id}` : null; });
+const claimHref = await page.evaluate(() => { const c = JSON.parse(localStorage.getItem("frontdesk.v4")).cases.find((x) => x.assessment && x.tenantId === "summit-ridge"); return c ? `/claim/${c.id}` : null; });
 await page.goto(`${BASE}/frontdesk`, { waitUntil: "networkidle" });
 await unstick();
 await settle(600);
