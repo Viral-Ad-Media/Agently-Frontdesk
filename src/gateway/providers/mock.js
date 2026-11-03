@@ -320,3 +320,48 @@ function wrap(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
   }
   ctx.fillText(line, x, y);
 }
+
+// setupTenant({ site }) -> { name, trade, tradeLabel, serviceArea, summary, services[], greeting, heroTitle, heroText, placeholder, evidence[], confidence }
+// Reads only what the site says: prices that are not written on the site come back null, never guessed.
+export async function setupTenant({ site = {} } = {}) {
+  await wait(800);
+  const text = String(site.text || "");
+  const lower = text.toLowerCase();
+  const count = (re) => (lower.match(re) || []).length;
+  const roof = count(/roof|shingle|gutter|storm damage|hail|leak/g);
+  const spa = count(/facial|botox|filler|laser|med ?spa|skin|peel|injectable|microneedling|aesthetic/g);
+  const trade = roof === 0 && spa === 0 ? "unsupported" : roof >= spa ? "roofing" : "medspa";
+  const rawName = site.siteName || String(site.title || "").split(/\s[|\-–—:]\s/)[0] || site.host || "Your business";
+  const name = rawName.trim().slice(0, 60);
+  const areaMatch = text.match(/(?:serving|proudly serving|located in|based in)\s+(?:the\s+)?([A-Z][A-Za-z.' ]+(?:,\s*[A-Z]{2})?)/);
+  const serviceArea = areaMatch ? areaMatch[1].trim().replace(/\s+(and|&)$/, "") : null;
+  const services = [];
+  const evidence = [];
+  for (const line of text.split("\n")) {
+    const m = line.match(/^-?\s*([A-Za-z][A-Za-z0-9 &'/()+-]{2,48}?)\s*[:\-–—|]?\s*(?:from\s+)?\$(\d[\d,]*)(?:\s*(?:-|–|to)\s*\$?(\d[\d,]*))?/i);
+    if (m && services.length < 10) {
+      const low = Number(m[2].replace(/,/g, ""));
+      const high = m[3] ? Number(m[3].replace(/,/g, "")) : low;
+      services.push({ name: m[1].trim(), priceLow: low, priceHigh: high, keywords: m[1].toLowerCase().split(/\s+/).filter((w) => w.length > 3).slice(0, 4), evidence: line.slice(0, 140) });
+    }
+  }
+  if (serviceArea) evidence.push({ field: "serviceArea", quote: areaMatch[0] });
+  evidence.push({ field: "name", quote: site.title || name });
+  const isSpa = trade === "medspa";
+  return {
+    name,
+    trade,
+    tradeLabel: trade === "unsupported" ? "business" : isSpa ? "med spa" : "roofing company",
+    serviceArea,
+    summary: site.description || `${name}, read from ${site.host || "its website"}.`,
+    services,
+    greeting: isSpa ? "Tell me what you'd like help with, or what you've noticed about your skin." : "Tell me what's going on with the roof, and where the water is getting in.",
+    heroTitle: isSpa ? `Curious about a treatment at ${name}?` : `Roof trouble? ${name} can take a look.`,
+    heroText: isSpa
+      ? "Tell us what you've noticed, add a photo if you like, and we'll match it to our menu, give you the published price and book a consultation."
+      : "Describe the problem and add a photo. We outline the damage, draft a price range and book a free inspection, in minutes.",
+    placeholder: isSpa ? "What would you like help with?" : "What's happening with your roof?",
+    evidence,
+    confidence: trade === "unsupported" ? 0.3 : 0.6,
+  };
+}

@@ -271,6 +271,54 @@ export async function reactivateMessage({ lead = {}, tenant = { name: "the busin
   return { message: String(out.message || ""), generic };
 }
 
+// ----- Instant setup -----
+
+const NULLABLE_NUM = { type: ["number", "null"] };
+const SETUP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    name: { type: "string" },
+    trade: { type: "string", enum: ["roofing", "medspa", "unsupported"] },
+    tradeLabel: { type: "string" },
+    serviceArea: { type: ["string", "null"] },
+    summary: { type: "string" },
+    services: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { name: { type: "string" }, priceLow: NULLABLE_NUM, priceHigh: NULLABLE_NUM, keywords: { type: "array", items: { type: "string" } }, evidence: { type: "string" } },
+        required: ["name", "priceLow", "priceHigh", "keywords", "evidence"],
+      },
+    },
+    greeting: { type: "string" },
+    heroTitle: { type: "string" },
+    heroText: { type: "string" },
+    placeholder: { type: "string" },
+    evidence: { type: "array", items: { type: "object", additionalProperties: false, properties: { field: { type: "string" }, quote: { type: "string" } }, required: ["field", "quote"] } },
+    confidence: { type: "number" },
+  },
+  required: ["name", "trade", "tradeLabel", "serviceArea", "summary", "services", "greeting", "heroTitle", "heroText", "placeholder", "evidence", "confidence"],
+};
+
+export async function setupTenant({ site = {} } = {}) {
+  const out = await sparkJson({
+    system: section("setupTenant"),
+    user: JSON.stringify({ url: site.url, title: site.title, siteName: site.siteName, description: site.description, text: String(site.text || "").slice(0, 9000) }),
+    schema: SETUP_SCHEMA,
+    name: "tenant",
+  });
+  // Keep only prices that actually appear in the site text: a number the model wrote that the site never printed is dropped.
+  const printed = new Set((String(site.text || "").match(/\$\s?\d[\d,]*/g) || []).map((p) => Number(p.replace(/[^\d]/g, ""))));
+  const services = (out.services || []).slice(0, 10).map((sv) => ({
+    ...sv,
+    priceLow: printed.has(Number(sv.priceLow)) ? Number(sv.priceLow) : null,
+    priceHigh: printed.has(Number(sv.priceHigh)) ? Number(sv.priceHigh) : printed.has(Number(sv.priceLow)) ? Number(sv.priceLow) : null,
+  }));
+  return { ...out, services, confidence: clamp(out.confidence, 0, 1) };
+}
+
 // ----- Muse Image -----
 
 // The composed card (annotated photo + text) is the reference image; Muse Image renders the finished visual.
