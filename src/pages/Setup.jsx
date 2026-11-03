@@ -6,6 +6,7 @@ import { addTenant } from "@/lib/store";
 import { buildTenant } from "@/lib/onboard";
 import Logo from "@/components/shared/Logo";
 import ProviderBadge from "@/components/shared/ProviderBadge";
+import { isMenu } from "@/config/trades";
 
 const STEPS = ["Reading the website", "Building the desk from what it says", "Ready for your review"];
 
@@ -59,7 +60,14 @@ export default function Setup() {
   };
 
   const patch = (fn) => setTenant((t) => fn(structuredClone(t)));
-  const spa = tenant?.trade === "medspa";
+  const DESK_TYPE = {
+    roofing: "Roofing: photo, outline, measured estimate",
+    medspa: "Med spa: published service menu, clinician approves",
+    plumbing: "Plumbing: published menu, coded emergency rule, freeze radar",
+    hvac: "AC and fridge repair: published menu, label and code read from photo, heat radar",
+    salon: "Hair salon: photo consent, published menu, patch-test flag",
+    barber: "Barber: photo consent, published menu",
+  };
   const launch = () => {
     addTenant(tenant);
     navigate(`/frontdesk`);
@@ -79,7 +87,7 @@ export default function Setup() {
 
       <main className="mx-auto max-w-[1100px] px-4 py-10 md:px-8 md:py-16">
         <h1 className="font-display-tight max-w-[18ch] text-[44px] leading-[1.02] md:text-[64px]">Your front desk, built from your website.</h1>
-        <p className="mt-4 max-w-[56ch] text-[17px] text-muted-foreground">Paste the address of a roofing company or a med spa. The desk reads the site, finds the services, prices and service area it states, and writes its own greeting. You check every fact before it goes live.</p>
+        <p className="mt-4 max-w-[56ch] text-[17px] text-muted-foreground">Paste the address of a roofing, plumbing, AC or appliance repair, med spa, hair salon or barber business. The desk reads the site, finds the services, prices and service area it states, and writes its own greeting. You check every fact before it goes live.</p>
 
         <form onSubmit={run} className="mt-8 flex max-w-[680px] flex-col gap-2 sm:flex-row">
           <label className="relative flex-1">
@@ -116,7 +124,7 @@ export default function Setup() {
                 <input value={tenant.name} onChange={(e) => patch((t) => ((t.name = e.target.value), t))} className="mt-1 h-11 w-full rounded-xl border border-border bg-card px-3 text-[17px] text-foreground outline-none focus:border-foreground" />
               </label>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <p className="text-[15px]"><span className="block text-[13px] text-muted-foreground">Desk type</span>{spa ? "Med spa: published service menu, clinician approves" : "Roofing: photo, outline, measured estimate"}</p>
+                <p className="text-[15px]"><span className="block text-[13px] text-muted-foreground">Desk type</span>{DESK_TYPE[tenant.trade] || DESK_TYPE.roofing}</p>
                 <label className="text-[13px] text-muted-foreground">
                   Service area
                   <input value={tenant.serviceArea} onChange={(e) => patch((t) => ((t.serviceArea = e.target.value), t))} className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-[15px] text-foreground outline-none focus:border-foreground" />
@@ -124,7 +132,7 @@ export default function Setup() {
               </div>
 
               <h2 className="mt-6 text-lg">Services found on the site</h2>
-              {tenant.services.length === 0 && <p className="mt-2 text-[14px] text-muted-foreground">No services with prices were printed on the pages read.{spa ? " Add them after launch, or the desk routes every enquiry to a consultation." : ""}</p>}
+              {tenant.services.length === 0 && <p className="mt-2 text-[14px] text-muted-foreground">No services with prices were printed on the pages read.{isMenu(tenant.trade) ? ` Add them after launch, or the desk routes every enquiry to ${tenant.words?.visit === "appointment" ? "an appointment" : "a visit"}.` : ""}</p>}
               <ul className="mt-2 divide-y divide-border">
                 {tenant.services.map((s, i) => (
                   <li key={i} className="flex flex-wrap items-center gap-2 py-2 text-[15px]">

@@ -64,9 +64,9 @@ export function draftQuote({ material, measurement, rateCard }) {
 }
 
 // Med spa: the range comes from the spa's own published price for the matched service. No measurement, no invention.
-export function draftServiceQuote({ service, disclaimer }) {
+export function draftServiceQuote({ service, disclaimer, pro = "clinician", visit = "consultation" }) {
   if (!service) {
-    return { total: null, low: null, high: null, lines: [], rates: {}, reason: "No matching published service. The clinician advises at the consultation.", disclaimer, currency: "USD" };
+    return { total: null, low: null, high: null, lines: [], rates: {}, reason: `No matching published service. The ${pro} advises at the ${visit}.`, disclaimer, currency: "USD" };
   }
   return {
     total: round2((service.priceLow + service.priceHigh) / 2),

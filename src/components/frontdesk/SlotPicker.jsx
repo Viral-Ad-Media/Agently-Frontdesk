@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CalendarCheck, Check } from "lucide-react";
 import { useStore, bookSlot, updateCase } from "@/lib/store";
+import { tradeProfile, withArticle } from "@/config/trades";
 
 export const fmtDay = (iso) => new Date(iso).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
 export const fmtTime = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -44,12 +45,12 @@ export default function SlotPicker({ caseId, tenant, address, onBooked }) {
   }
 
   return (
-    <section className="fd-card p-5" aria-label={`Book a ${tenant.words.visitLong}`}>
+    <section className="fd-card p-5" aria-label={`Book ${withArticle(tenant.words.visitLong)}`}>
       <div className="flex items-center gap-2">
         <CalendarCheck className="h-4 w-4 text-primary" />
-        <h3 className="text-lg">Book a {tenant.words.visitLong}</h3>
+        <h3 className="text-lg">Book {withArticle(tenant.words.visitLong)}</h3>
       </div>
-      <p className="mt-1 text-[14px] text-muted-foreground">{tenant.trade === "medspa" ? "A clinician goes through everything with you in person." : `A ${tenant.words.pro} confirms the price on site.`} Pick a time that suits you.</p>
+      <p className="mt-1 text-[14px] text-muted-foreground">{tenant.trade === "medspa" ? "A clinician goes through everything with you in person." : tradeProfile(tenant.trade).onSite ? `${withArticle(tenant.words.pro).replace(/^a/, "A")} confirms the price on site.` : `Your ${tenant.words.pro} confirms the service and price in person.`} Pick a time that suits you.</p>
 
       {error && <p className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-[14px] text-destructive">{error}</p>}
 
@@ -75,7 +76,7 @@ export default function SlotPicker({ caseId, tenant, address, onBooked }) {
             <p className="mt-1 text-lg">
               {fmtDay(slot.start)} at {fmtTime(slot.start)}
             </p>
-            <p className="text-[14px] text-muted-foreground">{tenant.trade === "medspa" ? `${tenant.name}, ${tenant.serviceArea}` : address || "Address to confirm"}</p>
+            <p className="text-[14px] text-muted-foreground">{!tradeProfile(tenant.trade).onSite ? `${tenant.name}, ${tenant.serviceArea}` : address || "Address to confirm"}</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name (optional)" className="h-10 rounded-xl border border-border bg-card px-3 text-[15px] outline-none focus:border-foreground" />

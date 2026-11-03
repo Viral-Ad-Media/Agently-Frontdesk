@@ -22,6 +22,7 @@
 import { areaPercent } from "../../lib/eye.js";
 import { readUtterance } from "../../lib/desk.js";
 import { QUESTION, NEEDS, DAY_WORD, THOUGHT } from "../../lib/agent.js";
+import { isMenu, mentions, tradeProfile } from "../../config/trades.js";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -31,7 +32,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // Med spa: a small concern-area outline, never a reference (nothing is measured in metres).
 export async function segmentDamage({ trade = "roofing", photoName = "" } = {}) {
   await wait(900);
-  if (trade === "medspa") {
+  if (isMenu(trade)) {
     const polygon = [
       [540, 430],
       [640, 418],
@@ -41,7 +42,7 @@ export async function segmentDamage({ trade = "roofing", photoName = "" } = {}) 
       [516, 490],
     ];
     return {
-      regions: [{ label: "area of concern", bbox: [516, 418, 672, 560], polygon, areaPercent: Math.round(areaPercent(polygon) * 10) / 10 }],
+      regions: [{ label: trade === "medspa" ? "area of concern" : tradeProfile(trade).concepts?.[0] || "area of concern", bbox: [516, 418, 672, 560], polygon, areaPercent: Math.round(areaPercent(polygon) * 10) / 10 }],
       reference: null,
       tiltDeg: 0,
       confidence: 0.7,
@@ -74,6 +75,7 @@ export async function segmentDamage({ trade = "roofing", photoName = "" } = {}) 
 export async function assess({ trade = "roofing", description = "", urgency = null, measurement = null, tenant = null } = {}) {
   await wait(1100);
   if (trade === "medspa") return assessMedspa({ description, tenant });
+  if (isMenu(trade)) return assessMenu({ trade, description, tenant });
   const text = description.toLowerCase();
   const electrical = /spark|electric|wire|outlet|light fitting|fuse/.test(text);
   const inside = /ceiling|inside|dripping|bucket|bedroom|living room|kitchen/.test(text);
@@ -148,7 +150,49 @@ function assessMedspa({ description, tenant }) {
   };
 }
 
-export async function converse({ trade = "roofing", messages = [], caseState = {} } = {}) {
+// Service-menu trades other than the med spa: plumbing, AC and appliance repair, hair salon, barber.
+// Matches the enquiry to the business's own published services, flags what the pro must check first,
+// and raises the emergency path for the trade's coded hazards. Never a price of its own.
+function assessMenu({ trade, description, tenant }) {
+  const prof = tradeProfile(trade);
+  const text = description.toLowerCase();
+  const services = tenant?.services || [];
+  const scored = services
+    .map((s) => ({ s, hits: s.concerns.filter((c) => mentions(text, c)).length }))
+    .filter((x) => x.hits > 0)
+    .sort((a, b) => b.hits - a.hits);
+  const matches = scored.slice(0, 2);
+  const flags = [];
+  if (trade === "salon" && /colou?r|dye|bleach|highlight|balayage|brassy|grey|gray|roots/.test(text)) flags.push("Colour service: allergy patch test at least 48 hours before");
+  if (trade === "salon" && /brassy|orange|patchy|went wrong|green|box dye|box-dye/.test(text)) flags.push("Colour correction: stylist consultation before booking the service");
+  if (trade === "barber" && /cut on|irritat|rash|bump|sore/.test(text)) flags.push("Scalp or skin irritation mentioned: barber checks before cutting");
+  if (trade === "plumbing" && /water heater|boiler|tank/.test(text)) flags.push("Water heater: plumber checks the age and the pressure relief valve on site");
+  if (trade === "hvac" && /error|code|flashing|blinking/.test(text)) flags.push("Error code: technician reads it on the unit's label to confirm the model");
+  if (trade === "hvac" && /refrigerant|freon|hissing|ice/.test(text)) flags.push("Possible refrigerant issue: certified technician only, the customer never opens the unit");
+  const danger = prof.hazard?.test(description);
+  const top = matches[0]?.s;
+  const who = prof.reviewer;
+  return {
+    summary: `You've described ${description.trim().replace(/[.?!]+$/, "").replace(/^[A-Z](?=[a-z])/, (x) => x.toLowerCase()) || "what you need"}. ${top ? `That matches ${top.name} on our menu.` : "Nothing on our published menu matches it exactly, so the " + who + " will advise."} The ${who} confirms it before anything is booked or priced.`,
+    severity: danger ? "Severe" : flags.length ? "Moderate" : "Minor",
+    material: { name: "service match", confidence: scored.length ? 0.72 : 0.4, alternatives: [] },
+    failedPart: top ? top.name : `To confirm with the ${who}`,
+    workNeeded: prof.onSite ? [`The ${who} confirms the problem on site`, "Repair at the published price range", "You approve the final price before work starts"] : [`Your ${who} confirms the service with you`, "The service at the published price", "Any extras agreed with you first"],
+    serviceMatch: matches.map(({ s }) => ({ serviceId: s.id, name: s.name, fit: "likely" })),
+    clinicianFlags: flags,
+    emergency: danger
+      ? {
+          isEmergency: true,
+          reason: trade === "hvac" ? "A gas or burning smell, smoke or sparks from an appliance" : "A gas smell, a burst pipe, flooding or water near electrics",
+          actions: trade === "hvac" ? ["Switch the unit off at the breaker", "If you smell gas, leave the building and call from outside", "We call you straight back"] : ["Shut off the water at the main stop valve", "If you smell gas, leave the building and call from outside", "Keep clear of water near outlets or wiring"],
+          hotline: "911 for gas or fire",
+        }
+      : null,
+    confidence: scored.length ? 0.72 : 0.45,
+  };
+}
+
+export async function converse({ trade = "roofing", messages = [], caseState = {}, tenant = null } = {}) {
   await wait(600);
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   const text = (lastUser?.content || "").trim();
@@ -171,21 +215,43 @@ export async function converse({ trade = "roofing", messages = [], caseState = {
     };
   }
 
-  if (trade === "medspa") {
+  // On-site menu trades (plumbing, AC): what's wrong, the address, then an optional photo.
+  if (isMenu(trade) && tradeProfile(trade).onSite) {
+    const w = tenant?.words || {};
     if (!caseState.description) {
-      if (!text) return { reply: "Tell me what you'd like help with, or what you've noticed about your skin.", extracted, nextAction: "ask_description" };
+      if (!text) return { reply: w.greeting || "Tell me what's going on.", extracted, nextAction: "ask_description" };
+      extracted.description = text;
+      extracted.urgency = tradeProfile(trade).hazard?.test(text) || /urgent|now|tonight|flood|no hot water|not cooling/i.test(text) ? "urgent" : "routine";
+      extracted.intent = "repair";
+      return { reply: `Got it. What's the address of the property? Street and town is enough.`, extracted, nextAction: "ask_address" };
+    }
+    if (!caseState.address) {
+      if (asked === "ask_address" && text) {
+        extracted.address = text;
+        return { reply: `Thanks. If you can, add ${tradeProfile(trade).photoAsk}. It's optional, and I'll match it to our services.`, extracted, nextAction: "ask_photo" };
+      }
+      return { reply: "What's the address of the property? Street and town is enough.", extracted, nextAction: "ask_address" };
+    }
+    if (!caseState.photo) return { reply: `Add ${tradeProfile(trade).photoAsk} when you're ready, or skip it and I'll go from your description.`, extracted, nextAction: "ask_photo" };
+    return { reply: "Thanks. Here's what we've noted.", extracted, nextAction: "assess" };
+  }
+
+  if (isMenu(trade)) {
+    const studio = trade !== "medspa";
+    if (!caseState.description) {
+      if (!text) return { reply: studio ? tenant?.words?.greeting || "What would you like?" : "Tell me what you'd like help with, or what you've noticed about your skin.", extracted, nextAction: "ask_description" };
       extracted.description = text;
       extracted.urgency = "routine";
       extracted.intent = "consultation";
       return {
-        reply: "Thank you. A photo helps our clinician see what you mean, but it's optional. If you'd like to share one, please confirm consent first.",
+        reply: `Thank you. A photo helps our ${studio ? tradeProfile(trade).reviewer : "clinician"} see what you mean, but it's optional. If you'd like to share one, please confirm consent first.`,
         extracted,
         nextAction: "ask_consent",
       };
     }
     if (!caseState.consent) return { reply: "Whenever you're ready, confirm consent below and add a photo, or tell me more.", extracted, nextAction: "ask_consent" };
-    if (!caseState.photo) return { reply: "Add a photo of the area when you're ready. Natural light, no filters.", extracted, nextAction: "ask_photo" };
-    return { reply: "Thank you. Here's what we've noted for the clinician.", extracted, nextAction: "assess" };
+    if (!caseState.photo) return { reply: `Add ${tradeProfile(trade).photoAsk} when you're ready. Natural light, no filters.`, extracted, nextAction: "ask_photo" };
+    return { reply: `Thank you. Here's what we've noted for the ${studio ? tradeProfile(trade).reviewer : "clinician"}.`, extracted, nextAction: "assess" };
   }
 
   if (!caseState.description) {
@@ -222,6 +288,20 @@ export async function reactivateMessage({ lead = {}, tenant = {}, storm = null }
   await wait(500);
   const who = tenant.name || "the team";
   if (storm) {
+    const first = lead.firstName || lead.name;
+    // Freeze and heat check-ins (plumbing, AC): name what the weather service forecast, offer a check, never claim a fault.
+    if (storm.kind === "freeze") {
+      return {
+        message: `Hi ${first}, it's ${who}. The weather service has a hard freeze${storm.lowF != null ? ` with lows near ${storm.lowF}°F` : ""} over ${storm.area || "your area"} ${storm.when || "soon"}. Dripping indoor faucets helps. If anything looks wrong after, reply YES and we'll book a quick pipe check.`,
+        generic: false,
+      };
+    }
+    if (storm.kind === "heat") {
+      return {
+        message: `Hi ${first}, it's ${who}. The weather service expects a heat wave${storm.heatIndexF != null ? ` with a heat index up to ${storm.heatIndexF}°F` : ""} over ${storm.area || "your area"} ${storm.when || "soon"}. Want an AC check before it peaks? Reply YES and we'll book a time.`,
+        generic: false,
+      };
+    }
     // Storm check-in: name the storm the weather service reported, offer a free photo check, never claim damage.
     const facts = [storm.hailIn ? `${storm.hailIn} in hail` : "", storm.windMph ? `${storm.windMph} mph gusts` : ""].filter(Boolean).join(" and ");
     return {
@@ -330,9 +410,16 @@ export async function setupTenant({ site = {} } = {}) {
   const text = String(site.text || "");
   const lower = text.toLowerCase();
   const count = (re) => (lower.match(re) || []).length;
-  const roof = count(/roof|shingle|gutter|storm damage|hail|leak/g);
-  const spa = count(/facial|botox|filler|laser|med ?spa|skin|peel|injectable|microneedling|aesthetic/g);
-  const trade = roof === 0 && spa === 0 ? "unsupported" : roof >= spa ? "roofing" : "medspa";
+  const scores = {
+    roofing: count(/roof|shingle|gutter|storm damage|hail/g),
+    medspa: count(/facial|botox|filler|laser|med ?spa|skin|peel|injectable|microneedling|aesthetic/g),
+    plumbing: count(/plumb|drain|faucet|toilet|water heater|pipe|sewer/g),
+    hvac: count(/air condition|\bac\b|a\/c|hvac|refrigerat|fridge|freezer|appliance|cooling/g),
+    salon: count(/salon|balayage|highlights|colou?r|blowout|stylist/g),
+    barber: count(/barber|fade|beard|shave|line-?up/g),
+  };
+  const [best, n] = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+  const trade = n === 0 ? "unsupported" : best;
   const rawName = site.siteName || String(site.title || "").split(/\s[|\-–—:]\s/)[0] || site.host || "Your business";
   const name = rawName.trim().slice(0, 60);
   const areaMatch = text.match(/(?:serving|proudly serving|located in|based in)\s+(?:the\s+)?([A-Z][A-Za-z.' ]+(?:,\s*[A-Z]{2})?)/);
@@ -350,6 +437,23 @@ export async function setupTenant({ site = {} } = {}) {
   if (serviceArea) evidence.push({ field: "serviceArea", quote: areaMatch[0] });
   evidence.push({ field: "name", quote: site.title || name });
   const isSpa = trade === "medspa";
+  if (trade !== "unsupported" && trade !== "roofing" && trade !== "medspa") {
+    const prof = tradeProfile(trade);
+    return {
+      name,
+      trade,
+      tradeLabel: prof.noun,
+      serviceArea,
+      summary: site.description || `${name}, read from ${site.host || "its website"}.`,
+      services,
+      greeting: `Tell me what you need from ${name}, and I'll match it to our services.`,
+      heroTitle: `${prof.label}? ${name} can help.`,
+      heroText: "Tell us what you need and add a photo if you like. We match it to our menu, give you the published price and book a time.",
+      placeholder: "What do you need?",
+      evidence,
+      confidence: 0.6,
+    };
+  }
   return {
     name,
     trade,
@@ -447,8 +551,11 @@ export async function judgeAssessment({ trade = "roofing", description = "", seg
   await wait(600);
   const issues = [];
   const text = String(description).toLowerCase();
-  if (trade === "medspa") {
-    if (/\byou have\b|\bdiagnos/i.test(assessment?.summary || "")) issues.push({ type: "unsupported", detail: "The summary reads as a diagnosis; it must only describe what the client said." });
+  if (isMenu(trade)) {
+    // Service names are the business's own words ("AC diagnostic visit"), so they are not the card's claim.
+    const own = (assessment?.serviceMatch || []).reduce((t, m) => t.split(m.name || "\u0000").join(""), assessment?.summary || "");
+    if (/\byou have\b|\bdiagnos/i.test(own)) issues.push({ type: "unsupported", detail: "The summary reads as a diagnosis; it must only describe what the client said." });
+    if (tradeProfile(trade).hazard?.test(description) && !assessment?.emergency) issues.push({ type: "missing", detail: "The customer describes a safety hazard that the card does not flag." });
   } else {
     const label = segmentation?.regions?.[0]?.label || "";
     const part = OTHER_PARTS.find(([re]) => re.test(text) && !re.test(label) && !re.test(String(assessment?.failedPart || "").toLowerCase()));
@@ -470,7 +577,21 @@ const DAMAGE = {
   medspa: /\b(skin|acne|breakouts?|spots|dull|dry|wrinkles?|lines|tone|pores|scars?|redness)\b/i,
 };
 
+// Does the text describe the job itself (not just a question)? Menu trades: any of the business's own service words.
+const describesJob = (trade, tenant, text) =>
+  isMenu(trade) && trade !== "medspa" ? (tenant?.services || []).some((sv) => sv.concerns.some((c) => mentions(text, c))) : DAMAGE[trade === "medspa" ? "medspa" : "roofing"].test(text);
+
 function qualifyOnly(trade, caseState) {
+  if (isMenu(trade) && tradeProfile(trade).onSite) {
+    if (!caseState.description) return { reply: "So I can book the right visit, what's going on?", nextAction: "ask_description" };
+    if (!caseState.address) return { reply: "What's the address of the property? Street and town is enough.", nextAction: "ask_address" };
+    if (!caseState.photo) return { reply: `Add ${tradeProfile(trade).photoAsk} if you can, or skip it.`, nextAction: "ask_photo" };
+    return { reply: "", nextAction: "none" };
+  }
+  if (isMenu(trade) && trade !== "medspa") {
+    if (!caseState.description) return { reply: "What would you like booked?", nextAction: "ask_description" };
+    return { reply: "", nextAction: "none" };
+  }
   if (trade === "medspa") {
     if (!caseState.description) return { reply: "What would you like help with, or what have you noticed about your skin?", nextAction: "ask_description" };
     if (!caseState.consent) return { reply: "When you're ready, confirm consent below and add a photo, or tell me more.", nextAction: "ask_consent" };
@@ -495,7 +616,7 @@ function answerFrom(o, tenant, trade, text = "") {
     return `Our next open ${tenant.words?.visit || "visit"} times are ${list(Object.entries(byDay).map(([d, ts]) => `${d} at ${list(ts)}`))}.`;
   }
   if (o.tool === "rate_card") {
-    if (trade === "medspa") return `From our menu: ${list((r.services || []).map((s) => `${s.name} ${money(s.from)} to ${money(s.to)}`))}. A clinician confirms what suits you at the consultation.`;
+    if (isMenu(trade)) return `From our menu: ${list((r.services || []).map((s) => `${s.name} ${money(s.from)} to ${money(s.to)}`))}. ${trade === "medspa" ? "A clinician confirms what suits you at the consultation." : `The ${tenant.words?.pro || "team"} confirms the final price at the ${tenant.words?.visit || "visit"}.`}`;
     if (!r.published) return "Our prices aren't published yet, so the team will confirm them at the visit.";
     const named = (r.servicePrices || []).find((s) => s.name.toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
     if (named) return `${named.name} is ${money(named.from)}${named.to !== named.from ? ` to ${money(named.to)}` : ""} on our published price list. The final price is confirmed at the ${r.visit || "visit"}.`;
@@ -531,13 +652,13 @@ export async function agentStep({ trade = "roofing", tenant = {}, messages = [],
   if (next && !mustAnswer) {
     await wait(250);
     const day = text.match(DAY_WORD)?.[1]?.toLowerCase() || null;
-    return { action: "tool", tool: next, args: next === "check_calendar" ? { day } : next === "rate_card" ? { topic: trade === "medspa" ? (text.match(DAMAGE.medspa)?.[0] || null) : null } : {}, thought: THOUGHT[next] };
+    return { action: "tool", tool: next, args: next === "check_calendar" ? { day } : next === "rate_card" ? { topic: trade === "medspa" ? (text.match(DAMAGE.medspa)?.[0] || null) : isMenu(trade) ? text : null } : {}, thought: THOUGHT[next] };
   }
   const answers = observations.map((o) => answerFrom(o, tenant, trade, text)).filter(Boolean);
   // A price question that names a listed service ("how much is leak detection?") is a question, not a description.
   const namesService = (tenant.services || []).some((sv) => String(sv.name).toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
-  const pureQuestion = needed.length > 0 && (!DAMAGE[trade === "medspa" ? "medspa" : "roofing"].test(text) || (needed.includes("rate_card") && namesService));
-  const base = pureQuestion ? { ...qualifyOnly(trade, caseState), extracted: {} } : await converse({ trade, messages, caseState });
+  const pureQuestion = needed.length > 0 && (!describesJob(trade, tenant, text) || (needed.includes("rate_card") && namesService));
+  const base = pureQuestion ? { ...qualifyOnly(trade, caseState), extracted: {} } : await converse({ trade, messages, caseState, tenant });
   return {
     action: "answer",
     reply: [...answers, base.reply].filter(Boolean).join(" "),

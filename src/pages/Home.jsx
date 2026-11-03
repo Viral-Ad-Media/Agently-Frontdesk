@@ -6,6 +6,7 @@ import Footer from "@/components/home/Footer";
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getState, setActiveTenant, useStore } from "@/lib/store";
+import { tradeProfile } from "@/config/trades";
 
 export default function Home() {
   const trade = useStore((s) => s.tenant.trade);
@@ -17,7 +18,7 @@ export default function Home() {
     if (wanted && st.tenants[wanted] && st.tenant?.id !== wanted) setActiveTenant(wanted);
   }, [wanted]);
   return (
-    <div className={`site-${trade === "medspa" ? "medspa" : "roofing"} min-h-screen bg-background`}>
+    <div className={`site-${tradeProfile(trade).look === "studio" ? "medspa" : "roofing"} min-h-screen bg-background`}>
       <Navbar />
       <Hero />
       <HowItWorks />

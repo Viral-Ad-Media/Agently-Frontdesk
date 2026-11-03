@@ -9,13 +9,16 @@ import {
   Check,
   ChevronDown,
   CloudLightning,
+  Droplets,
   FileText,
   Globe,
   LayoutDashboard,
   MessageCircle,
   Phone,
   RotateCcw,
+  Scissors,
   ShieldCheck,
+  Snowflake,
   Sparkles,
   Wrench,
 } from "lucide-react";
@@ -33,11 +36,11 @@ const SITE = "/site";
 const MODELS = ["Muse Spark", "SAM 3.1", "Muse Image", "Muse Voice Transcribe"];
 
 const FAQ = [
-  ["Does it make up prices?", "No. Roofing quotes come from the owner's own rate card and the measured damage. Med spa prices come only from the published menu. If there is no match, the desk says so and books a consultation instead."],
+  ["Does it make up prices?", "No. Roofing quotes come from the owner's own rate card and the measured damage. Every other trade (med spa, plumbing, AC and fridge repair, hair salon, barber) prices only from the published menu. If there is no match, the desk says so and books a visit instead."],
   ["Does anything go to a customer without me?", "Every price, plan and re-opener waits for the owner's tap. The desk drafts; you approve and send."],
   ["What does it run on?", "Meta models: Muse Spark for conversation and drafting, SAM 3.1 to outline damage in photos, Muse Voice Transcribe for calls. A labelled mock provider runs the same flow offline for rehearsals."],
   ["How long does setup take?", "Paste your website. The desk reads it, lists the services, prices and service area it found with the quote it found them in, and you check each fact before launch. Usually under a minute."],
-  ["Which businesses does it support?", "Roofing and med spas today. Each trade has its own rules: roofers get photo outlines, measured estimates, storm alerts and claim packs; med spas get consent, clinician review and published-menu pricing."],
+  ["Which businesses does it support?", "Six trades today: roofing, med spa, plumbing, AC and fridge repair, hair salon and barber. Each has its own rules on the same system: roofers get photo outlines, measured estimates, storm alerts and claim packs; plumbers get freeze alerts and a coded emergency rule for gas, bursts and flooding; AC techs get heat alerts and labels read from the photo; med spas, salons and barbers get photo consent first, a patch-test flag for colour, and published-menu pricing."],
   ["What happens when a storm hits?", "Storm radar reads live National Weather Service alerts, finds the customers inside the warning area and drafts a personal check-in for each. Anyone who opted out is never contacted."],
 ];
 
@@ -380,12 +383,16 @@ export default function Product() {
           <Reveal y={24}>
             <SectionHead eyebrow="// trades" title="Built for the work, not a generic chatbot." />
           </Reveal>
-          <div className="mt-10 grid gap-4 md:grid-cols-2">
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[
               [Wrench, "Roofing", "Summit Ridge Roofing", ["Photo outline and measured area", "Estimate from your own rate card", "Storm radar and claim packs", "Free inspection booking"]],
               [Sparkles, "Med spa", "Luma Skin Studio", ["Photo consent before anything else", "Prices only from your published menu", "Clinician approves every plan", "Consultation booking"]],
+              [Droplets, "Plumbing", "Clearline Plumbing", ["Gas, burst and flood rule in code", "Freeze radar and pipe check-ins", "Prices only from your published menu", "Plumber visit booking"]],
+              [Snowflake, "AC and fridge repair", "Polar Point AC & Appliance", ["Model label and error code read from the photo", "Heat radar and AC check-ins", "Burning smell or sparks go to a person", "Technician visit booking"]],
+              [Scissors, "Hair salon", "Fern & Fringe Hair Studio", ["Photo consent before anything else", "Patch test flagged for every colour", "Colour correction is consultation first", "Appointment booking"]],
+              [Scissors, "Barber", "Ironside Barber Club", ["Matched to your menu and prices", "Scalp or skin issues noted for the barber", "Never comments on looks, only the cut", "Chair booking"]],
             ].map(([Icon, trade, demo, items], i) => (
-              <Reveal key={trade} delay={i * 0.08} y={24}>
+              <Reveal key={trade} delay={(i % 3) * 0.08} y={24}>
                 <div className="h-full rounded-2xl border border-white/10 bg-[#111113] p-6 sm:p-8">
                   <div className="flex items-center justify-between">
                     <span className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04]"><Icon className="h-5 w-5 text-white/80" strokeWidth={1.75} /></span>
@@ -443,11 +450,11 @@ export default function Product() {
         <div className="mx-auto grid max-w-[1200px] gap-8 px-4 py-12 sm:grid-cols-2 sm:px-6 md:grid-cols-4">
           <div>
             <p className="text-[15px] font-semibold">Agently</p>
-            <p className="mt-2 max-w-[28ch] text-[13px] leading-relaxed text-white/45">An AI front desk for roofers and med spas, on Meta models.</p>
+            <p className="mt-2 max-w-[28ch] text-[13px] leading-relaxed text-white/45">An AI front desk for roofers, plumbers, AC techs, med spas, salons and barbers, on Meta models.</p>
           </div>
           {[
             ["Product", [["Customer view", SITE], ["Owner dashboard", "/frontdesk"], ["Set up from a website", "/setup"]]],
-            ["Trades", [["Roofing", SITE], ["Med spa", "/chat?tenant=luma-skin"]]],
+            ["Trades", [["Roofing", SITE], ["Med spa", "/site?tenant=luma-skin"], ["Plumbing", "/site?tenant=clearline-plumbing"], ["AC and fridge repair", "/site?tenant=polar-point"], ["Hair salon", "/site?tenant=fern-fringe"], ["Barber", "/site?tenant=ironside-barbers"]]],
             ["Learn", [["How it works", "#how"], ["Features", "#features"], ["FAQ", "#faq"]]],
           ].map(([h, links]) => (
             <div key={h}>

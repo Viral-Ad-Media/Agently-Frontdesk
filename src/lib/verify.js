@@ -1,4 +1,5 @@
 import { policyFor } from "../config/policy.js";
+import { isMenu, tradeProfile } from "../config/trades.js";
 
 // Three-layer verification (Agents 102 workshop), the deterministic parts. Pure: only the policy config is imported.
 //   Layer 1: coded checks, each with its exact reason. They cannot be skipped by the model.
@@ -47,13 +48,18 @@ export function checklist(c, policy) {
     const def = policy.checklist.find((x) => x.id === id);
     return { id, label: def?.label || id, required: !!def?.required, status, evidence };
   };
-  if (c.trade === "medspa") {
-    return [
-      text.trim() ? item("concern", "proven", `Client wrote: "${c.description.slice(0, 80)}"`) : item("concern", "not_proven", "Nothing described yet."),
-      !c.photo ? item("consent", "proven", "No photo shared, so no consent needed.") : c.consent ? item("consent", "proven", "Consent recorded before the photo.") : item("consent", "escalated", "A photo arrived without recorded consent."),
-      a.serviceMatch?.length ? item("service", "proven", `Matched: ${a.serviceMatch.map((s) => s.serviceId).join(", ")}`) : item("service", "not_proven", "No published service matched."),
-      Array.isArray(a.clinicianFlags) ? item("flags", "proven", a.clinicianFlags.length ? `${a.clinicianFlags.length} noted for the clinician` : "None raised") : item("flags", "not_proven", "Clinician checks not recorded."),
-    ];
+  if (isMenu(c.trade)) {
+    const prof = tradeProfile(c.trade);
+    const who = prof.personPhoto ? "Client" : "Customer";
+    return policy.checklist.map(({ id }) => {
+      if (id === "concern") return text.trim() ? item("concern", "proven", `${who} wrote: "${c.description.slice(0, 80)}"`) : item("concern", "not_proven", "Nothing described yet.");
+      if (id === "consent") return !c.photo ? item("consent", "proven", "No photo shared, so no consent needed.") : c.consent ? item("consent", "proven", "Consent recorded before the photo.") : item("consent", "escalated", "A photo arrived without recorded consent.");
+      if (id === "service") return a.serviceMatch?.length ? item("service", "proven", `Matched: ${a.serviceMatch.map((s) => s.serviceId).join(", ")}`) : item("service", "not_proven", "No published service matched.");
+      if (id === "flags") return Array.isArray(a.clinicianFlags) ? item("flags", "proven", a.clinicianFlags.length ? `${a.clinicianFlags.length} noted for the ${prof.reviewer}` : "None raised") : item("flags", "not_proven", `${prof.reviewer[0].toUpperCase()}${prof.reviewer.slice(1)} checks not recorded.`);
+      if (id === "safety") return a.emergency?.isEmergency || prof.hazard?.test(text) ? item("safety", "escalated", a.emergency?.reason || "Safety hazard described.") : item("safety", "proven", "No hazard described by the customer.");
+      if (id === "address") return c.customer?.address ? item("address", "proven", c.customer.address) : item("address", "not_proven", "No property address yet.");
+      return item(id, "not_proven", "Not checked.");
+    });
   }
   const region = seg?.regions?.[0];
   const mat = a.material;
@@ -76,14 +82,16 @@ export function coverage(items, bar) {
 
 // Layer 1: the coded checks. Each returns pass / fail / pending (not reached yet) and an exact reason.
 export function layer1(c, { tenant, slots = [], now = Date.now() } = {}) {
-  const spa = c.trade === "medspa";
+  // "spa" = the service-menu engine; on-site menu trades (plumbing, AC) still need the address.
+  const spa = isMenu(c.trade);
+  const onSite = tradeProfile(c.trade).onSite;
   const out = [];
   const add = (id, stage, label, status, reason) => out.push({ id, stage, label, status, reason });
 
   // After capture
-  const missing = [!c.description?.trim() && "job description", !spa && !c.customer?.address && "address", !c.trade && "trade"].filter(Boolean);
-  add("details", "capture", "Job details present", missing.length ? "fail" : "pass", missing.length ? `Missing: ${missing.join(", ")}.` : spa ? "Trade and description present." : "Trade, description and address present.");
-  if (!c.photo) add("photo", "capture", "Usable photo", spa && c.lastQuestion !== "ask_photo" ? "pass" : "pending", spa ? "Photo is optional for a consultation." : "No photo yet.");
+  const missing = [!c.description?.trim() && "job description", onSite && !c.customer?.address && "address", !c.trade && "trade"].filter(Boolean);
+  add("details", "capture", "Job details present", missing.length ? "fail" : "pass", missing.length ? `Missing: ${missing.join(", ")}.` : onSite ? "Trade, description and address present." : "Trade and description present.");
+  if (!c.photo) add("photo", "capture", "Usable photo", spa && c.lastQuestion !== "ask_photo" ? "pass" : "pending", spa ? "Photo is optional for this trade." : "No photo yet.");
   else {
     const issues = c.photo.quality?.issues || [];
     add("photo", "capture", "Usable photo", issues.length && !c.photo.acceptedAnyway ? "fail" : "pass", issues.length ? `Photo check: ${issues.map((i) => i.code).join(", ")}${c.photo.acceptedAnyway ? " (customer chose to use it anyway)" : ""}.` : "Sharp, bright enough and large enough.");
@@ -92,7 +100,7 @@ export function layer1(c, { tenant, slots = [], now = Date.now() } = {}) {
   // After assessment
   if (c.photo) {
     const regions = c.segmentation?.regions?.length || 0;
-    add("segmentation", "assessment", "Damage outlined", !c.segmentation ? "pending" : regions ? "pass" : "fail", !c.segmentation ? "Not outlined yet." : regions ? `${regions} region${regions > 1 ? "s" : ""} outlined by SAM.` : "Segmentation failed: escalate to a person.");
+    add("segmentation", "assessment", spa ? "Photo outlined" : "Damage outlined", !c.segmentation ? "pending" : regions ? "pass" : "fail", !c.segmentation ? "Not outlined yet." : regions ? `${regions} region${regions > 1 ? "s" : ""} outlined by SAM.` : "Segmentation failed: escalate to a person.");
   }
   if (!spa && c.segmentation?.regions?.length) {
     const clash = photoContradiction(c.description, c.segmentation);
