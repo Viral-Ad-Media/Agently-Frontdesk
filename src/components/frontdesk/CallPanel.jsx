@@ -68,9 +68,9 @@ export default function CallPanel({ tenant, className = "", delay = 0 }) {
   };
 
   return (
-    <Panel title="Phone calls" icon={Phone} tint="var(--ios-green)" delay={delay} meta="Transcribed and qualified by the same desk" className={className} bodyClassName="flex flex-col">
+    <Panel title="Phone calls" icon={Phone} tint="var(--ios-green)" delay={delay} meta="Rehearsal: no phone line is connected yet" className={className} bodyClassName="flex flex-col">
       <div className="border-b border-border p-4">
-      <p className="text-[14px] text-muted-foreground">A call becomes a case in your leads, the same as a chat.</p>
+      <p className="text-[14px] text-muted-foreground">A recorded call becomes a case in your leads, the same as a chat. Customers can already talk to the desk live from your website with "Talk to us"; a real phone number needs a phone provider, which isn't connected in this demo.</p>
       <div className="mt-3">
         {PROVIDER === "mock" ? (
           <button type="button" onClick={playRehearsed} disabled={busy} className="fd-btn-outline fd-btn-sm w-full">

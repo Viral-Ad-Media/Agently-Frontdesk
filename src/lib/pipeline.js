@@ -10,7 +10,7 @@ import { draftQuote, draftServiceQuote } from "./quote.js";
 
 const HAZARD = /\b(spark|sparking|burning smell|exposed wir|live wire|collaps)/i;
 
-export async function assessAndVerify({ ai, trade, description = "", urgency = null, seg, measurement = null, dataUrl = null, tenant, caseId = null, onProgress = () => {} }) {
+export async function assessAndVerify({ ai, trade, description = "", urgency = null, seg, measurement = null, dataUrl = null, tenant, caseId = null, onProgress = () => {}, onDraft = () => {} }) {
   // "spa" here means the service-menu engine (med spa, plumbing, AC, salon, barber): quote from the menu.
   const spa = isMenu(trade);
   const pol = policyFor(trade);
@@ -35,8 +35,10 @@ export async function assessAndVerify({ ai, trade, description = "", urgency = n
       ? draftServiceQuote({ service: (tenant.services || []).find((s) => s.id === a.serviceMatch?.[0]?.serviceId), disclaimer: tenant.disclaimer, pro: tenant.words?.pro, visit: tenant.words?.visit })
       : draftQuote({ material: a.material.name, measurement, rateCard: tenant.rateCard });
     q = { ...base, status: "draft", history: [{ status: "draft", at: new Date().toISOString(), by: "ai" }] };
+    // The customer sees the card as soon as it is drafted; the price stays hidden until the review passes.
+    if (attempt === 0) onDraft({ assessment: a });
     onProgress(spa && !dataUrl ? "Checking it against your notes…" : "Checking it against your photo…");
-    const jr = route("judge", { ...signals, emergency: hazard || !!a.emergency?.isEmergency });
+    const jr = route("judge", { ...signals, attempt, emergency: hazard || !!a.emergency?.isEmergency });
     judge = clash ? { verdict: "FAIL", issues: [clash], layer: "coded", usage: null } : await ai.judgeAssessment({ trade, description, segmentation: seg, measurement, assessment: a, quote: q, dataUrl, tenant, route: jr, caseId });
     runs.push({ attempt: attempt + 1, at: new Date().toISOString(), route: { tier: r.tier, effort: r.effort, reason: r.reason }, judge: { verdict: judge.verdict, issues: judge.issues, layer: judge.layer || "model" }, usage: [a.usage || null, judge.usage || null] });
     if (judge.verdict === "PASS" || clash) break;

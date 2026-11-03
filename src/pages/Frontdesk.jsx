@@ -19,6 +19,7 @@ import ReportButton from "@/components/frontdesk/ReportButton";
 import OutlineEditor from "@/components/frontdesk/OutlineEditor";
 import StormRadar from "@/components/frontdesk/StormRadar";
 import { BeforeAfter } from "@/components/frontdesk/RepairPreview";
+import AftercareCard from "@/components/frontdesk/AftercareCard";
 import Panel from "@/components/frontdesk/Panel";
 import DeskAssistant from "@/components/frontdesk/DeskAssistant";
 import { stormForCase, weatherFor } from "@/lib/storm";
@@ -75,9 +76,9 @@ export default function Frontdesk() {
           <Logo showWord={false} word={tenant.name} />
           <label className="relative min-w-0">
             <span className="sr-only">Business</span>
-            <select value={tenant.id} onChange={(e) => setActiveTenant(e.target.value)} className="h-10 max-w-[180px] cursor-pointer appearance-none truncate rounded-lg bg-transparent pl-1 pr-7 text-[15px] font-semibold text-foreground outline-none hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring sm:max-w-[320px]">
+            <select value={tenant.id} onChange={(e) => setActiveTenant(e.target.value)} className="h-10 max-w-[180px] cursor-pointer appearance-none truncate rounded-lg bg-transparent pl-1 pr-7 [color-scheme:dark] text-[15px] font-semibold text-foreground outline-none hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring sm:max-w-[320px]">
               {Object.values(tenants).map((t) => (
-                <option key={t.id} value={t.id}>
+                <option key={t.id} value={t.id} className="bg-card text-foreground">
                   {t.name}
                 </option>
               ))}
@@ -258,7 +259,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
             {c.assessment && <VerifyPill status={js.status} />}
             {q && <span className={status === "sent" ? "fd-pill-ok" : status === "approved" ? "fd-pill-strong" : "fd-pill-neutral"}>{STATUS_LABEL[status]}</span>}
             {people && c.consent && <span className="fd-pill-neutral">Photo consent</span>}
-            {c.repairPreview && <span className="fd-pill-accent">Saw it repaired</span>}
+            {c.repairPreview && <span className="fd-pill-accent">{c.repairPreview.kind === "look" ? "Previewed the look" : "Saw it repaired"}</span>}
           </div>
           <p className="mt-2 line-clamp-2 text-[14px] text-muted-foreground">{c.assessment?.failedPart || c.description || "Waiting for the customer's description."}</p>
           {q && (
@@ -352,6 +353,8 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
         </div>
       )}
 
+      <AftercareCard c={c} tenant={tenant} booked={!!slot} />
+
       {open && c.assessment && (
         <div className="pop space-y-4 border-t border-border p-4">
           <VerificationPanel c={c} js={js} />
@@ -371,7 +374,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
           ) : (
             <AssessmentCard photo={c.photo?.dataUrl} segmentation={c.segmentation} measurement={c.measurement} assessment={c.assessment} quote={c.quote} tenant={tenant} flat />
           )}
-          {c.repairPreview && c.photo && <BeforeAfter before={c.photo.dataUrl} after={c.repairPreview.imageDataUrl} provider={c.repairPreview.provider} />}
+          {c.repairPreview && c.photo && <BeforeAfter before={c.photo.dataUrl} after={c.repairPreview.imageDataUrl} provider={c.repairPreview.provider} kind={c.repairPreview.kind} />}
         </div>
       )}
     </li>

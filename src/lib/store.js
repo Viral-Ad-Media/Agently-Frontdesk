@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { seedState, seedSlots } from "@/lib/seed";
 import { QUOTE_STATUSES, draftQuote } from "@/lib/quote";
 import { measure, bboxOf, areaPercent } from "@/lib/eye";
+import { earliestStart, PATCH_TEST_HOURS } from "./patchTest.js";
 
 const KEY = "frontdesk.v4";
 // Older keys from earlier builds. A visitor who tested an earlier build starts clean instead of seeing that test data.
@@ -258,6 +259,7 @@ export function bookSlot(caseId, slotId) {
     const c = s.cases.find((x) => x.id === caseId);
     if (!slot || !c) return { ok: false, reason: "Slot or case not found." };
     if (slot.caseId && slot.caseId !== caseId) return { ok: false, reason: "That slot was just taken. Pick another." };
+    if (new Date(slot.start).getTime() < earliestStart(c, s.tenants[c.tenantId])) return { ok: false, reason: `Colour services start at least ${PATCH_TEST_HOURS} hours after your allergy patch test. Pick a later time.` };
     if (c.bookingSlotId && c.bookingSlotId !== slotId) {
       const prev = s.slots.find((x) => x.id === c.bookingSlotId);
       if (prev) prev.caseId = null;
@@ -277,6 +279,23 @@ export function cancelBooking(caseId) {
     if (slot) slot.caseId = null;
     c.bookingSlotId = null;
     c.status = "open";
+  });
+}
+
+// ----- Med spa aftercare reminders -----
+
+// The aftercare note is a draft until the clinician approves it; Send is only possible after approval, and an
+// edit after approval puts it back to draft.
+export function setAftercare(caseId, patch) {
+  update((s) => {
+    const c = s.cases.find((x) => x.id === caseId);
+    if (!c) return;
+    const prev = c.aftercare || { text: "", status: "draft" };
+    const next = { ...prev, ...patch };
+    if (patch.status === "sent" && prev.status !== "approved") return;
+    if (!patch.status && patch.text !== undefined && patch.text !== prev.text && prev.status !== "sent") next.status = "draft";
+    if (patch.status) next[`${patch.status}At`] = new Date().toISOString();
+    c.aftercare = next;
   });
 }
 
