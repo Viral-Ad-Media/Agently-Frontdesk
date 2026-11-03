@@ -154,7 +154,7 @@ export function seedLeads() {
 
 export function seedState() {
   return {
-    version: 2,
+    version: 3,
     tenants: TENANTS,
     activeTenantId: DEFAULT_TENANT,
     cases: [],

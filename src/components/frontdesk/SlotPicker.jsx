@@ -44,7 +44,7 @@ export default function SlotPicker({ caseId, tenant, address, onBooked }) {
   }
 
   return (
-    <section className="fd-card p-5" aria-label="Book an inspection">
+    <section className="fd-card p-5" aria-label={`Book a ${tenant.words.visitLong}`}>
       <div className="flex items-center gap-2">
         <CalendarCheck className="h-4 w-4 text-primary" />
         <h3 className="text-lg">Book a {tenant.words.visitLong}</h3>

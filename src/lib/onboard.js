@@ -14,7 +14,9 @@ const slug = (s) =>
 
 export function buildTenant(draft, { url = "", now = new Date() } = {}) {
   if (!draft || !ENGINES[draft.trade]) {
-    return { ok: false, reason: `This looks like a ${draft?.tradeLabel || "business"} we don't have a desk for yet. Roofing and med spa desks are live today.` };
+    const label = String(draft?.tradeLabel || "").trim();
+    const named = label && !/unsupported|unknown|other/i.test(label) ? ` (this looks like ${/^[aeiou]/i.test(label) ? "an" : "a"} ${label.toLowerCase()} business)` : "";
+    return { ok: false, reason: `We don't have a desk for that trade yet${named}. Roofing and med spa desks are live today.` };
   }
   const template = TENANTS[ENGINES[draft.trade]];
   const spa = draft.trade === "medspa";

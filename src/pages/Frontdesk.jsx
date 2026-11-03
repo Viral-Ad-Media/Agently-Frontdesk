@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarDays, Check, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, rejectQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
@@ -46,14 +46,26 @@ export default function Frontdesk() {
     .map((s) => ({ ...s, case: allCases.find((c) => c.id === s.caseId) }))
     .sort((a, b) => a.start.localeCompare(b.start));
 
-  const reset = (e) => {
-    if (!window.confirm("Clear every demo case, booking and re-opener and start fresh? (Cached AI results are kept so re-runs stay free; hold Shift to clear those too.)")) return;
+  // Two taps instead of a browser confirm box: confirm boxes are blocked or auto-dismissed in some browsers and
+  // test tools, which made Reset look like it did nothing.
+  const [resetStep, setResetStep] = useState("idle"); // idle | confirm | done
+  const [epoch, setEpoch] = useState(0); // remounts every panel on reset, so no panel keeps old drafts in memory
+  useEffect(() => {
+    if (resetStep === "idle") return undefined;
+    const t = setTimeout(() => setResetStep("idle"), resetStep === "confirm" ? 4000 : 2500);
+    return () => clearTimeout(t);
+  }, [resetStep]);
+  const reset = () => {
+    if (resetStep !== "confirm") return setResetStep("confirm");
     resetDemo();
-    if (e.shiftKey) clearGatewayCache();
+    clearGatewayCache();
+    setOpenId(null);
+    setEpoch((n) => n + 1);
+    setResetStep("done");
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div key={epoch} className="min-h-screen bg-background">
       <header className="glass sticky top-0 z-20 border-b border-white/[0.08]">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-2 px-4 md:gap-3 md:px-8">
           <Logo showWord={false} word={tenant.name} />
@@ -80,7 +92,7 @@ export default function Frontdesk() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1200px] px-4 pb-20 pt-6 md:px-8 md:pt-8">
+      <main className="mx-auto max-w-[1200px] px-4 pb-32 pt-6 md:px-8 md:pt-8">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
@@ -95,8 +107,9 @@ export default function Frontdesk() {
             <Link to="/eval" className="fd-btn-sm inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground" title="Run the eval set">
               <FlaskConical className="h-4 w-4" /> <span className="hidden sm:inline">Eval</span>
             </Link>
-            <button type="button" onClick={reset} className="fd-btn-sm inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground" title="Reset demo data">
-              <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Reset demo</span>
+            <button type="button" onClick={reset} className={`fd-btn-sm inline-flex items-center gap-1.5 ${resetStep === "confirm" ? "text-[hsl(var(--ios-red))]" : "text-muted-foreground hover:text-foreground"}`} title="Clear every demo lead, booking, draft and counter, for every business" aria-live="polite">
+              {resetStep === "done" ? <Check className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+              <span className={resetStep === "idle" ? "hidden sm:inline" : ""}>{resetStep === "confirm" ? "Tap again to reset" : resetStep === "done" ? "Demo reset" : "Reset demo"}</span>
             </button>
           </div>
         </div>
@@ -257,13 +270,16 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
               <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.75} /> {tenant.words.visit} {fmtDay(slot.start)}, {fmtTime(slot.start)}
             </p>
           )}
-          {storm && (
+          {(storm || (c.trade !== "medspa" && (c.assessment || c.photo))) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="fd-pill-accent max-w-full truncate">
-                <CloudLightning className="h-3.5 w-3.5 shrink-0" /> Storm on record{storm.source === "rehearsal" ? " (rehearsal)" : ""} · {storm.event}
-              </span>
+              {storm && (
+                <span className="fd-pill-accent max-w-full truncate">
+                  <CloudLightning className="h-3.5 w-3.5 shrink-0" /> Storm on record{storm.source === "rehearsal" ? " (rehearsal)" : ""} · {storm.event}
+                </span>
+              )}
+              {/* Every roofing lead with a photo or an assessment gets a draft claim pack: the card, photo and draft quote. */}
               <Link to={`/claim/${c.id}`} className="inline-flex items-center gap-1 text-[13px] text-foreground underline underline-offset-2">
-                <FileText className="h-3.5 w-3.5" /> Claim pack
+                <FileText className="h-3.5 w-3.5" /> Claim pack (draft)
               </Link>
             </div>
           )}

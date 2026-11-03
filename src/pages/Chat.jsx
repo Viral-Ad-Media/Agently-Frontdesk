@@ -24,11 +24,15 @@ import RepairPreview from "@/components/frontdesk/RepairPreview";
 import EmergencyBanner from "@/components/frontdesk/EmergencyBanner";
 import SlotPicker, { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 import PhotoCheck from "@/components/frontdesk/PhotoCheck";
+import SamplePhotos from "@/components/frontdesk/SamplePhotos";
 import VoiceOrb from "@/components/frontdesk/VoiceOrb";
 import TypingDots from "@/components/shared/TypingDots";
 import ReportButton from "@/components/frontdesk/ReportButton";
 
 // The customer's front desk: one case, from first message to booked visit. Chat or voice, same case.
+const BOOK_INTENT = /\b(book|booking|schedule|appointment|reserve|inspection|consultation|come out|come by|come over)\b/i;
+const SAMPLE_ADDRESS = "14 Larkspur Lane, Austin, TX"; // synthetic demo address
+
 export default function Chat() {
   const [params, setParams] = useSearchParams();
   const [caseId, setCaseId] = useState(() => {
@@ -126,6 +130,7 @@ export default function Chat() {
           lastQuestion: res.nextAction,
           provider: res.provider,
         }));
+        if (BOOK_INTENT.test(text)) updateCase(id, { bookingOffered: true });
         appendMessage(id, { role: "assistant", content: res.reply, trace: res.trace });
         say(res.reply);
       } catch (e) {
@@ -166,6 +171,27 @@ export default function Chat() {
     [caseId, busy]
   );
 
+  // Sample job (no camera needed): fills in a synthetic description and address only where the customer has not
+  // given one, says so in the chat, then runs the sample photo through exactly the same checks and pipeline.
+  const onSample = useCallback(
+    async (sample, file) => {
+      if (!caseId || busy) return;
+      const cur = getCase(caseId);
+      const addDesc = !cur.description;
+      const addAddr = !cur.customer?.address;
+      if (addDesc || addAddr) {
+        updateCase(caseId, (prev) => ({
+          description: prev.description || sample.description,
+          customer: { ...prev.customer, address: prev.customer?.address || SAMPLE_ADDRESS },
+          lastQuestion: "ask_photo",
+        }));
+        appendMessage(caseId, { role: "user", content: `Sample job: ${addDesc ? sample.description : ""}${addAddr ? `${addDesc ? " " : ""}Address: ${SAMPLE_ADDRESS}.` : ""}`.trim(), sample: true });
+      }
+      await onPhoto(file);
+    },
+    [caseId, busy, onPhoto]
+  );
+
   // Step two: outlined assessment and draft quote. Every AI step goes through the gateway.
   const acceptPhoto = useCallback(
     async (photo) => {
@@ -191,7 +217,10 @@ export default function Chat() {
           const { assessment: a, quote: q, verification } = await assessAndVerify({ ai: gateway, trade: cur.trade, description: cur.description, urgency: cur.urgency, seg, measurement: m, dataUrl: photo.dataUrl, tenant: t, caseId, onProgress: setProgress });
           updateCase(caseId, { assessment: a, quote: q, verification, status: "assessed", lastQuestion: "none", provider: seg.provider });
           const held = q.low != null && !customerMaySee(getCase(caseId), jobStatus(getCase(caseId), { tenant: t, slots: getState().slots }));
-          const reply = a.emergency?.isEmergency
+          const clash = verification.contradiction;
+          const reply = clash && !a.emergency?.isEmergency
+            ? `Thanks. The photo seems to show ${(seg.regions || []).map((r) => r.label).join(", ") || "something different"}, which doesn't match what you described, so a ${t.words.pro} is checking it before we share a range. If you can, describe it again or send a photo of the part you mean. You can book an ${t.words.visit} below either way.`
+            : a.emergency?.isEmergency
             ? held
               ? `Make it safe first. A ${t.words.pro} is checking your photo before we share a range; you can book an ${t.words.visit} now.`
               : "Make it safe first. Once you have, here is what I can see and a draft range."
@@ -221,7 +250,13 @@ export default function Chat() {
 
   const onSkipPhoto = () => {
     updateCase(caseId, { lastQuestion: "none", status: "assessed" });
-    appendMessage(caseId, { role: "assistant", kind: "assessment", content: "No problem. A clinician will go through it with you in person. Pick a consultation time below." });
+    appendMessage(caseId, {
+      role: "assistant",
+      kind: "assessment",
+      content: spa
+        ? "No problem. A clinician will go through it with you in person. Pick a consultation time below."
+        : `No problem. Without a photo there's no assessment or price yet; the ${tenant.words?.pro || "roofer"} looks at it on site. Pick a free ${tenant.words?.visit || "inspection"} time below.`,
+    });
   };
 
   const onBooked = (slot) => {
@@ -252,7 +287,9 @@ export default function Chat() {
   const showConsent = spa && !c.consent && c.lastQuestion === "ask_consent" && !busy && !pending;
   const showGuide = !c.photo && c.lastQuestion === "ask_photo" && !busy && !pending && !liveEye;
   const showLiveEye = liveEye && !c.photo && !busy && !pending;
-  const showSlots = (c.assessment || (spa && c.status === "assessed")) && !c.bookingSlotId;
+  // The time picker appears after the assessment, after "skip the photo", or as soon as the customer asks to book.
+  // Booking in the picker confirms straight away for both trades, and the slot lands on the dashboard calendar.
+  const showSlots = (c.assessment || c.status === "assessed" || c.bookingOffered) && !c.bookingSlotId && !busy;
   const orbState = voice.listening ? "listening" : busy ? "thinking" : voice.speaking ? "speaking" : "idle";
 
   return (
@@ -358,7 +395,13 @@ export default function Chat() {
           {pending && <PhotoCheck photo={pending} onRetake={onPhoto} onUse={() => acceptPhoto(pending)} />}
           {showConsent && <ConsentCard tenant={tenant} onConsent={onConsent} onSkip={onSkipPhoto} />}
           {showLiveEye && <LiveEye onCapture={onPhoto} onClose={() => setLiveEye(false)} spa={spa} />}
-          {showGuide && <CaptureGuide onPhoto={onPhoto} onLiveEye={() => setLiveEye(true)} busy={busy} spa={spa} />}
+          {showGuide && <CaptureGuide onPhoto={onPhoto} onLiveEye={() => setLiveEye(true)} onSample={onSample} onSkip={spa ? null : onSkipPhoto} busy={busy} spa={spa} />}
+          {!spa && !c.photo && !c.description && !busy && !pending && !liveEye && c.messages.length <= 2 && (
+            <div className="fd-card p-4">
+              <SamplePhotos onPick={onSample} busy={busy} compact />
+              <p className="mt-2 text-[12px] text-muted-foreground">Fills in a made-up description and address, then runs the photo through the same outline, assessment and draft quote as a real one.</p>
+            </div>
+          )}
           {showSlots && <SlotPicker caseId={c.id} tenant={tenant} address={c.customer.address} onBooked={onBooked} />}
           <div ref={endRef} />
         </div>

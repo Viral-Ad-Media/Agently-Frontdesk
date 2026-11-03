@@ -81,7 +81,7 @@ function HeroDemo() {
             </div>
           </motion.div>
           <Bubble from="desk" delay={3.0}>
-            Lifted shingles over about <b className="text-white">42 sq ft</b>. Draft range <b className="text-white">$650 – $1,100</b>, confirmed after the free inspection. Tuesday 9:00 AM is open.
+            Lifted shingles over about <b className="text-white">3.9 m²</b>, measured against a shingle tab in the photo. Draft range <b className="text-white">$308 – $463</b>, confirmed after the free inspection. Tuesday 9:00 AM is open.
           </Bubble>
           <Bubble delay={3.6}>Tuesday works.</Bubble>
         </div>
@@ -93,7 +93,7 @@ function HeroDemo() {
               <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-[11px] leading-none font-semibold text-amber-300">Moderate</span>
             </div>
             <p className="mt-1 text-[12px] text-white/50">14 Larkspur Lane · photo outlined</p>
-            <p className="mt-3 text-[20px] font-semibold tracking-tight text-white">$650 – $1,100</p>
+            <p className="mt-3 text-[20px] font-semibold tracking-tight text-white">$308 – $463</p>
             <p className="text-[11px] text-white/40">from your rate card · 82% confidence</p>
             <div className="mt-4 flex gap-2">
               <span className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-full bg-white text-[12px] font-semibold text-black"><Check className="h-3.5 w-3.5" /> Approve</span>
@@ -310,11 +310,11 @@ export default function Product() {
                 </svg>
               </div>
             </Tile>
-            <Tile icon={FileText} title="Insurance claim pack" text="Weather on record, the outlined photos, the estimate and a timeline, ready to print for the adjuster." className="md:col-span-2" delay={0.1}>
+            <Tile icon={FileText} title="Insurance claim pack" text="A draft pack built from the lead: weather on record, the outlined photo, the draft estimate and a timeline, ready to print. Open it from any roofing lead on the dashboard. It never predicts an insurer's decision." className="md:col-span-2" delay={0.1}>
               <div className="space-y-1.5 rounded-xl border border-white/10 bg-black/30 p-3 font-mono text-[11.5px] text-white/60">
                 <p><span className="text-white/35">storm</span> 1.75 in hail · 70 mph</p>
                 <p><span className="text-white/35">photos</span> 3 outlined</p>
-                <p><span className="text-white/35">estimate</span> $650 – $1,100</p>
+                <p><span className="text-white/35">estimate</span> $308 – $463</p>
               </div>
             </Tile>
             <Tile icon={RotateCcw} title="Wakes up dead leads" text="A personal note to every old enquiry, written from its real history. Opt-outs are never contacted." className="md:col-span-2" delay={0.15}>
