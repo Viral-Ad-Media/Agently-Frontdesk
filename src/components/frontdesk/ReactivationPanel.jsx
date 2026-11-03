@@ -99,7 +99,7 @@ export default function ReactivationPanel({ tenant, className = "", delay = 0 })
       )}
 
       {leads.length === 0 ? (
-        <p className="px-4 py-8 text-center text-[14px] text-muted-foreground">No {tenant.trade === "medspa" ? "lapsed clients" : "old enquiries"} on file for this business yet.</p>
+        <p className="px-4 py-8 text-center text-[14px] text-muted-foreground">No {tenant.trade === "medspa" || tenant.trade === "salon" || tenant.trade === "barber" ? "lapsed clients" : "old enquiries"} on file for this business yet.</p>
       ) : (
         <div>
           <div className="flex flex-wrap gap-1.5 border-b border-border p-3" role="tablist" aria-label="Filter dead leads">

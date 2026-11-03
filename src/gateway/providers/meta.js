@@ -6,6 +6,7 @@
 // Written from dev.meta.ai/docs on 28 Oct 2026. Untested until a MODEL_API_KEY is set; the
 // contract tests (tests/contract.js) are the gate before it is shown to anyone.
 // Same return shapes as mock.js; prompts are read from prompts/prompts.md.
+import { TRADE_IDS, isMenu, tradeProfile } from "../../config/trades.js";
 import promptsMd from "../../../prompts/prompts.md?raw";
 import { renderReportVisual as composeReport } from "./mock.js";
 
@@ -80,7 +81,25 @@ function section(name) {
 }
 const sharedRules = () => (promptsMd.match(/Shared rules for every prompt:\n([\s\S]*?)\n\n## /) || [])[1] || "";
 const medspaRules = () => (promptsMd.match(/## Med spa variants[^\n]*\n([\s\S]*)$/) || [])[1] || "";
-const fill = (text, vars) => text.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, p) => p.split(".").reduce((o, k) => (o ? o[k] : undefined), vars) ?? "unknown");
+// Rules for a service-menu trade: the med spa keeps its own (medical) variants; every other menu trade gets
+// the shared service-menu variants plus its own safety and wording rules from config/trades.js.
+const menuRules = (trade) => {
+  if (!isMenu(trade)) return "";
+  if (trade === "medspa") return `\n\nMed spa rules:\n${medspaRules()}`;
+  const prof = tradeProfile(trade);
+  return `\n\nService-menu rules (${prof.label}):\n${section("Service-menu variants")}\n${prof.rules || ""}`.replaceAll("{{pro}}", prof.reviewer);
+};
+// The qualifying order per trade, from its flags: on-site trades need the address, person photos need consent.
+const orderRule = (trade) => {
+  const prof = tradeProfile(trade);
+  if (!isMenu(trade)) return "Order: ask_description, then ask_address, then ask_photo, then assess. If caseState.address is filled and there is no photo, nextAction is ask_photo. Never ask for consent.";
+  if (prof.personPhoto) return "Order: ask_description, then ask_consent (photo optional), then ask_photo, then assess. Never ask for an address.";
+  return "Order: ask_description, then ask_address, then ask_photo (optional: if the customer has no photo, assess from the description), then assess. Never ask for consent.";
+};
+// How each trade reads inside a prompt sentence ("a {{trade}} business").
+const TRADE_WORD = { roofing: "roofing", medspa: "med spa", plumbing: "plumbing", hvac: "cooling and appliance repair", salon: "hair salon", barber: "barber" };
+const fill = (text, v) => fillRaw(text, { ...v, trade: TRADE_WORD[v?.trade] || v?.trade });
+const fillRaw = (text, vars) => text.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, p) => p.split(".").reduce((o, k) => (o ? o[k] : undefined), vars) ?? "unknown");
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, Number(n) || 0));
 
 // Muse Spark with a JSON schema (OpenAI-compatible chat completions, response_format json_schema).
@@ -158,7 +177,7 @@ const REFERENCE_CONCEPTS = [
 // known-size object, otherwise null (no square metres).
 export async function segmentDamage({ trade = "roofing", dataUrl } = {}) {
   if (!dataUrl) throw new Error("segmentDamage needs the photo.");
-  const concepts = trade === "medspa" ? ["area of skin concern"] : ROOF_CONCEPTS;
+  const concepts = isMenu(trade) ? tradeProfile(trade).concepts || ["area of concern"] : ROOF_CONCEPTS;
   let best = null;
   // One failed concept no longer sinks the photo: use whichever concepts came back, and fail only if none did.
   const settled = await Promise.allSettled(concepts.map((concept) => sam(concept, dataUrl).then((boxes) => boxes.map((b) => ({ ...b, concept })))));
@@ -178,7 +197,7 @@ export async function segmentDamage({ trade = "roofing", dataUrl } = {}) {
   ];
   const areaPercent = Math.round((((best.x2 - best.x1) * (best.y2 - best.y1)) / (w * h)) * 1000) / 10;
   let reference = null;
-  if (trade !== "medspa") {
+  if (!isMenu(trade)) {
     const refs = REFERENCE_CONCEPTS.filter((r) => r.knownWidthM);
     // A reference lookup that fails just means no scale reference (percent only), never a failed photo.
     const found = await Promise.all(refs.map((r) => sam(r.concept, dataUrl).then((boxes) => ({ r, boxes }), () => ({ r, boxes: [] }))));
@@ -233,10 +252,10 @@ const ASSESS_SCHEMA = {
 };
 
 export async function assess({ trade = "roofing", description = "", urgency = null, segmentation = null, measurement = null, dataUrl = null, tenant = { name: "the business" }, route = null, feedback = null } = {}) {
-  const spa = trade === "medspa";
+  const spa = isMenu(trade);
   const r = routed(route, { model: MODELS.spark, effort: "medium" });
   const out = await sparkJson({
-    system: fill(section("assess"), { trade, tenant }) + (spa ? `\n\nMed spa rules:\n${medspaRules()}\nPublished services: ${JSON.stringify((tenant.services || []).map((s) => ({ id: s.id, name: s.name, concerns: s.concerns })))}` : ""),
+    system: fill(section("assess"), { trade, tenant }) + (spa ? `${menuRules(trade)}\nPublished services: ${JSON.stringify((tenant.services || []).map((s) => ({ id: s.id, name: s.name, concerns: s.concerns })))}` : ""),
     user: JSON.stringify({ description, urgency, segmentation, measurement, ...(feedback?.length ? { reviewerFeedback: feedback, rule: "A separate reviewer rejected your last card for these reasons. Fix each one from the evidence, or say the evidence is missing. Do not just reword." } : {}) }),
     image: dataUrl,
     schema: ASSESS_SCHEMA,
@@ -298,20 +317,21 @@ const CONVERSE_SCHEMA = {
   required: ["reply", "extracted", "nextAction"],
 };
 
-// Roofing never asks for consent; med spa never asks for an address. The schema enforces it per trade.
+// Trades with person photos ask for consent and never an address; on-site trades ask for the address and never
+// for consent. The schema enforces it per trade.
 const converseSchemaFor = (trade) => ({
   ...CONVERSE_SCHEMA,
   properties: {
     ...CONVERSE_SCHEMA.properties,
-    nextAction: { type: "string", enum: trade === "medspa" ? ["ask_description", "ask_consent", "ask_photo", "assess", "none"] : ["ask_description", "ask_address", "ask_photo", "assess", "none"] },
+    nextAction: { type: "string", enum: tradeProfile(trade).personPhoto ? ["ask_description", "ask_consent", "ask_photo", "assess", "none"] : ["ask_description", "ask_address", "ask_photo", "assess", "none"] },
   },
 });
 
 export async function converse({ trade = "roofing", messages = [], caseState = {}, tenant = { name: "the business" }, route = null } = {}) {
   const r = routed(route, { model: MODELS.sparkLight, effort: "low" });
   const out = await sparkJson({
-    system: fill(section("converse"), { trade, tenant }) + (trade === "medspa" ? `\n\nMed spa rules:\n${medspaRules()}` : ""),
-    user: JSON.stringify({ conversation: messages, caseState, rule: trade === "medspa" ? "Order: ask_description, then ask_consent (photo optional), then ask_photo, then assess. Never ask for an address." : "Order: ask_description, then ask_address, then ask_photo, then assess. If caseState.address is filled and there is no photo, nextAction is ask_photo. Never ask for consent." }),
+    system: fill(section("converse"), { trade, tenant }) + menuRules(trade),
+    user: JSON.stringify({ conversation: messages, caseState, rule: orderRule(trade) }),
     schema: converseSchemaFor(trade),
     name: "turn",
     model: r.model,
@@ -328,8 +348,8 @@ export async function agentStep({ trade = "roofing", tenant = { name: "the busin
   const r = routed(route, { model: MODELS.sparkLight, effort: "low" });
   const base = converseSchemaFor(trade);
   const out = await sparkJson({
-    system: fill(section("agentStep"), { trade, tenant }) + "\n\nQualifying rules:\n" + fill(section("converse"), { trade, tenant }) + (trade === "medspa" ? `\n\nMed spa rules:\n${medspaRules()}` : ""),
-    user: JSON.stringify({ conversation: messages, caseState, tools, observations, mustAnswer }),
+    system: fill(section("agentStep"), { trade, tenant }) + "\n\nQualifying rules:\n" + fill(section("converse"), { trade, tenant }) + menuRules(trade),
+    user: JSON.stringify({ conversation: messages, caseState, tools, observations, mustAnswer, rule: orderRule(trade) }),
     schema: {
       type: "object",
       additionalProperties: false,
@@ -398,7 +418,7 @@ const SETUP_SCHEMA = {
   additionalProperties: false,
   properties: {
     name: { type: "string" },
-    trade: { type: "string", enum: ["roofing", "medspa", "unsupported"] },
+    trade: { type: "string", enum: [...TRADE_IDS, "unsupported"] },
     tradeLabel: { type: "string" },
     serviceArea: { type: ["string", "null"] },
     summary: { type: "string" },

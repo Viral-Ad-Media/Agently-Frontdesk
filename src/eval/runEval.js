@@ -9,7 +9,7 @@ export async function runEval({ ai, tenants, jobs = EVAL_JOBS, onRow = () => {},
   const rows = [];
   for (const job of jobs) {
     const started = now();
-    const tenant = job.trade === "medspa" ? tenants["glow-medspa"] || Object.values(tenants).find((t) => t.trade === "medspa") : tenants["summit-ridge"] || Object.values(tenants).find((t) => t.trade === "roofing");
+    const tenant = (job.trade === "roofing" && tenants["summit-ridge"]) || Object.values(tenants).find((t) => t.trade === job.trade && !t.setup) || Object.values(tenants).find((t) => t.trade === job.trade);
     const c = {
       id: `eval-${job.id}`,
       trade: job.trade,
@@ -53,7 +53,13 @@ export async function runEval({ ai, tenants, jobs = EVAL_JOBS, onRow = () => {},
         why: js.reasons[0] || "All checks passed.",
       };
     }
-    row = { id: job.id, trade: job.trade, title: job.title, expected: job.expected, ...row, correct: row.status === job.expected, ms: Math.round(now() - started) };
+    // A job can also require a note on the card, e.g. the salon's allergy patch test before any colour service.
+    let flagOk = true;
+    if (job.expectFlag && c.assessment) {
+      flagOk = (c.assessment.clinicianFlags || []).some((f) => job.expectFlag.test(String(f)));
+      if (!flagOk) row.why = `Missing on the card: ${String(job.expectFlag).replace(/^\/|\/i?$/g, "")}`;
+    }
+    row = { id: job.id, trade: job.trade, title: job.title, expected: job.expected, ...row, correct: row.status === job.expected && flagOk, ms: Math.round(now() - started) };
     rows.push(row);
     onRow(row);
   }

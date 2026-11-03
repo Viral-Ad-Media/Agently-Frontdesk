@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { tradeProfile, withArticle } from "@/config/trades";
 
-// Med spa photos are sensitive: explicit consent before any upload, in plain words.
+// Photos of a person (skin, hair) are sensitive: explicit consent before any upload, in plain words.
 export default function ConsentCard({ tenant, onConsent, onSkip }) {
   const [agreed, setAgreed] = useState(false);
+  const prof = tradeProfile(tenant.trade);
+  const visit = tenant.words?.visit || "consultation";
   return (
     <section className="fd-card p-5" aria-label="Photo consent">
       <div className="flex items-center gap-2">
@@ -11,9 +14,9 @@ export default function ConsentCard({ tenant, onConsent, onSkip }) {
         <h3 className="text-lg">Before you share a photo</h3>
       </div>
       <ul className="mt-3 space-y-1.5 text-[14px] text-muted-foreground">
-        <li>Your photo is used only to match your concern to {tenant.name}'s own services and to prepare for your consultation.</li>
-        <li>A clinician reviews it. Nothing here is a diagnosis or medical advice, and no result is promised.</li>
-        <li>You can skip the photo and still book a consultation.</li>
+        <li>Your photo is used only to match your concern to {tenant.name}'s own services and to prepare for your {visit}.</li>
+        <li>{prof.medical ? "A clinician reviews it. Nothing here is a diagnosis or medical advice, and no result is promised." : `Only your ${prof.reviewer} sees it. No result is promised from a photo.`}</li>
+        <li>You can skip the photo and still book {withArticle(visit)}.</li>
       </ul>
       <label className="mt-4 flex cursor-pointer items-start gap-3 text-[15px]">
         <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]" />

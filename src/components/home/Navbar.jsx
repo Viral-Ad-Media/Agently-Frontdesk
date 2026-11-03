@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { MessageSquare, Sparkles } from "lucide-react";
 import Logo from "@/components/shared/Logo";
 import { useStore } from "@/lib/store";
+import { siteCopy } from "@/config/siteCopy";
+import { tradeProfile } from "@/config/trades";
 
 export default function Navbar({ dark = false }) {
   const tenant = useStore((s) => s.tenant);
@@ -21,7 +23,7 @@ export default function Navbar({ dark = false }) {
   return (
     <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-200 ${scrolled ? "border-b border-border bg-background" : ""}`}>
       <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-3 md:px-8">
-        <Logo to="/site" light={light} word={tenant.name} mark={tenant.trade === "medspa" ? <Sparkles className="h-5 w-5" aria-hidden /> : null} />
+        <Logo to="/site" light={light} word={tenant.name} mark={tradeProfile(tenant.trade).look === "studio" ? <Sparkles className="h-5 w-5" aria-hidden /> : null} />
         <nav className={`hidden items-center gap-8 text-sm md:flex ${light ? "text-white/85" : "text-foreground/80"}`}>
           {links.map(([l, h]) => (
             <a key={l} href={h} className="transition-colors duration-200 hover:text-primary">
@@ -30,7 +32,7 @@ export default function Navbar({ dark = false }) {
           ))}
         </nav>
         <Link to="/chat" className="fd-btn-primary">
-          <MessageSquare className="h-4 w-4" /> {tenant.trade === "medspa" ? "Ask about a treatment" : "Describe your roof problem"}
+          <MessageSquare className="h-4 w-4" /> {siteCopy(tenant.trade).nav}
         </Link>
       </div>
     </header>

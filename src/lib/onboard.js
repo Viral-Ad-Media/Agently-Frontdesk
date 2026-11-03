@@ -2,8 +2,10 @@
 // The flow engine is picked by trade (roofing: measured estimate; med spa: published service menu).
 // Anything the site did not state is marked as needing the owner, never filled with a guess.
 import { TENANTS, RATE_CARD } from "./seed.js";
+import { isMenu, tradeList } from "../config/trades.js";
 
-export const ENGINES = { roofing: "summit-ridge", medspa: "luma-skin" };
+// The template desk each trade starts from: its words, disclaimer and flow. The menu and prices come from the site.
+export const ENGINES = { roofing: "summit-ridge", medspa: "luma-skin", plumbing: "clearline-plumbing", hvac: "polar-point", salon: "fern-fringe", barber: "ironside-barbers" };
 
 const slug = (s) =>
   String(s || "business")
@@ -16,10 +18,10 @@ export function buildTenant(draft, { url = "", now = new Date() } = {}) {
   if (!draft || !ENGINES[draft.trade]) {
     const label = String(draft?.tradeLabel || "").trim();
     const named = label && !/unsupported|unknown|other/i.test(label) ? ` (this looks like ${/^[aeiou]/i.test(label) ? "an" : "a"} ${label.toLowerCase()} business)` : "";
-    return { ok: false, reason: `We don't have a desk for that trade yet${named}. Roofing and med spa desks are live today.` };
+    return { ok: false, reason: `We don't have a desk for that trade yet${named}. ${tradeList()} desks are live today.` };
   }
   const template = TENANTS[ENGINES[draft.trade]];
-  const spa = draft.trade === "medspa";
+  const spa = isMenu(draft.trade);
   const priced = (draft.services || []).filter((s) => Number(s.priceLow) > 0 && Number(s.priceHigh) >= Number(s.priceLow));
   const unpriced = (draft.services || []).filter((s) => !priced.includes(s)).map((s) => s.name);
   const id = `${slug(draft.name)}-${now.getTime().toString(36).slice(-4)}`;

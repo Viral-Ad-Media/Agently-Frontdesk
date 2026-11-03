@@ -2,6 +2,7 @@ import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
 import Severity from "@/components/frontdesk/Severity";
 import ProviderBadge from "@/components/shared/ProviderBadge";
 import { STATUS_LABEL } from "@/lib/quote";
+import { isMenu, tradeProfile } from "@/config/trades";
 
 const pct = (n) => `${Math.round((n || 0) * 100)}%`;
 const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -10,7 +11,9 @@ const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 // service match and clinician flags (med spa), draft quote with the maths and disclaimer, confidence always visible.
 export default function AssessmentCard({ photo, segmentation, measurement, assessment, quote, tenant, compact = false, flat = false }) {
   if (!assessment) return null;
-  const spa = tenant?.trade === "medspa";
+  // Service-menu trades (med spa, plumbing, AC, salon, barber) show the menu match; roofing shows material and measurement.
+  const spa = isMenu(tenant?.trade);
+  const prof = tradeProfile(tenant?.trade);
   const words = tenant?.words || {};
   const m = assessment.material;
   return (
@@ -19,7 +22,7 @@ export default function AssessmentCard({ photo, segmentation, measurement, asses
 
       <div className="space-y-5 p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <Severity value={assessment.severity} spa={spa} />
+          <Severity value={assessment.severity} trade={tenant?.trade} />
           <span className="rounded-full border border-border px-2.5 py-1 font-spec text-[11px] uppercase text-muted-foreground">Confidence {pct(assessment.confidence)}</span>
           <ProviderBadge className="ml-auto" />
         </div>
@@ -43,11 +46,12 @@ export default function AssessmentCard({ photo, segmentation, measurement, asses
               </dd>
             </div>
             <div>
-              <dt className="font-spec text-[11px] uppercase text-muted-foreground">For the clinician</dt>
+              <dt className="font-spec text-[11px] uppercase text-muted-foreground">For the {prof.reviewer}</dt>
               <dd className="mt-1 space-y-1 text-[14px] text-[hsl(var(--primary-deep))]">
                 {(assessment.clinicianFlags || []).map((f, i) => (
                   <span key={i} className="block">{f}</span>
                 ))}
+                {!(assessment.clinicianFlags || []).length && <span className="block text-muted-foreground">Nothing extra to check.</span>}
               </dd>
             </div>
           </dl>
@@ -101,7 +105,7 @@ export default function AssessmentCard({ photo, segmentation, measurement, asses
         {quote && (
           <div className="rounded-lg bg-secondary p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-spec text-[11px] uppercase text-muted-foreground">{spa ? "Draft treatment range · USD" : "Draft quote · USD"}</p>
+              <p className="font-spec text-[11px] uppercase text-muted-foreground">{tenant?.trade === "medspa" ? "Draft treatment range · USD" : spa ? "Published price range · USD" : "Draft quote · USD"}</p>
               <span className="rounded-full border border-border bg-card px-2.5 py-1 font-spec text-[11px] uppercase">{STATUS_LABEL[quote.status]}</span>
             </div>
             {quote.low !== null ? (

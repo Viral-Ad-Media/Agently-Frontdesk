@@ -5,4 +5,6 @@ export const heroSlides = {
   roofing: { src: "/images/roofer-storm.webp", alt: "A roofer nailing shingles under a stormy sky" },
   medspa: { src: "/images/spa-hero.webp", alt: "A calm treatment room in soft rose light, with peonies and folded towels" },
 };
-export const heroFor = (trade) => heroSlides[trade === "medspa" ? "medspa" : "roofing"];
+// Only roofing and the med spa have a hero photo so far. The newer trades get a plain dark hero rather than
+// a borrowed roof photo; a returned null means "no photo".
+export const heroFor = (trade) => (trade in heroSlides ? heroSlides[trade] : trade ? null : heroSlides.roofing);
