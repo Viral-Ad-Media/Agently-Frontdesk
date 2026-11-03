@@ -5,9 +5,9 @@ import { seedState, seedSlots } from "@/lib/seed";
 import { QUOTE_STATUSES, draftQuote } from "@/lib/quote";
 import { measure, bboxOf, areaPercent } from "@/lib/eye";
 
-const KEY = "frontdesk.v3";
+const KEY = "frontdesk.v4";
 // Older keys from earlier builds. A visitor who tested an earlier build starts clean instead of seeing that test data.
-const OLD_KEYS = ["frontdesk.v2", "frontdesk.v1", "frontdesk"];
+const OLD_KEYS = ["frontdesk.v3", "frontdesk.v2", "frontdesk.v1", "frontdesk"];
 const listeners = new Set();
 let state = normalize(load());
 
@@ -16,7 +16,7 @@ function load() {
     const raw = window.localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.version === 3) return parsed;
+      if (parsed && parsed.version === 4) return parsed;
     }
   } catch {
     /* fall through to a fresh seed */
@@ -439,9 +439,9 @@ export function stormReply(runId, leadId, text, { books = false } = {}) {
       createdAt: new Date().toISOString(),
       status: "booked",
       customer: { name: l.name, phone: l.phone, address: l.address },
-      intent: "repair",
+      intent: tenant.trade === "roofing" ? "repair" : "visit",
       urgency: "routine",
-      description: `Storm check-in after the ${run.storm.event.toLowerCase()}`,
+      description: `${run.storm.kind === "freeze" ? "Freeze" : run.storm.kind === "heat" ? "Heat" : "Storm"} check-in after the ${run.storm.event.toLowerCase()}`,
       consent: null,
       messages: [
         { at: d.history[0].at, role: "assistant", content: d.text },

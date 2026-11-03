@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
+import { tradeProfile } from "@/config/trades";
 
 // Plain numbers from the case record, written as the sentence the owner reads between jobs. No AI, no invention.
 export function summarise({ tenant, cases, slots, leads }) {
   const spa = tenant.trade === "medspa";
+  const roof = tenant.trade === "roofing";
+  const visit = spa ? "consultation" : roof ? "inspection" : tenant.words?.visit || "visit";
+  const who = tradeProfile(tenant.trade).personPhoto ? "client" : "job";
   const answered = cases.filter((c) => c.messages.some((m) => m.role === "assistant")).length;
   const booked = cases.filter((c) => c.bookingSlotId).length;
   const awaiting = cases.filter((c) => c.quote?.status === "awaiting_approval").length;
@@ -17,14 +21,14 @@ export function summarise({ tenant, cases, slots, leads }) {
     .sort((a, b) => a.start.localeCompare(b.start))[0];
   const parts = [
     `${answered} enquir${answered === 1 ? "y" : "ies"} answered${calls ? ` (${calls} by phone)` : ""}`,
-    `${booked} ${spa ? "consultation" : "inspection"}${booked === 1 ? "" : "s"} booked`,
-    `${recovered} ${spa ? "client" : "job"}${recovered === 1 ? "" : "s"} reactivated`,
+    `${booked} ${visit}${booked === 1 ? "" : "s"} booked`,
+    `${recovered} ${who}${recovered === 1 ? "" : "s"} reactivated`,
   ];
   const todo = [];
   if (awaiting) todo.push(`${awaiting} ${spa ? "plan" : "quote"}${awaiting === 1 ? "" : "s"} waiting for your approval`);
   if (approved) todo.push(`${approved} approved but not sent`);
   if (drafted) todo.push(`${drafted} re-opener${drafted === 1 ? "" : "s"} drafted, not reviewed`);
-  const nextLine = next ? `Next ${spa ? "consultation" : "inspection"}: ${fmtDay(next.start)} at ${fmtTime(next.start)}.` : `Nothing ${spa ? "booked" : "scheduled"} yet.`;
+  const nextLine = next ? `Next ${visit}: ${fmtDay(next.start)} at ${fmtTime(next.start)}.` : `Nothing ${spa ? "booked" : "scheduled"} yet.`;
   return `${tenant.name}, today: ${parts.join(", ")}. ${todo.length ? `To do: ${todo.join("; ")}.` : "Nothing waiting on you."} ${nextLine}`;
 }
 
