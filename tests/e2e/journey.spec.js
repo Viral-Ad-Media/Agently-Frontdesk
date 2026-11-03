@@ -261,3 +261,64 @@ test("barber: consent first, skip the photo, cut matched to the menu price, chai
   await expect(page.getByText("$35 – $45")).toBeVisible({ timeout: AI });
   await expect(page.getByRole("heading", { name: "Book a chair" })).toBeVisible();
 });
+
+test("trust, insurance, follow-ups and take over: storm damage, claim details, day 3 follow-up, owner replies as a person", async ({ page }) => {
+  await page.goto(`${BASE}/chat?tenant=summit-ridge&q=${encodeURIComponent("Hail hit the roof last night and shingles are cracked")}`);
+  await replied(page, 1);
+  await expect(page.getByTestId("trust-chips")).toContainText(/Demo licence/);
+  await page.getByLabel("Message").fill("9 Birch Lane, Round Rock");
+  await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText(/Add a photo of the damage/i)).toBeVisible({ timeout: AI });
+  await page.locator('input[type=file]').first().setInputFiles(photo);
+  await page.getByRole("button", { name: /Use this photo|Use it anyway/ }).click();
+  await expect(page.getByText(/Draft quote/i)).toBeVisible({ timeout: 90000 });
+  const ins = page.getByTestId("insurance-card");
+  await ins.getByLabel("Insurance company").fill("Lone Star Mutual");
+  await ins.getByLabel(/Claim number/).fill("LSM-7781");
+  await ins.getByRole("button", { name: "Add to my claim pack" }).click();
+  await expect(page.getByTestId("insurance-summary")).toContainText("Lone Star Mutual, claim LSM-7781");
+  const chatUrl = page.url();
+
+  await page.goto(`${BASE}/frontdesk`);
+  await expect(page.getByTestId("lead-score").first()).toBeVisible();
+  await expect(page.getByText("Insurance claim").first()).toBeVisible();
+  if (await page.getByRole("button", { name: "Approve" }).first().isDisabled()) {
+    await page.getByRole("button", { name: "Edit" }).first().click();
+    await page.getByLabel(/Low/).fill("450");
+    await page.getByLabel(/High/).fill("650");
+    await page.getByRole("button", { name: "Save range" }).click();
+  }
+  await page.getByRole("button", { name: /^(Review & )?approve$/i }).first().click();
+  const reason = page.getByPlaceholder(/Why approve/);
+  if (await reason.isVisible()) {
+    await reason.fill("Checked the photo myself");
+    await page.getByRole("button", { name: /Approve with reason/ }).click();
+  }
+  await page.getByRole("button", { name: "Send", exact: true }).first().click();
+  // Not booked yet: day 3, 7 and 14 follow-ups are drafted, and Send stays locked until approved.
+  const day3 = page.getByTestId("followup-3");
+  await expect(page.getByTestId("followup-14")).toBeVisible();
+  await expect(day3.getByRole("button", { name: "Send" })).toBeDisabled();
+  await day3.getByRole("button", { name: "Approve" }).click();
+  await day3.getByRole("button", { name: "Send" }).click();
+  await expect(day3.getByText("Sent", { exact: true })).toBeVisible();
+  // Take over: the owner replies as a person and the AI pauses on this chat.
+  await page.getByRole("button", { name: "Take over the chat" }).first().click();
+  await page.getByLabel("Your reply to the customer").fill("Hi, this is Sam from Summit Ridge. I can come by Thursday morning.");
+  await page.getByRole("button", { name: "Send reply" }).click();
+  await expect(page.getByText("You're replying").first()).toBeVisible();
+
+  await page.goto(chatUrl);
+  await expect(page.getByTestId("owner-message")).toContainText("I can come by Thursday morning");
+  await expect(page.getByTestId("takeover-note")).toBeVisible();
+  const before = await page.getByTestId("assistant-message").count();
+  await page.getByLabel("Message").fill("Thursday works, thanks");
+  await page.getByLabel("Message").press("Enter");
+  await expect(page.getByText("Thursday works, thanks")).toBeVisible();
+  await page.waitForTimeout(1500);
+  await expect(page.getByTestId("assistant-message")).toHaveCount(before);
+
+  await page.goto(`${BASE}/frontdesk`);
+  await page.getByRole("link", { name: /Claim pack \(draft\)/ }).first().click();
+  await expect(page.getByTestId("claim-insurance")).toContainText("Lone Star Mutual");
+});

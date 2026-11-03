@@ -22,6 +22,8 @@ import ConsentCard from "@/components/frontdesk/ConsentCard";
 import OutlinedPhoto from "@/components/frontdesk/OutlinedPhoto";
 import AssessmentCard from "@/components/frontdesk/AssessmentCard";
 import RepairPreview from "@/components/frontdesk/RepairPreview";
+import { TrustChips } from "@/components/shared/TrustCard";
+import InsuranceCard, { wantsInsurance } from "@/components/frontdesk/InsuranceCard";
 import EmergencyBanner from "@/components/frontdesk/EmergencyBanner";
 import SlotPicker, { fmtDay, fmtTime } from "@/components/frontdesk/SlotPicker";
 import PhotoCheck from "@/components/frontdesk/PhotoCheck";
@@ -48,6 +50,7 @@ export default function Chat() {
   const activeTenant = useStore((s) => s.tenant);
   const tenant = (c && tenants[c.tenantId]) || activeTenant;
   const slots = useStore((s) => s.slots);
+  const stormRuns = useStore((s) => s.stormRuns);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
@@ -111,6 +114,8 @@ export default function Chat() {
       const cur = getCase(id);
       if (!cur) return;
       appendMessage(id, { role: "user", content: text });
+      // The owner took over this conversation: their reply comes from the front desk, not the AI.
+      if (getCase(id)?.takenOver) return;
       setBusy(true);
       setFailure(null);
       try {
@@ -120,7 +125,7 @@ export default function Chat() {
         const res = await runAgentTurn({
           ai: gateway,
           trade: after.trade,
-          messages: after.messages.map(({ role, content }) => ({ role, content })),
+          messages: after.messages.map(({ role, content }) => ({ role: role === "owner" ? "assistant" : role, content })),
           tenant: t,
           route: route("converse"),
           caseId: id,
@@ -397,6 +402,11 @@ export default function Chat() {
                   {m.content}
                   {m.photo && c.photo && <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="mt-2 border-0" />}
                 </div>
+              ) : m.role === "owner" ? (
+                <div className="space-y-1.5" data-testid="owner-message">
+                  <p className="text-[13px] font-medium text-primary">{m.by || tenant.name} · a person from the team</p>
+                  <p className="max-w-[85%] rounded-lg rounded-bl-sm border border-[hsl(var(--primary)/0.4)] bg-card px-4 py-2.5 text-[16px] leading-relaxed">{m.content}</p>
+                </div>
               ) : (
                 <div className="space-y-4" data-testid="assistant-message">
                   <p className="text-[13px] text-muted-foreground">{tenant.name}</p>
@@ -412,6 +422,7 @@ export default function Chat() {
                     )}
                   </p>
                   <AgentChecks trace={m.trace} />
+                  {i === c.messages.findIndex((x) => x.role === "assistant") && <TrustChips tenant={tenant} />}
                   {m.kind === "assessment" && c.assessment && (
                     <>
                       <EmergencyBanner emergency={c.assessment?.emergency} />
@@ -476,6 +487,8 @@ export default function Chat() {
               <p className="mt-2 text-[12px] text-muted-foreground">Fills in a made-up description and address, then runs the photo through the same outline, assessment and draft quote as a real one.</p>
             </div>
           )}
+          {wantsInsurance(c, tenant, stormRuns) && !busy && <InsuranceCard c={c} />}
+          {c.takenOver && <p className="rounded-lg border border-border bg-card px-4 py-3 text-[14px] text-muted-foreground" data-testid="takeover-note">You're chatting with a person from {tenant.name}. {agentName(tenant)} is paused, and the team replies here.</p>}
           {showSlots && <SlotPicker caseId={c.id} tenant={tenant} address={c.customer.address} onBooked={onBooked} />}
           <div ref={endRef} />
         </div>
