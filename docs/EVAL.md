@@ -6,26 +6,26 @@ Provider: mock (deterministic rehearsal, no tokens). 21/21 jobs reached the expe
 
 | Job | Trade | Case | Expected | Result | Correct | Router tier · effort | Reviews | Judge | Checklist | Tokens in/out | Time |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| R1 | roofing | Ceiling drip, clear photo with a reference | verified | verified | yes | medium · low | 1 | PASS | 6/6 | 0 | 1707 ms |
-| R2 | roofing | Shingles blown off, says it's not leaking | verified | verified | yes | medium · low | 1 | PASS | 6/6 | 0 | 1704 ms |
-| R3 | roofing | Hail damage with a water stain | verified | verified | yes | medium · low | 1 | PASS | 6/6 | 0 | 1704 ms |
+| R1 | roofing | Ceiling drip, clear photo with a reference | verified | verified | yes | medium · low | 1 | PASS | 6/6 | 0 | 1709 ms |
+| R2 | roofing | Shingles blown off, says it's not leaking | verified | verified | yes | medium · low | 1 | PASS | 6/6 | 0 | 1703 ms |
+| R3 | roofing | Hail damage with a water stain | verified | verified | yes | medium · low | 1 | PASS | 6/6 | 0 | 1703 ms |
 | E1 | roofing | Edge: blurry photo | retake | retake | yes | - · - | 0 | - | - | - | 0 ms |
 | E2 | roofing | Edge: no reference object in frame | verified | verified | yes | medium · low | 1 | PASS | 5/6 | 0 | 1703 ms |
 | E3 | roofing | Edge: missing address | needs_review | needs_review | yes | medium · low | 1 | PASS | 5/6 | 0 | 1702 ms |
-| E4 | roofing | Edge: description contradicts the photo | escalated | escalated | yes | medium · low | 1 | FAIL | 6/6 | 0 | 1101 ms |
+| E4 | roofing | Edge: description contradicts the photo | escalated | escalated | yes | medium · low | 1 | FAIL | 6/6 | 0 | 1102 ms |
 | E5 | roofing | Edge: price far outside the rate card | needs_review | needs_review | yes | medium · low | 1 | PASS | 6/6 | 0 | 1703 ms |
-| E6 | roofing | Edge: urgent leak near electrics | escalated | escalated | yes | large · high | 1 | PASS | 5/6 | 0 | 1704 ms |
+| E6 | roofing | Edge: urgent leak near electrics | escalated | escalated | yes | large · high | 1 | PASS | 5/6 | 0 | 1707 ms |
 | E7 | roofing | Edge: unsure of the material | needs_review | needs_review | yes | medium · low | 1 | PASS | 5/6 | 0 | 1703 ms |
-| E8 | roofing | Edge: two separate problems in one photo | escalated | escalated | yes | large · high | 1 | PASS | 6/6 | 0 | 1702 ms |
+| E8 | roofing | Edge: two separate problems in one photo | escalated | escalated | yes | large · high | 1 | PASS | 6/6 | 0 | 1703 ms |
 | S1 | medspa | Dull, dry skin with consent | verified | verified | yes | medium · low | 1 | PASS | 4/4 | 0 | 1704 ms |
 | S2 | medspa | Breakouts on the chin with consent | verified | verified | yes | medium · low | 1 | PASS | 4/4 | 0 | 1703 ms |
 | S3 | medspa | Edge: photo without recorded consent | needs_review | needs_review | yes | medium · low | 1 | PASS | 3/4 | 0 | 1703 ms |
-| P1 | plumbing | Slow drip under the kitchen sink | verified | verified | yes | medium · low | 1 | PASS | 5/5 | 0 | 1706 ms |
+| P1 | plumbing | Slow drip under the kitchen sink | verified | verified | yes | medium · low | 1 | PASS | 5/5 | 0 | 1707 ms |
 | P2 | plumbing | Edge: gas smell by the water heater | escalated | escalated | yes | large · high | 1 | PASS | 4/5 | 0 | 1705 ms |
-| H1 | hvac | AC runs but blows warm air | verified | verified | yes | medium · low | 1 | PASS | 5/5 | 0 | 1705 ms |
-| H2 | hvac | Edge: burning smell and a tripping breaker | escalated | escalated | yes | large · high | 1 | PASS | 4/5 | 0 | 1705 ms |
+| H1 | hvac | AC runs but blows warm air | verified | verified | yes | medium · low | 1 | PASS | 5/5 | 0 | 1706 ms |
+| H2 | hvac | Edge: burning smell and a tripping breaker | escalated | escalated | yes | large · high | 1 | PASS | 4/5 | 0 | 1704 ms |
 | C1 | salon | Brassy colour, needs fixing | verified | verified | yes | medium · low | 1 | PASS | 4/4 | 0 | 1705 ms |
-| C2 | salon | Edge: photo without recorded consent | needs_review | needs_review | yes | medium · low | 1 | PASS | 3/4 | 0 | 1704 ms |
-| B1 | barber | Skin fade and a beard line-up | verified | verified | yes | medium · low | 1 | PASS | 4/4 | 0 | 1705 ms |
+| C2 | salon | Edge: photo without recorded consent | needs_review | needs_review | yes | medium · low | 1 | PASS | 3/4 | 0 | 1705 ms |
+| B1 | barber | Skin fade and a beard line-up | verified | verified | yes | medium · low | 1 | PASS | 4/4 | 0 | 1704 ms |
 
 Meta numbers: run /eval in the app with the Meta provider; it shows tokens, cost (when prices are configured) and time per job.
