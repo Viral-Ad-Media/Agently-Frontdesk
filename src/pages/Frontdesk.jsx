@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { CalendarDays, Check, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Bell, CalendarDays, Check, Globe, History, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, rejectQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { jobStatus } from "@/lib/verify";
 import VerificationPanel, { VerifyPill } from "@/components/frontdesk/VerificationPanel";
@@ -22,6 +22,10 @@ import { BeforeAfter } from "@/components/frontdesk/RepairPreview";
 import AftercareCard from "@/components/frontdesk/AftercareCard";
 import FollowUpsCard from "@/components/frontdesk/FollowUpsCard";
 import TakeOver from "@/components/frontdesk/TakeOver";
+import RateCardPanel from "@/components/frontdesk/RateCardPanel";
+import AlertsPanel from "@/components/frontdesk/AlertsPanel";
+import { pullRemoteLeads } from "@/lib/cloud";
+import { tenantForSite } from "@/lib/returning";
 import { scoreLead, SCORE_LABEL } from "@/lib/leadScore";
 import Panel from "@/components/frontdesk/Panel";
 import DeskAssistant from "@/components/frontdesk/DeskAssistant";
@@ -36,7 +40,51 @@ const money = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 // cards with equal gaps: leads | calendar, storm radar | calls, then dead leads full width. Cards in a row share edges.
 export default function Frontdesk() {
   const { cases: allCases, slots: allSlots, tenant, tenants, leads } = useStore();
-  const [openId, setOpenId] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const [openId, setOpenId] = useState(() => params.get("case"));
+  const [showAlerts, setShowAlerts] = useState(params.get("alerts") === "1");
+  const [toast, setToast] = useState(null);
+  const seen = useRef(null);
+
+  // ?tenant=<id>, ?desk=<website> (from an alert) and ?case=<id> pick the business and open that lead.
+  useEffect(() => {
+    const wanted = params.get("tenant") || tenantForSite(tenants, params.get("desk") || "")?.id;
+    if (wanted && tenants[wanted] && wanted !== tenant.id) setActiveTenant(wanted);
+    if (params.get("desk") || params.get("tenant")) {
+      const next = new URLSearchParams(params);
+      next.delete("desk");
+      next.delete("tenant");
+      setParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Leads from customers on their own phones reach this desk through the published copy.
+  useEffect(() => {
+    if (!tenant.cloud) return undefined;
+    pullRemoteLeads(tenant);
+    const t = setInterval(() => pullRemoteLeads(tenant), 12000);
+    return () => clearInterval(t);
+  }, [tenant.id, tenant.cloud]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A new conversation lands while the desk is open (another tab, or another device): a toast and a chime.
+  useEffect(() => {
+    const live = allCases.filter((c) => c.tenantId === tenant.id && c.messages?.some((m) => m.role === "user"));
+    const ids = new Set(live.map((c) => c.id));
+    if (seen.current && seen.current.tenant === tenant.id) {
+      const fresh = live.find((c) => !seen.current.ids.has(c.id));
+      if (fresh) {
+        setToast({ id: fresh.id, text: fresh.description || fresh.messages.find((m) => m.role === "user")?.content || "A customer started a chat." });
+        chime();
+      }
+    }
+    seen.current = { tenant: tenant.id, ids };
+  }, [allCases, tenant.id]);
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(null), 7000);
+    return () => clearTimeout(t);
+  }, [toast]);
   const cases = allCases.filter((c) => c.tenantId === tenant.id);
   const slots = allSlots.filter((s) => s.tenantId === tenant.id);
   const spa = tenant.trade === "medspa";
@@ -90,6 +138,9 @@ export default function Frontdesk() {
           </label>
           <div className="ml-auto flex items-center gap-2">
             <ProviderBadge className="hidden md:inline-flex" />
+            <button type="button" onClick={() => setShowAlerts((v) => !v)} aria-pressed={showAlerts} className="fd-btn-outline fd-btn-sm w-10 px-0 sm:w-auto sm:px-3" aria-label="Lead alerts">
+              <Bell className="h-4 w-4" /> <span className="hidden sm:inline">Alerts</span>
+            </button>
             <Link to="/setup" className="fd-btn-outline fd-btn-sm w-10 px-0 sm:w-auto sm:px-3" aria-label="Add a business">
               <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add a business</span>
             </Link>
@@ -123,6 +174,7 @@ export default function Frontdesk() {
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-12">
+          {showAlerts && <AlertsPanel tenant={tenant} onClose={() => setShowAlerts(false)} />}
           <section aria-label="Today in numbers" className="fd-card rise overflow-hidden lg:col-span-12">
             <div className="grid grid-cols-3 divide-x divide-border">
               {[
@@ -191,12 +243,44 @@ export default function Frontdesk() {
           {prof.weather && <StormRadar tenant={tenant} className="lg:col-span-8" delay={200} />}
           <CallPanel tenant={tenant} delay={260} className={prof.weather ? "lg:col-span-4" : "lg:col-span-12"} />
 
+          <RateCardPanel tenant={tenant} delay={300} className="lg:col-span-12" />
+
           <ReactivationPanel tenant={tenant} delay={320} className="lg:col-span-12" />
         </div>
       </main>
+      {toast && (
+        <button type="button" onClick={() => (setOpenId(toast.id), setToast(null), document.getElementById(`lead-${toast.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }))} className="pop fixed bottom-24 left-1/2 z-40 flex w-[min(92vw,420px)] -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/[0.1] bg-card px-4 py-3 text-left shadow-2xl" role="status" data-testid="lead-toast">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[hsl(var(--ios-blue))] text-white"><Bell className="h-4 w-4" /></span>
+          <span className="min-w-0">
+            <span className="block text-[14px] font-semibold">New lead</span>
+            <span className="block truncate text-[13px] text-muted-foreground">{toast.text}</span>
+          </span>
+        </button>
+      )}
       <DeskAssistant />
     </div>
   );
+}
+
+// A short two-note chime from Web Audio: no audio file, and silent if the browser blocks sound.
+function chime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1320].forEach((f, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.14);
+      g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + i * 0.14 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.14 + 0.3);
+      o.connect(g).connect(ctx.destination);
+      o.start(ctx.currentTime + i * 0.14);
+      o.stop(ctx.currentTime + i * 0.14 + 0.32);
+    });
+    setTimeout(() => ctx.close(), 900);
+  } catch {
+    /* no audio */
+  }
 }
 
 function Empty({ children }) {
@@ -241,7 +325,7 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
   };
 
   return (
-    <li>
+    <li id={`lead-${c.id}`}>
       <div className="flex gap-3 p-4 sm:gap-4">
         {c.photo ? (
           <OutlinedPhoto src={c.photo.dataUrl} segmentation={c.segmentation} className="h-16 w-20 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-28 [&>img]:h-full [&>img]:w-full [&>img]:object-cover [&>span]:hidden" showReference={false} />
@@ -266,10 +350,18 @@ function LeadCard({ c, tenant, slot, open, onToggle }) {
             <span className={score.level === "hot" ? "fd-pill-strong" : score.level === "warm" ? "fd-pill-accent" : "fd-pill-neutral"} title={score.reasons.join(", ")} data-testid="lead-score">{SCORE_LABEL[score.level]}</span>
             {c.insurance?.claiming && <span className="fd-pill-neutral">Insurance claim</span>}
             {c.takenOver && <span className="fd-pill-neutral">You're replying</span>}
+            {c.returning && <span className="fd-pill-accent inline-flex items-center gap-1" data-testid="returning-pill"><History className="h-3 w-3" /> Returning customer</span>}
+            {c.source === "website" && <span className="fd-pill-neutral inline-flex items-center gap-1"><Globe className="h-3 w-3" /> {c.remote ? "Website, another device" : "From your website"}</span>}
             {c.repairPreview && <span className="fd-pill-accent">{c.repairPreview.kind === "look" ? "Previewed the look" : "Saw it repaired"}</span>}
           </div>
           <p className="mt-2 line-clamp-2 text-[14px] text-muted-foreground">{c.assessment?.failedPart || c.description || "Waiting for the customer's description."}</p>
           {score.reasons.length > 0 && <p className="mt-1 text-[12px] text-muted-foreground">Why {score.level}: {score.reasons.join(" · ")}</p>}
+          {c.returning && (
+            <p className="mt-1 text-[12px] text-muted-foreground" data-testid="returning-history">
+              Same address as {c.returning.count} earlier enquir{c.returning.count === 1 ? "y" : "ies"}: {new Date(c.returning.last.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              {c.returning.last.reported ? `, "${c.returning.last.reported.slice(0, 70)}"` : ""}, {c.returning.last.status === "visit booked" ? "visit booked" : STATUS_LABEL[c.returning.last.status] ? `quote ${STATUS_LABEL[c.returning.last.status].toLowerCase()}` : "no booking yet"}.
+            </p>
+          )}
           {q && (
             <p className="mt-1.5 text-[15px]">
               {q.low !== null ? (

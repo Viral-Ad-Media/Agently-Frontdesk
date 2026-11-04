@@ -7,7 +7,7 @@ const MAX_BYTES = 1_500_000;
 const MAX_TEXT = 9000;
 const SUBPAGE = /(service|pricing|price|menu|treatment|roof|repair|about|contact)/i;
 
-export function normalizeUrl(input) {
+export function normalizeUrl(input, { allowPrivate = false } = {}) {
   let s = String(input || "").trim();
   if (!s) throw new Error("Paste the business website address.");
   if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
@@ -18,7 +18,7 @@ export function normalizeUrl(input) {
     throw new Error("That doesn't look like a website address.");
   }
   if (!/^https?:$/.test(u.protocol)) throw new Error("Only http and https websites can be read.");
-  if (PRIVATE_HOST.test(u.hostname) || !u.hostname.includes(".")) throw new Error("That address is not a public website.");
+  if (!allowPrivate && (PRIVATE_HOST.test(u.hostname) || !u.hostname.includes("."))) throw new Error("That address is not a public website.");
   u.hash = "";
   return u;
 }
@@ -65,7 +65,7 @@ export function htmlToText(html, baseUrl) {
   return { title, description, siteName, text, links };
 }
 
-async function getPage(url, fetchImpl) {
+async function getPage(url, fetchImpl, opts = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 8000);
   try {
@@ -76,7 +76,7 @@ async function getPage(url, fetchImpl) {
       res = await fetchImpl(at, { signal: ctrl.signal, redirect: "manual", headers: { "user-agent": "AgentlyFrontDeskSetup/1.0 (+https://agently-frontdesk.vercel.app)", accept: "text/html,application/xhtml+xml" } });
       const loc = res.status >= 300 && res.status < 400 ? res.headers.get?.("location") : null;
       if (!loc) break;
-      at = normalizeUrl(new URL(loc, at).href).href;
+      at = normalizeUrl(new URL(loc, at).href, opts).href;
     }
     if (!res.ok) throw new Error(`The site answered ${res.status}.`);
     const type = res.headers.get?.("content-type") || "text/html";
@@ -92,14 +92,17 @@ async function getPage(url, fetchImpl) {
 }
 
 // The home page plus up to two same-site pages that look like services or pricing.
-export async function readSite(input, fetchImpl = fetch) {
-  const u = normalizeUrl(input);
-  const home = htmlToText(await getPage(u.href, fetchImpl), u.href);
+// opts.allowPrivate is for local testing only (the dev server with SITE_ALLOW_LOCAL=1); production never sets it.
+export async function readSite(input, fetchImpl = fetch, opts = {}) {
+  const u = normalizeUrl(input, opts);
+  const home = htmlToText(await getPage(u.href, fetchImpl, opts), u.href);
   const pages = [{ url: u.href, text: home.text }];
-  const picks = [...new Map(home.links.filter((l) => SUBPAGE.test(l.href) || SUBPAGE.test(l.label)).map((l) => [l.href, l])).values()].filter((l) => l.href !== u.href).slice(0, 2);
+  // "/index.html" and "/" are the same page; skip it so the budget goes to pricing and services.
+  const same = (a) => a.replace(/\/(index\.html?)?(\?.*)?$/i, "/");
+  const picks = [...new Map(home.links.filter((l) => SUBPAGE.test(l.href) || SUBPAGE.test(l.label)).map((l) => [l.href, l])).values()].filter((l) => same(l.href) !== same(u.href)).slice(0, 2);
   for (const l of picks) {
     try {
-      const p = htmlToText(await getPage(l.href, fetchImpl), l.href);
+      const p = htmlToText(await getPage(l.href, fetchImpl, opts), l.href);
       pages.push({ url: l.href, text: p.text });
     } catch {
       /* a missing subpage is fine */

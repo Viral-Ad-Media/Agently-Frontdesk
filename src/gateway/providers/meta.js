@@ -6,6 +6,7 @@
 // Written from dev.meta.ai/docs on 28 Oct 2026. Untested until a MODEL_API_KEY is set; the
 // contract tests (tests/contract.js) are the gate before it is shown to anyone.
 // Same return shapes as mock.js; prompts are read from prompts/prompts.md.
+import { printedDollars, rateCardFromSite } from "../../lib/rateCard.js";
 import { TRADE_IDS, isMenu, tradeProfile } from "../../config/trades.js";
 import promptsMd from "../../../prompts/prompts.md?raw";
 import { renderReportVisual as composeReport } from "./mock.js";
@@ -464,9 +465,24 @@ const SETUP_SCHEMA = {
     heroText: { type: "string" },
     placeholder: { type: "string" },
     evidence: { type: "array", items: { type: "object", additionalProperties: false, properties: { field: { type: "string" }, quote: { type: "string" } }, required: ["field", "quote"] } },
+    rateCard: {
+      anyOf: [
+        { type: "null" },
+        {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            materials: { type: "array", items: { type: "object", additionalProperties: false, properties: { material: { type: "string" }, price: { type: "number" }, unit: { type: "string", enum: ["m2", "sqft", "square"] }, evidence: { type: "string" } }, required: ["material", "price", "unit", "evidence"] } },
+            labourPerHour: NULLABLE_NUM,
+            minimumHours: NULLABLE_NUM,
+          },
+          required: ["materials", "labourPerHour", "minimumHours"],
+        },
+      ],
+    },
     confidence: { type: "number" },
   },
-  required: ["name", "trade", "tradeLabel", "serviceArea", "summary", "services", "greeting", "heroTitle", "heroText", "placeholder", "evidence", "confidence"],
+  required: ["name", "trade", "tradeLabel", "serviceArea", "summary", "services", "greeting", "heroTitle", "heroText", "placeholder", "evidence", "rateCard", "confidence"],
 };
 
 export async function setupTenant({ site = {} } = {}) {
@@ -477,13 +493,15 @@ export async function setupTenant({ site = {} } = {}) {
     name: "tenant",
   });
   // Keep only prices that actually appear in the site text: a number the model wrote that the site never printed is dropped.
-  const printed = new Set((String(site.text || "").match(/\$\s?\d[\d,]*/g) || []).map((p) => Number(p.replace(/[^\d]/g, ""))));
+  const printed = printedDollars(site.text);
   const services = (out.services || []).slice(0, 10).map((sv) => ({
     ...sv,
     priceLow: printed.has(Number(sv.priceLow)) ? Number(sv.priceLow) : null,
     priceHigh: printed.has(Number(sv.priceHigh)) ? Number(sv.priceHigh) : printed.has(Number(sv.priceLow)) ? Number(sv.priceLow) : null,
   }));
-  return { ...out, services, confidence: clamp(out.confidence, 0, 1) };
+  // Roofing rates: only numbers the site printed survive, converted to USD per square metre in code.
+  const rateCard = out.trade === "roofing" ? rateCardFromSite(out.rateCard, site.text) : null;
+  return { ...out, services, rateCard, confidence: clamp(out.confidence, 0, 1) };
 }
 
 // ----- Muse Image -----
