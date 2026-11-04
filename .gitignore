@@ -43,6 +43,6 @@ test-results/
 playwright-report/
 footage/
 
-# Claude Code local settings (kept off GitHub)
+# Local editor settings (kept off GitHub)
 .claude/
 demo-sites/dist
