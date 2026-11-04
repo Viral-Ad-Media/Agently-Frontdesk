@@ -2,6 +2,7 @@
 // Persisted in localStorage for the demo; synthetic data only.
 import { useSyncExternalStore } from "react";
 import { seedState, seedSlots } from "@/lib/seed";
+import { remoteLeadsToTake } from "@/lib/remoteLeads";
 import { QUOTE_STATUSES, draftQuote } from "@/lib/quote";
 import { measure, bboxOf, areaPercent } from "@/lib/eye";
 import { earliestStart, PATCH_TEST_HOURS } from "./patchTest.js";
@@ -107,6 +108,8 @@ export function resetDemo() {
     fresh.slots.push(...seedSlots(new Date(), { [t.id]: t }));
   }
   if (kept.length && state.tenants[state.activeTenantId]?.setup) fresh.activeTenantId = state.activeTenantId;
+  // Leads still in a published desk's cloud copy from before this moment stay out of the clean desk.
+  fresh.resetAt = new Date().toISOString();
   commit(fresh);
 }
 
@@ -123,11 +126,7 @@ export function updateTenant(id, patch) {
 // Leads that reached the desk from another device (through the published desk). A local case always wins.
 export function importRemoteLeads(leads = []) {
   let added = 0;
-  const fresh = leads.filter((l) => {
-    if (!l?.id || !state.tenants[l.tenantId]) return false;
-    const mine = state.cases.find((c) => c.id === l.id);
-    return !mine || (mine.remote && (l.updatedAt || "") > (mine.updatedAt || ""));
-  });
+  const fresh = remoteLeadsToTake(leads, state);
   if (!fresh.length) return 0;
   update((s) => {
     for (const l of fresh) {
