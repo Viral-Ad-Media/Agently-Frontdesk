@@ -5,6 +5,7 @@
 // grounding check holds back any time or price the observations do not contain.
 // Pure module: no React, no store import, so it runs in node tests and in the browser alike.
 
+import { earlierEnquiries } from "./returning.js";
 import { mentions } from "../config/trades.js";
 import { trustFor, TRUST_NOTE } from "./trust.js";
 
@@ -78,7 +79,7 @@ export const TOOLS = {
     describe: "Earlier enquiries to this business from the same address (same customer). Returns dates, what was reported and where each one got to.",
     run({ cases = [], current = {} }) {
       const addr = norm(current.customer?.address);
-      const earlier = addr ? cases.filter((c) => c.id !== current.id && c.tenantId === current.tenantId && norm(c.customer?.address) === addr) : [];
+      const earlier = addr ? earlierEnquiries(current, cases) : [];
       return {
         addressKnown: !!addr,
         earlier: earlier.slice(0, 3).map((c) => ({ date: c.createdAt ? fmtDay(c.createdAt) : null, reported: c.description || null, status: c.booking ? "visit booked" : c.quote?.status || "enquiry" })),

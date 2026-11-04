@@ -1,8 +1,9 @@
 // Instant setup: turns what the gateway read from a business website into a tenant on the same spine.
 // The flow engine is picked by trade (roofing: measured estimate; med spa: published service menu).
 // Anything the site did not state is marked as needing the owner, never filled with a guess.
-import { TENANTS, RATE_CARD } from "./seed.js";
+import { TENANTS } from "./seed.js";
 import { isMenu, tradeList } from "../config/trades.js";
+import { mergeRateCard } from "./rateCard.js";
 
 // The template desk each trade starts from: its words, disclaimer and flow. The menu and prices come from the site.
 export const ENGINES = { roofing: "summit-ridge", medspa: "luma-skin", plumbing: "clearline-plumbing", hvac: "polar-point", salon: "fern-fringe", barber: "ironside-barbers" };
@@ -13,6 +14,15 @@ const slug = (s) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 32) || "business";
+
+// "https://www.ironwood-roofing.vercel.app/pricing" -> "ironwood-roofing.vercel.app": how a website finds its desk.
+export function hostOf(url = "") {
+  try {
+    return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
 
 export function buildTenant(draft, { url = "", now = new Date() } = {}) {
   if (!draft || !ENGINES[draft.trade]) {
@@ -28,7 +38,8 @@ export function buildTenant(draft, { url = "", now = new Date() } = {}) {
   const needs = [];
   if (!draft.serviceArea) needs.push("service area");
   if (spa && priced.length === 0) needs.push("published prices");
-  if (!spa) needs.push("your own rate card (using the demo rate card until then)");
+  const rc = spa ? null : mergeRateCard(draft.rateCard);
+  if (rc) needs.push(...rc.needs);
   const tenant = {
     id,
     name: String(draft.name || "Your business").slice(0, 60),
@@ -36,7 +47,7 @@ export function buildTenant(draft, { url = "", now = new Date() } = {}) {
     trade: draft.trade,
     serviceArea: draft.serviceArea || "",
     currency: "USD",
-    rateCard: spa ? null : { ...RATE_CARD, fromTemplate: true },
+    rateCard: rc ? rc.rateCard : null,
     services: spa
       ? priced.map((s, i) => ({ id: `${slug(s.name)}-${i}`, name: s.name, priceLow: Number(s.priceLow), priceHigh: Number(s.priceHigh), concerns: (s.keywords || []).map(String) }))
       : (draft.services || []).map((s) => ({ name: s.name, priceLow: s.priceLow ?? null, priceHigh: s.priceHigh ?? null })),
@@ -48,7 +59,7 @@ export function buildTenant(draft, { url = "", now = new Date() } = {}) {
       placeholder: draft.placeholder || template.words.placeholder,
     },
     disclaimer: template.disclaimer,
-    setup: { url, at: now.toISOString(), summary: draft.summary || "", evidence: draft.evidence || [], unpriced, needs, confidence: draft.confidence ?? null },
+    setup: { url, host: hostOf(url), at: now.toISOString(), summary: draft.summary || "", evidence: [...(draft.evidence || []), ...(rc?.rateCard.evidence || [])], unpriced, needs, confidence: draft.confidence ?? null },
   };
   return { ok: true, tenant };
 }

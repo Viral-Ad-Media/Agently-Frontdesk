@@ -92,13 +92,54 @@ export function useStore(selector = (s) => s) {
 
 // Reset: every lead, booking, calendar event, draft, re-opener, storm run, added business and counter goes back
 // to the seed, for every business at once. The saved copy is removed first, so a reload cannot bring old data back.
+// Businesses set up from a website stay (with their rate card and alerts), but lose every lead and booking,
+// so the site's chat button keeps working after a reset.
 export function resetDemo() {
+  const kept = Object.values(state.tenants).filter((t) => t.setup);
   try {
     [KEY, ...OLD_KEYS].forEach((k) => window.localStorage.removeItem(k));
   } catch {
     /* storage blocked: the in-memory reset below still applies */
   }
-  commit(seedState());
+  const fresh = seedState();
+  for (const t of kept) {
+    fresh.tenants[t.id] = t;
+    fresh.slots.push(...seedSlots(new Date(), { [t.id]: t }));
+  }
+  if (kept.length && state.tenants[state.activeTenantId]?.setup) fresh.activeTenantId = state.activeTenantId;
+  commit(fresh);
+}
+
+// The owner edits a desk: rate card, published services, alert link. Shallow patch on the tenant record.
+export function updateTenant(id, patch) {
+  update((s) => {
+    const t = s.tenants[id];
+    if (!t) return;
+    Object.assign(t, typeof patch === "function" ? patch(structuredClone(t)) : patch);
+    t.updatedAt = new Date().toISOString();
+  });
+}
+
+// Leads that reached the desk from another device (through the published desk). A local case always wins.
+export function importRemoteLeads(leads = []) {
+  let added = 0;
+  const fresh = leads.filter((l) => {
+    if (!l?.id || !state.tenants[l.tenantId]) return false;
+    const mine = state.cases.find((c) => c.id === l.id);
+    return !mine || (mine.remote && (l.updatedAt || "") > (mine.updatedAt || ""));
+  });
+  if (!fresh.length) return 0;
+  update((s) => {
+    for (const l of fresh) {
+      const i = s.cases.findIndex((c) => c.id === l.id);
+      if (i === -1) {
+        s.cases.unshift({ ...l, remote: true });
+        added++;
+      } else if (s.cases[i].remote && (l.updatedAt || "") > (s.cases[i].updatedAt || "")) s.cases[i] = { ...l, remote: true };
+    }
+    s.cases.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  });
+  return added;
 }
 
 export function setActiveTenant(id) {
@@ -339,7 +380,7 @@ export function setFollowUp(caseId, day, patch) {
 // ----- Insurance details (roofing, storm damage) -----
 
 export function setInsurance(caseId, info) {
-  updateCase(caseId, { insurance: { ...info, at: new Date().toISOString() } });
+  updateCase(caseId, (c) => ({ insurance: { ...info, at: new Date().toISOString() }, customer: info.holder && !c.customer?.name ? { ...c.customer, name: info.holder } : c.customer }));
 }
 
 // ----- Owner takes over the conversation -----

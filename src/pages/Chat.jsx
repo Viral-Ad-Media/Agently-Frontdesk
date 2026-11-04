@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { LayoutDashboard, Mic, MicOff, RotateCcw } from "lucide-react";
+import { ArrowUpRight, Globe, LayoutDashboard, Loader2, Mic, MicOff, RotateCcw } from "lucide-react";
 import { gateway } from "@/gateway";
-import { appendMessage, createCase, getCase, getState, setActiveTenant, updateCase, useStore } from "@/lib/store";
+import { addTenant, appendMessage, createCase, getCase, getState, setActiveTenant, updateCase, useStore } from "@/lib/store";
+import { alertOwner, fetchDesk } from "@/lib/cloud";
+import { earlierEnquiries, tenantForSite } from "@/lib/returning";
 import { route } from "@/lib/router";
 import { assessAndVerify } from "@/lib/pipeline";
 import { runAgentTurn } from "@/lib/agent";
@@ -59,6 +61,7 @@ export default function Chat() {
   const [draft, setDraft] = useState(null); // the drafted card, shown while the reviewer checks it (price hidden)
   const [liveEye, setLiveEye] = useState(false); // camera capture open
   const [voiceMode, setVoiceMode] = useState(false);
+  const [siteState, setSiteState] = useState(null); // null | { host, status: "loading" | "missing" }
   const endRef = useRef(null);
   const sendRef = useRef(null);
   const voiceModeRef = useRef(false);
@@ -74,23 +77,40 @@ export default function Chat() {
   // Open a case for the requested tenant and get the first question. A ?q= from the home page becomes the first message.
   useEffect(() => {
     if (caseId) return;
+    const start = (t) => {
+      setActiveTenant(t.id);
+      const id = createCase({ tenantId: t.id, source: params.get("site") ? "website" : "chat" });
+      // ?voice=1 (the site's "Talk to us" button) opens straight into a voice call.
+      if (params.get("voice")) setTimeout(() => toggleVoiceRef.current?.(), 300);
+      setCaseId(id);
+      setSiteState(null);
+      setParams(params.get("site") ? { case: id, site: params.get("site") } : { case: id }, { replace: true });
+      (async () => {
+        const q = params.get("q");
+        if (q) {
+          await converseWith(id, q);
+        } else {
+          appendMessage(id, { role: "assistant", content: `Hi, I'm ${agentName(t)}, the AI front desk for ${t.name.replace(/\.$/, "")}. ${t.words.greeting}` });
+          updateCase(id, { lastQuestion: "ask_description" });
+        }
+      })();
+    };
+    // ?site=<host>: opened from the chat button on a business's own website. Use the desk set up from that
+    // site in this browser, or the one its owner published, so a customer on any device reaches it.
+    const site = params.get("site");
+    if (site) {
+      const local = tenantForSite(tenants, site);
+      if (local) return start(local);
+      setSiteState({ host: site, status: "loading" });
+      fetchDesk(site).then((remote) => {
+        if (!remote) return setSiteState({ host: site, status: "missing" });
+        addTenant(remote);
+        start(remote);
+      });
+      return;
+    }
     const wanted = params.get("tenant");
-    if (wanted && tenants[wanted]) setActiveTenant(wanted);
-    const t = (wanted && tenants[wanted]) || activeTenant;
-    const id = createCase({ tenantId: t.id, source: "chat" });
-    // ?voice=1 (the site's "Talk to us" button) opens straight into a voice call.
-    if (params.get("voice")) setTimeout(() => toggleVoiceRef.current?.(), 300);
-    setCaseId(id);
-    setParams({ case: id }, { replace: true });
-    (async () => {
-      const q = params.get("q");
-      if (q) {
-        await converseWith(id, q);
-      } else {
-        appendMessage(id, { role: "assistant", content: `Hi, I'm ${agentName(t)}, the AI front desk for ${t.name.replace(/\.$/, "")}. ${t.words.greeting}` });
-        updateCase(id, { lastQuestion: "ask_description" });
-      }
-    })();
+    start((wanted && tenants[wanted]) || activeTenant);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -114,6 +134,7 @@ export default function Chat() {
       const cur = getCase(id);
       if (!cur) return;
       appendMessage(id, { role: "user", content: text });
+      if (getCase(id).messages.filter((m) => m.role === "user").length === 1) alertOwner(id, "new");
       // The owner took over this conversation: their reply comes from the front desk, not the AI.
       if (getCase(id)?.takenOver) return;
       setBusy(true);
@@ -147,6 +168,12 @@ export default function Chat() {
           lastQuestion: res.nextAction,
           provider: res.provider,
         }));
+        // Same address as an earlier enquiry to this business: link them, so the owner sees the history.
+        const linked = getCase(id);
+        if (linked.customer.address && !linked.returning) {
+          const earlier = earlierEnquiries(linked, getState().cases);
+          if (earlier.length) updateCase(id, { returning: { count: earlier.length, ids: earlier.map((e) => e.id), last: { at: earlier[0].createdAt, reported: earlier[0].description || null, status: earlier[0].bookingSlotId ? "visit booked" : earlier[0].quote?.status || "enquiry" } } });
+        }
         if (BOOK_INTENT.test(text)) updateCase(id, { bookingOffered: true });
         appendMessage(id, { role: "assistant", content: res.reply, trace: res.trace });
         say(res.reply);
@@ -252,6 +279,7 @@ export default function Chat() {
               : `Here's what I can see, with a draft range. A ${t.words.pro} confirms the price on site, so pick ${withArticle(t.words.visit)} time below.`;
           appendMessage(caseId, { role: "assistant", kind: "assessment", content: reply });
           say(reply);
+          alertOwner(caseId, a.emergency?.isEmergency ? "urgent" : "assessed");
         } catch (e) {
           setFailure({ message: e.message, retry: run });
         } finally {
@@ -284,6 +312,7 @@ export default function Chat() {
           : `Here's the match from our menu and its published price range. The ${t.words.pro} confirms it ${prof.onSite ? "on site" : "with you"}. Pick ${withArticle(t.words.visit)} time below.`;
       appendMessage(caseId, { role: "assistant", kind: "assessment", content: reply });
       say(reply);
+      alertOwner(caseId, a.emergency?.isEmergency ? "urgent" : "assessed");
     } catch (e) {
       setFailure({ message: e.message, retry: assessFromText });
     } finally {
@@ -328,6 +357,7 @@ export default function Chat() {
       : `You're booked for ${fmtDay(slot.start)} at ${fmtTime(slot.start)}. The front desk is reviewing your draft quote and will send the confirmed range before the visit.`;
     appendMessage(caseId, { role: "assistant", kind: "booking", content: text });
     say(text);
+    alertOwner(caseId, "booked");
   };
 
   const toggleVoice = () => {
@@ -352,6 +382,7 @@ export default function Chat() {
 
   toggleVoiceRef.current = toggleVoice;
 
+  if (!c && siteState) return <SiteNotReady host={siteState.host} loading={siteState.status === "loading"} />;
   if (!c) return null;
   const bookedSlot = c.bookingSlotId ? slots.find((s) => s.id === c.bookingSlotId) : null;
   const showConsent = prof.personPhoto && !c.consent && c.lastQuestion === "ask_consent" && !busy && !pending;
@@ -366,7 +397,13 @@ export default function Chat() {
     <div className={`${siteClass(tenant.trade)} flex h-[100svh] flex-col bg-background`}>
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-8">
         <div className="min-w-0 [&_*]:truncate">
-          <Logo to="/site" word={tenant.name} as="h1" />
+          {tenant.setup?.url ? (
+            <a href={tenant.setup.url} className="flex min-w-0 items-center gap-2" title={`Back to ${tenant.name}`}>
+              <h1 className="truncate text-[17px] font-semibold tracking-[-0.01em]">{tenant.name}</h1>
+            </a>
+          ) : (
+            <Logo to="/site" word={tenant.name} as="h1" />
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ProviderBadge className="hidden sm:inline-flex" />
@@ -375,9 +412,12 @@ export default function Chat() {
               {voiceMode ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />} <span className="hidden sm:inline">{voiceMode ? "End call" : "Talk instead"}</span>
             </button>
           )}
-          <Link to="/frontdesk" className="fd-btn-outline fd-btn-sm w-10 px-0 sm:w-auto sm:px-3" aria-label="Front desk">
-            <LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Front desk</span>
-          </Link>
+          {/* A customer who came from the business's own website never sees the owner's desk link. */}
+          {!tenant.setup && (
+            <Link to="/frontdesk" className="fd-btn-outline fd-btn-sm w-10 px-0 sm:w-auto sm:px-3" aria-label="Front desk">
+              <LayoutDashboard className="h-4 w-4" /> <span className="hidden sm:inline">Front desk</span>
+            </Link>
+          )}
         </div>
       </header>
 
@@ -488,6 +528,7 @@ export default function Chat() {
             </div>
           )}
           {wantsInsurance(c, tenant, stormRuns) && !busy && <InsuranceCard c={c} />}
+          {c.returning && <p className="rounded-lg border border-border bg-card px-4 py-3 text-[14px] text-muted-foreground" data-testid="returning-note">Welcome back. We've linked this to your earlier enquiry, so the team has your history.</p>}
           {c.takenOver && <p className="rounded-lg border border-border bg-card px-4 py-3 text-[14px] text-muted-foreground" data-testid="takeover-note">You're chatting with a person from {tenant.name}. {agentName(tenant)} is paused, and the team replies here.</p>}
           {showSlots && <SlotPicker caseId={c.id} tenant={tenant} address={c.customer.address} onBooked={onBooked} />}
           <div ref={endRef} />
@@ -506,3 +547,23 @@ function customerQuote(c, tenant, slots) {
   return { ...c.quote, low: null, high: null, total: null, lines: [], reason: `A ${tenant.words?.pro || "person"} is checking this one before a range is shared. Nothing is lost: book a time and they'll bring it.` };
 }
 
+// The chat button on a website that has no desk yet (or not in this browser and not published).
+function SiteNotReady({ host, loading }) {
+  return (
+    <div className="grid min-h-[100svh] place-items-center bg-background px-6">
+      <div className="max-w-[440px] text-center">
+        {loading ? (
+          <p className="flex items-center justify-center gap-2 text-[15px] text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Connecting you to {host}…</p>
+        ) : (
+          <>
+            <Globe className="mx-auto h-8 w-8 text-muted-foreground" strokeWidth={1.5} />
+            <h1 className="mt-4 text-[24px] font-semibold tracking-[-0.02em]">This front desk isn't switched on yet</h1>
+            <p className="mt-2 text-[15px] text-muted-foreground">{host} hasn't launched its AI front desk. Please call the business for now.</p>
+            <p className="mt-6 text-[13px] text-muted-foreground">Own this business?</p>
+            <Link to={`/setup?url=${encodeURIComponent(`https://${host}`)}`} className="fd-btn-primary mt-2 inline-flex h-11 px-5">Set it up from your website <ArrowUpRight className="h-4 w-4" /></Link>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
