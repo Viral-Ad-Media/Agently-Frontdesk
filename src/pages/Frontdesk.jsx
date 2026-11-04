@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Bell, CalendarDays, Check, Globe, History, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, MessageSquare, Phone, Plus, Pencil, RefreshCw, Send, X } from "lucide-react";
+import { Bell, CalendarDays, Check, Globe, History, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, MessageSquare, Phone, Plus, Pencil, QrCode, RefreshCw, Send, X } from "lucide-react";
 import { useStore, moveQuote, rejectQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
 import { jobStatus } from "@/lib/verify";
 import VerificationPanel, { VerifyPill } from "@/components/frontdesk/VerificationPanel";
@@ -24,6 +24,7 @@ import FollowUpsCard from "@/components/frontdesk/FollowUpsCard";
 import TakeOver from "@/components/frontdesk/TakeOver";
 import RateCardPanel from "@/components/frontdesk/RateCardPanel";
 import AlertsPanel from "@/components/frontdesk/AlertsPanel";
+import { SharePanel } from "@/components/frontdesk/ShareLink";
 import { pullRemoteLeads } from "@/lib/cloud";
 import { tenantForSite } from "@/lib/returning";
 import { scoreLead, SCORE_LABEL } from "@/lib/leadScore";
@@ -43,6 +44,7 @@ export default function Frontdesk() {
   const [params, setParams] = useSearchParams();
   const [openId, setOpenId] = useState(() => params.get("case"));
   const [showAlerts, setShowAlerts] = useState(params.get("alerts") === "1");
+  const [showShare, setShowShare] = useState(params.get("share") === "1");
   const [toast, setToast] = useState(null);
   const seen = useRef(null);
 
@@ -138,6 +140,11 @@ export default function Frontdesk() {
           </label>
           <div className="ml-auto flex items-center gap-2">
             <ProviderBadge className="hidden md:inline-flex" />
+            {tenant.setup?.host && (
+              <button type="button" onClick={() => setShowShare((v) => !v)} aria-pressed={showShare} className="fd-btn-outline fd-btn-sm w-10 px-0 sm:w-auto sm:px-3" aria-label="Your chat link" data-testid="share-toggle">
+                <QrCode className="h-4 w-4" /> <span className="hidden sm:inline">Chat link</span>
+              </button>
+            )}
             <button type="button" onClick={() => setShowAlerts((v) => !v)} aria-pressed={showAlerts} className="fd-btn-outline fd-btn-sm w-10 px-0 sm:w-auto sm:px-3" aria-label="Lead alerts">
               <Bell className="h-4 w-4" /> <span className="hidden sm:inline">Alerts</span>
             </button>
@@ -174,6 +181,7 @@ export default function Frontdesk() {
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-12">
+          {showShare && tenant.setup?.host && <SharePanel tenant={tenant} onClose={() => setShowShare(false)} />}
           {showAlerts && <AlertsPanel tenant={tenant} onClose={() => setShowAlerts(false)} />}
           <section aria-label="Today in numbers" className="fd-card rise overflow-hidden lg:col-span-12">
             <div className="grid grid-cols-3 divide-x divide-border">
