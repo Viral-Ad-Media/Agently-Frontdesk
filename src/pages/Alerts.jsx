@@ -18,6 +18,9 @@ export default function Alerts() {
     const key = params.get("key");
     if (!desk || !key) return setState({ step: "error", text: "This link is missing its desk or key. Open it again from the desk's Alerts panel." });
     saveOwnerKey(desk, key);
+    // Add to Home Screen then opens this same private link, not the desk's home (the Home Screen app has its own storage).
+    const manifest = document.querySelector('link[rel="manifest"]');
+    if (manifest) manifest.href = `/api/manifest?desk=${encodeURIComponent(desk)}&key=${encodeURIComponent(key)}`;
     const local = tenantForSite(tenants, desk) || Object.values(tenants).find((t) => t.cloud?.host === desk);
     if (local) {
       setActiveTenant(local.id);
@@ -57,7 +60,7 @@ export default function Alerts() {
               <ol className="fd-card mt-6 space-y-3 p-5 text-[15px]">
                 <li className="flex gap-2"><span className="font-semibold">1.</span> Tap <Share className="inline h-4 w-4" /> Share at the bottom of Safari.</li>
                 <li className="flex gap-2"><span className="font-semibold">2.</span> Tap "Add to Home Screen", then Add.</li>
-                <li className="flex gap-2"><span className="font-semibold">3.</span> Open Front Desk from your Home Screen and come back to Alerts there.</li>
+                <li className="flex gap-2"><span className="font-semibold">3.</span> Open Front Desk from your Home Screen. It opens on this page: tap Turn on alerts there.</li>
               </ol>
             ) : state.step === "on" ? (
               <p className="mt-6 flex items-center gap-2 text-[17px] font-medium text-[hsl(var(--ios-green))]"><Check className="h-5 w-5" /> Alerts are on for this phone.</p>
