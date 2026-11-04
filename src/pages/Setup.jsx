@@ -7,6 +7,7 @@ import { gateway } from "@/gateway";
 import { addTenant } from "@/lib/store";
 import { buildTenant } from "@/lib/onboard";
 import Logo from "@/components/shared/Logo";
+import ShareLink from "@/components/frontdesk/ShareLink";
 import ProviderBadge from "@/components/shared/ProviderBadge";
 import { isMenu } from "@/config/trades";
 
@@ -257,10 +258,17 @@ function Launched({ tenant, published, onOpen }) {
       <main className="mx-auto max-w-[760px] px-4 py-14 md:px-8">
         <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-[hsl(var(--ios-green))]"><Check className="h-4 w-4" /> Live</p>
         <h1 className="font-display-tight mt-2 text-[44px] leading-[1.02] md:text-[56px]">{tenant.name}'s front desk is live.</h1>
-        <p className="mt-4 text-[17px] text-muted-foreground">Customers who press the chat button on {tenant.setup?.host || "your website"} now reach Aura, day and night. Quotes and messages still wait for your approval.</p>
-        <div className="fd-card mt-8 p-5">
-          <p className="text-[15px] font-medium">Add the chat button to your website</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">Paste this line before &lt;/body&gt; on every page. It adds a chat button and opens your desk.</p>
+        <p className="mt-4 text-[17px] text-muted-foreground">Customers reach Aura day and night from your chat link, or from a chat button on your website. Quotes and messages still wait for your approval.</p>
+        {tenant.setup?.host && (
+          <div className="fd-card mt-8 p-5">
+            <p className="text-[15px] font-medium">Share your chat link <span className="ml-1 rounded-full bg-[hsl(var(--ios-green)/0.14)] px-2 py-0.5 text-[12px] font-semibold text-[hsl(var(--ios-green))]">No code</span></p>
+            <p className="mb-4 mt-1 text-[13px] text-muted-foreground">Anyone who opens this link or scans the code reaches your front desk, under your name.</p>
+            <ShareLink host={tenant.setup.host} name={tenant.name} />
+          </div>
+        )}
+        <div className="fd-card mt-4 p-5">
+          <p className="text-[15px] font-medium">Add a chat button to your website</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">Optional. Paste this line before &lt;/body&gt;, or in the custom code box on Wix, Squarespace or WordPress. It adds a chat button that opens your desk.</p>
           <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-secondary p-3">
             <code className="min-w-0 flex-1 select-all break-all font-mono text-[13px]">{snippet}</code>
             <button type="button" onClick={copy} className="fd-btn-outline fd-btn-sm shrink-0"><Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy"}</button>
