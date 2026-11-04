@@ -92,3 +92,13 @@ test("reset demo keeps old cloud leads out of a clean desk", async () => {
   const newer = { ...fresh, updatedAt: "2026-11-04T07:05:00.000Z" };
   assert.equal(remoteLeadsToTake([newer], { cases: [{ ...fresh, remote: true }], tenants }).length, 1);
 });
+
+test("iPhone Home Screen app opens on the private alerts link", async () => {
+  const { alertsManifest } = await import("../api/manifest.js");
+  const m = alertsManifest({ desk: "ironwood-roofing-okc.vercel.app", key: "AbC123_-xyzXYZ0987654321" });
+  assert.equal(m.start_url, "/alerts?desk=ironwood-roofing-okc.vercel.app&key=AbC123_-xyzXYZ0987654321");
+  assert.equal(m.display, "standalone");
+  // Anything that isn't a plain host and key falls back to the desk's home.
+  assert.equal(alertsManifest({ desk: "evil.com/<script>", key: "x" }).start_url, "/frontdesk");
+  assert.equal(alertsManifest({}).start_url, "/frontdesk");
+});
