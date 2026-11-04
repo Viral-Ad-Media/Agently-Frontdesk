@@ -19,6 +19,7 @@
 //
 // Coordinates are normalised 0-1000 on both axes.
 
+import { rateCardFromSite, readRateCard } from "../../lib/rateCard.js";
 import { areaPercent } from "../../lib/eye.js";
 import { readUtterance } from "../../lib/desk.js";
 import { QUESTION, NEEDS, DAY_WORD, THOUGHT } from "../../lib/agent.js";
@@ -427,8 +428,11 @@ export async function setupTenant({ site = {} } = {}) {
   const services = [];
   const evidence = [];
   for (const line of text.split("\n")) {
+    // A per-unit rate ("$4.50 per sq ft", "$65 per hour") belongs to the rate card, not the service list.
+    if (/\$\s?\d[\d,.]*\s*(?:\/|per)\s*(?:sq|m²|m2|square|hour|hr)/i.test(line)) continue;
     const m = line.match(/^-?\s*([A-Za-z][A-Za-z0-9 &'/()+-]{2,48}?)\s*[:\-–—|]?\s*(?:from\s+)?\$(\d[\d,]*)(?:\s*(?:-|–|to)\s*\$?(\d[\d,]*))?/i);
-    if (m && services.length < 10) {
+    if (m && /^(from|only|just|starting at|price|prices)$/i.test(m[1].trim())) continue;
+    if (m && services.length < 10 && !services.some((x) => x.name.toLowerCase() === m[1].trim().toLowerCase())) {
       const low = Number(m[2].replace(/,/g, ""));
       const high = m[3] ? Number(m[3].replace(/,/g, "")) : low;
       services.push({ name: m[1].trim(), priceLow: low, priceHigh: high, keywords: m[1].toLowerCase().split(/\s+/).filter((w) => w.length > 3).slice(0, 4), evidence: line.slice(0, 140) });
@@ -436,6 +440,13 @@ export async function setupTenant({ site = {} } = {}) {
   }
   if (serviceArea) evidence.push({ field: "serviceArea", quote: areaMatch[0] });
   evidence.push({ field: "name", quote: site.title || name });
+  // Licence, insurance, warranty and review lines the site states, word for word, for the trust card.
+  for (const line of text.split("\n").flatMap((l) => l.split(/\s·\s/))) {
+    if (evidence.length >= 8) break;
+    const q = line.replace(/^-\s*/, "").replace(/[★☆]+/g, "").trim();
+    if (/licen[cs]|insured|bonded|warrant|rated \d|\d(?:\.\d)? stars?|since \d{4}|years in business/i.test(q) && q.length < 140 && !evidence.some((e) => e.quote === q)) evidence.push({ field: "trust", quote: q });
+  }
+  const rateCard = trade === "roofing" ? rateCardFromSite(readRateCard(text), text) : null;
   const isSpa = trade === "medspa";
   if (trade !== "unsupported" && trade !== "roofing" && trade !== "medspa") {
     const prof = tradeProfile(trade);
@@ -468,6 +479,7 @@ export async function setupTenant({ site = {} } = {}) {
       : "Describe the problem and add a photo. We outline the damage, draft a price range and book a free inspection, in minutes.",
     placeholder: isSpa ? "What would you like help with?" : "What's happening with your roof?",
     evidence,
+    rateCard,
     confidence: trade === "unsupported" ? 0.3 : 0.6,
   };
 }

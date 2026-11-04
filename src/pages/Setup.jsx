@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, Check, Globe, LayoutDashboard, Loader2, MessageSquare, Quote } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowRight, Check, Copy, ExternalLink, Globe, LayoutDashboard, Loader2, MessageSquare, Quote } from "lucide-react";
+import { publishDesk } from "@/lib/cloud";
+import { perSqFt } from "@/lib/rateCard";
 import { gateway } from "@/gateway";
 import { addTenant } from "@/lib/store";
 import { buildTenant } from "@/lib/onboard";
@@ -21,7 +23,9 @@ async function readSite(url) {
 // and edits every fact, then launches. Nothing goes live without the owner's tap.
 export default function Setup() {
   const navigate = useNavigate();
-  const [url, setUrl] = useState("");
+  const [params] = useSearchParams();
+  const [url, setUrl] = useState(params.get("url") || "");
+  const [launched, setLaunched] = useState(null); // { tenant, published }
   const [step, setStep] = useState(-1);
   const [error, setError] = useState(null);
   const [site, setSite] = useState(null);
@@ -31,6 +35,11 @@ export default function Setup() {
   const timer = useRef(null);
 
   useEffect(() => () => clearInterval(timer.current), []);
+  // /setup?url=… (from a website's "Set it up" link): start reading straight away.
+  useEffect(() => {
+    if (params.get("url")) run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const run = async (e) => {
     e?.preventDefault();
@@ -68,10 +77,16 @@ export default function Setup() {
     salon: "Hair salon: photo consent, published menu, patch-test flag",
     barber: "Barber: photo consent, published menu",
   };
-  const launch = () => {
+  const spa = isMenu(tenant?.trade);
+  // Launch: the desk goes live in this browser and is published, so the website's chat button reaches it from
+  // any device. Publishing is best-effort; the desk works here either way.
+  const launch = async () => {
     addTenant(tenant);
-    navigate(`/frontdesk`);
+    setLaunched({ tenant, published: null });
+    const res = await publishDesk(tenant);
+    setLaunched({ tenant, published: res });
   };
+  if (launched) return <Launched {...launched} onOpen={() => navigate("/frontdesk")} />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -150,6 +165,31 @@ export default function Setup() {
               </ul>
               {tenant.setup.unpriced.length > 0 && spa && <p className="mt-2 text-[13px] text-muted-foreground">Listed without a price, so not quoted: {tenant.setup.unpriced.join(", ")}.</p>}
 
+              {tenant.rateCard && (
+                <>
+                  <h2 className="mt-6 text-lg">Rate card {tenant.rateCard.source === "website" ? "found on the site" : "(demo rates until you set yours)"}</h2>
+                  <p className="mt-1 text-[13px] text-muted-foreground">{tenant.rateCard.source === "website" ? "Read from your published prices and checked in code: only numbers printed on the site are kept." : "Your site doesn't print repair rates. Edit these now or later on the desk."} Draft quotes use these.</p>
+                  <ul className="mt-2 divide-y divide-border" data-testid="setup-rates">
+                    {Object.entries(tenant.rateCard.materials).map(([m, v]) => (
+                      <li key={m} className="flex flex-wrap items-center gap-2 py-2 text-[15px]">
+                        <span className="min-w-0 flex-1 capitalize">{m}</span>
+                        <span className="flex items-center gap-1 tabular-nums">
+                          $<input aria-label={`${m} per square metre`} inputMode="decimal" value={v} onChange={(e) => patch((t) => ((t.rateCard.materials[m] = Number(e.target.value) || 0), t))} className="h-9 w-20 rounded-lg border border-border bg-card px-2 outline-none focus:border-foreground" /> /m²
+                          <span className="w-24 text-right text-[13px] text-muted-foreground">${perSqFt(v).toFixed(2)}/sq ft</span>
+                        </span>
+                      </li>
+                    ))}
+                    <li className="flex flex-wrap items-center gap-2 py-2 text-[15px]">
+                      <span className="min-w-0 flex-1">Labour</span>
+                      <span className="flex items-center gap-1 tabular-nums">
+                        $<input aria-label="Labour per hour" inputMode="decimal" value={tenant.rateCard.labourPerHour} onChange={(e) => patch((t) => ((t.rateCard.labourPerHour = Number(e.target.value) || 0), t))} className="h-9 w-20 rounded-lg border border-border bg-card px-2 outline-none focus:border-foreground" /> /hour
+                        <span className="w-24 text-right text-[13px] text-muted-foreground">{tenant.rateCard.minimumHours} h minimum</span>
+                      </span>
+                    </li>
+                  </ul>
+                </>
+              )}
+
               {tenant.setup.evidence.length > 0 && (
                 <>
                   <h2 className="mt-6 text-lg">Where each fact came from</h2>
@@ -194,6 +234,45 @@ export default function Setup() {
             </div>
           </section>
         )}
+      </main>
+    </div>
+  );
+}
+
+// After launch: the desk is live. Show the one line that puts the chat button on the business's own website.
+function Launched({ tenant, published, onOpen }) {
+  const [copied, setCopied] = useState(false);
+  const snippet = `<script src="${window.location.origin}/widget.js" defer></script>`;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(snippet);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard blocked: the snippet is selectable */
+    }
+  };
+  return (
+    <div className="min-h-screen bg-background">
+      <main className="mx-auto max-w-[760px] px-4 py-14 md:px-8">
+        <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-[hsl(var(--ios-green))]"><Check className="h-4 w-4" /> Live</p>
+        <h1 className="font-display-tight mt-2 text-[44px] leading-[1.02] md:text-[56px]">{tenant.name}'s front desk is live.</h1>
+        <p className="mt-4 text-[17px] text-muted-foreground">Customers who press the chat button on {tenant.setup?.host || "your website"} now reach Aura, day and night. Quotes and messages still wait for your approval.</p>
+        <div className="fd-card mt-8 p-5">
+          <p className="text-[15px] font-medium">Add the chat button to your website</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">Paste this line before &lt;/body&gt; on every page. It adds a chat button and opens your desk.</p>
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-secondary p-3">
+            <code className="min-w-0 flex-1 select-all break-all font-mono text-[13px]">{snippet}</code>
+            <button type="button" onClick={copy} className="fd-btn-outline fd-btn-sm shrink-0"><Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy"}</button>
+          </div>
+          <p className="mt-3 text-[13px] text-muted-foreground" data-testid="publish-status">
+            {published === null ? "Publishing your desk so the button works on any device…" : published?.ok ? "Published: the button works on any phone or computer." : `Works in this browser. Publishing failed${published?.error ? ` (${published.error})` : ""}, so other devices can't reach it yet.`}
+          </p>
+        </div>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button type="button" onClick={onOpen} className="fd-btn-primary h-11 px-5"><LayoutDashboard className="h-4 w-4" /> Open my front desk</button>
+          {tenant.setup?.url && <a href={tenant.setup.url} target="_blank" rel="noreferrer" className="fd-btn-outline h-11 px-4"><ExternalLink className="h-4 w-4" /> Open my website</a>}
+        </div>
       </main>
     </div>
   );

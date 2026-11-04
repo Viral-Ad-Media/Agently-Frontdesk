@@ -1,10 +1,26 @@
 {
   "name": "Agently Front Desk",
   "short_name": "Front Desk",
-  "description": "Describe a roof problem, add a photo, get the damage outlined, a draft price range and a booked inspection.",
-  "start_url": "/",
+  "description": "The owner's front desk: new leads, photo estimates waiting for approval and bookings, with alerts.",
+  "start_url": "/frontdesk",
   "display": "standalone",
-  "background_color": "#f6f5f1",
-  "theme_color": "#f15a24",
-  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
 }
