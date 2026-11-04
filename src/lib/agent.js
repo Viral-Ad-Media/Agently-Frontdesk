@@ -5,7 +5,8 @@
 // grounding check holds back any time or price the observations do not contain.
 // Pure module: no React, no store import, so it runs in node tests and in the browser alike.
 
-import { earlierEnquiries } from "./returning.js";
+import { earlierEnquiries, mergeEarlier } from "./returning.js";
+import { lastAddressIn } from "./address.js";
 import { mentions } from "../config/trades.js";
 import { trustFor, TRUST_NOTE } from "./trust.js";
 
@@ -76,13 +77,16 @@ export const TOOLS = {
   },
   customer_history: {
     label: "Checked earlier enquiries",
-    describe: "Earlier enquiries to this business from the same address (same customer). Returns dates, what was reported and where each one got to.",
-    run({ cases = [], current = {} }) {
-      const addr = norm(current.customer?.address);
-      const earlier = addr ? earlierEnquiries(current, cases) : [];
+    describe: "Earlier enquiries to this business from the same property address, in this browser and in the business's cloud copy. Returns dates, what was reported and where each one got to. Uses the address the customer gave in this conversation.",
+    run({ cases = [], current = {}, args = {}, addressHint = "", remoteHistory = [] }) {
+      // The address the customer just typed counts before the case is updated with it.
+      const address = args.address || addressHint || current.customer?.address || "";
+      const local = address ? earlierEnquiries(current, cases, address) : [];
+      const earlier = address ? mergeEarlier(local, remoteHistory, current.id) : [];
       return {
-        addressKnown: !!addr,
-        earlier: earlier.slice(0, 3).map((c) => ({ date: c.createdAt ? fmtDay(c.createdAt) : null, reported: c.description || null, status: c.booking ? "visit booked" : c.quote?.status || "enquiry" })),
+        addressKnown: !!address,
+        address: address || null,
+        earlier: earlier.slice(0, 3).map((e) => ({ date: e.at ? fmtDay(e.at) : null, reported: e.reported || null, status: e.status })),
       };
     },
   },
@@ -101,7 +105,7 @@ export const TOOLS = {
 // lookup the planner missed. Tools only read data, so an extra lookup costs nothing but a few microseconds.
 export const QUESTION = /\?|^\s*(do|does|did|can|could|are|is|how|what|when|where|will|would|any|have|got)\b/i;
 export const NEEDS = [
-  ["customer_history", /\b(last time|before|again|already|earlier|previous|still waiting|follow(?:ing)? up)\b/i],
+  ["customer_history", /\b(last time|before|again|already|earlier|previous|still waiting|follow(?:ing)? up|remember|recogni[sz]e|know me|knew me|spoke|talked|came out|been out|my last|returning|back again)\b/i],
   ["check_calendar", /\b(available|availability|slots?|appointment|come (?:out|over|by)|today|tomorrow|this week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|when can)\b/i],
   ["rate_card", /\b(how much|cost|costs|price|prices|pricing|rates?|charge|expensive|cheap)\b/i],
   ["business_facts", /\b(area|serve|cover|near|insured|insurance|licen[cs]ed?|reviews?|rated|rating|legit|trust|warranty|guarantee|hours|open on|located|who are you)\b/i],
@@ -117,13 +121,17 @@ export const THOUGHT = {
   storm_reports: "They asked about the storm. Read the weather-service reports on record.",
 };
 
-export function planLookups(text = "", trade = "roofing") {
-  if (!QUESTION.test(text)) return [];
-  return NEEDS.filter(([, re]) => re.test(text)).map(([tool]) => ({
+export function planLookups(text = "", trade = "roofing", { addressGiven = false } = {}) {
+  // A customer who gives their address gets their earlier enquiries looked up, question or not, so a
+  // returning customer is recognised the moment they say where they are.
+  const history = addressGiven ? [{ tool: "customer_history", args: {}, thought: "They gave their address. Look up earlier enquiries from it." }] : [];
+  if (!QUESTION.test(text)) return history;
+  const asked = NEEDS.filter(([tool, re]) => re.test(text) && !(addressGiven && tool === "customer_history"));
+  return [...history, ...asked.map(([tool]) => ({
     tool,
     args: tool === "check_calendar" ? { day: text.match(DAY_WORD)?.[1]?.toLowerCase() || null } : tool === "rate_card" ? { topic: trade === "medspa" ? text.match(SKIN)?.[0] || null : text } : {},
     thought: THOUGHT[tool],
-  }));
+  }))];
 }
 
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -164,7 +172,11 @@ export async function runAgentTurn({ ai, trade, tenant, messages, caseState, dat
   }
   // Fast path: run the lookups the question plainly needs now, in code, then ask the model once.
   const lastUser = [...messages].reverse().find((m) => m.role === "user")?.content || "";
-  for (const p of data.prefetch === false ? [] : planLookups(lastUser, trade)) {
+  // The address the customer gave in this conversation, read in code, so the history lookup has it at once.
+  const addressHint = lastAddressIn(messages);
+  data = { ...data, addressHint };
+  const addressGiven = !!addressHint && lastAddressIn([{ role: "user", content: lastUser }]) === addressHint;
+  for (const p of data.prefetch === false ? [] : planLookups(lastUser, trade, { addressGiven })) {
     const result = TOOLS[p.tool].run({ ...data, tenant, args: p.args, now });
     observations.push({ tool: p.tool, args: p.args, result });
     steps.push({ thought: p.thought, tool: p.tool, label: TOOLS[p.tool].label, args: p.args, result, prefetched: true });

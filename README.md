@@ -45,6 +45,17 @@ Everything in this repository was built during the event, except the starting UI
 - Lead score (hot, warm, cold) with its reasons, and "Take over the chat": the owner replies as a person and the AI pauses on that chat. Changes show live in another open tab.
 - Set up a new business from its own website (`/setup`).
 
+- Put the desk on any website: a no-code chat link and QR code per business (`/chat?site=<host>`), plus an optional one-line chat button (`widget.js`) that takes the business's own name, colour and icon.
+- Owner alerts for new leads: push (also on iPhone from the Home Screen) and email.
+
+### Fixed on 4 Nov 2026
+
+- **Returning customers are remembered by address, on any device.** The address is read from what the customer types (`src/lib/address.js`), so "Do you remember me, 14 Larkspur Lane, Austin, TX?" looks up earlier enquiries at once. Each published desk keeps a small address book in the cloud (date, what was reported, where it got to; never a name, phone or email), so a customer on a new phone is still recognised.
+- **Faster chat replies.** Customer chat and the voice desk run Muse Spark at minimal reasoning effort. Measured on the live site: median 4.3 s per reply (7 runs, 3.1 to 5.4 s), against 11.4 s at low effort. The grounding check still runs on every reply.
+- **The website chat button is branded per business.** The line each business copies carries its own site (`widget.js?site=<host>`). The button reads the business's name, brand colour and icon, and greets in its trade. Each QR code opens that business's own chat.
+- **Remove a business** from the desk (`/frontdesk`, two taps), with its published copy, so its website can be set up again from scratch. Only the browser that published it can remove the published copy.
+- **Demo websites have an empty code box** (`demo-sites/embed/<site>.html`) for the business owner to paste the chat line into, instead of a pre-installed chat.
+
 Nothing is sent, booked or priced without a person's approval. Draft quotes are USD ranges. The med spa desk never diagnoses or gives medical advice.
 
 ## The journey
@@ -109,7 +120,8 @@ Built on 2 Nov 2026 from the Agents 101, Agents 102 and Fireworks sessions. Ever
 
 | Task | Tier | Effort | Human review |
 |---|---|---|---|
-| Chat turns, re-openers, voice desk | small | low | no |
+| Customer chat turns and the voice desk | small | minimal (measured on the live site, 4 Nov: median 4.3 s per reply, against 11.4 s at low) | no |
+| Re-openers and check-ins | small | low | no |
 | Clear single-problem assessment | medium | low | no |
 | Reviewer pass on a single-problem job | small | low (a medium-effort review took 34 s on Meta; the reviewer also gets a 512 px image) | no |
 | Safety hazard, photo vs description conflict, several problems | large | high | forced |
@@ -143,7 +155,7 @@ Each customer message runs a short plan-act-observe loop (`src/lib/agent.js`, at
 | `check_calendar` | Real open slots for the next 7 days, optionally on a named day |
 | `rate_card` | Published roofing rates per m², labour per hour and service prices printed on the business's website (never a job total), or the med spa menu |
 | `business_facts` | Name, service area, first visit, the setup summary and the quotes read from the business's own website at setup. Anything else is "not on my record" |
-| `customer_history` | Earlier enquiries from the same address |
+| `customer_history` | Earlier enquiries from the same address, in this browser and in the desk's cloud address book. It runs as soon as the customer gives an address |
 | `storm_reports` | Weather-service storm reports on record |
 
 Fast path: the lookups a question plainly needs (picked from its wording by `planLookups`) run in code before the model is called, so a question like "how much, and can you come tomorrow?" takes one Muse Spark call instead of two or three. The model can still ask for a lookup the planner missed. The answer may state only facts a tool returned. A coded grounding check holds back any clock time or dollar figure that no lookup, no earlier message and no approved quote contains. The customer sees small "Checked the calendar" chips under a reply. The owner sees "How the desk answered" on the lead: each plan, each lookup and what it found, and whether the reply passed grounding. A question is never taken as the job description or the address, and the desk carries on qualifying the job after answering. Tests: `tests/agent.test.js` (10) and the "smart desk" e2e journey.

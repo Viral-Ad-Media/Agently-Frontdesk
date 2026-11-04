@@ -3,8 +3,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ArrowUpRight, Globe, LayoutDashboard, Loader2, Mic, MicOff, RotateCcw } from "lucide-react";
 import { gateway } from "@/gateway";
 import { addTenant, appendMessage, createCase, getCase, getState, setActiveTenant, updateCase, useStore } from "@/lib/store";
-import { alertOwner, fetchDesk } from "@/lib/cloud";
-import { earlierEnquiries, tenantForSite } from "@/lib/returning";
+import { alertOwner, fetchDesk, fetchHistory, syncLead } from "@/lib/cloud";
+import { earlierEnquiries, mergeEarlier, tenantForSite } from "@/lib/returning";
+import { findAddress, normAddress } from "@/lib/address";
 import { route } from "@/lib/router";
 import { assessAndVerify } from "@/lib/pipeline";
 import { runAgentTurn } from "@/lib/agent";
@@ -67,6 +68,7 @@ export default function Chat() {
   const voiceModeRef = useRef(false);
   const assessRef = useRef(null);
   const toggleVoiceRef = useRef(null);
+  const historyRef = useRef(new Map()); // address -> earlier enquiries from the desk's cloud copy, once per address
   voiceModeRef.current = voiceMode;
   const voice = useVoice({ onFinal: (t) => sendRef.current(t) });
   // "spa" = the service-menu engine (med spa, plumbing, AC, salon, barber); the trade profile says the rest.
@@ -140,8 +142,19 @@ export default function Chat() {
       setBusy(true);
       setFailure(null);
       try {
+        // A returning customer: the address they just typed is read in code (before any model call), and their
+        // earlier enquiries come from this browser and from the desk's cloud copy, so any device remembers them.
+        // The case itself is only updated after the reply, so the conversation flow is unchanged.
+        const typed = findAddress(text);
         const after = getCase(id);
         const t = tenants[after.tenantId];
+        const address = typed || after.customer?.address || "";
+        let remoteHistory = [];
+        if (address && t?.cloud?.host) {
+          const key = normAddress(address);
+          if (!historyRef.current.has(key)) historyRef.current.set(key, await fetchHistory(t.cloud.host, address, id));
+          remoteHistory = historyRef.current.get(key);
+        }
         const all = getState();
         const res = await runAgentTurn({
           ai: gateway,
@@ -157,26 +170,27 @@ export default function Chat() {
             photo: !!after.photo,
             lastQuestion: after.lastQuestion,
           },
-          data: { slots: all.slots.filter((sl) => sl.tenantId === after.tenantId), cases: all.cases, current: after, stormRuns: all.stormRuns || [] },
+          data: { slots: all.slots.filter((sl) => sl.tenantId === after.tenantId), cases: all.cases, current: after, stormRuns: all.stormRuns || [], remoteHistory },
         });
         const ex = res.extracted || {};
         updateCase(id, (prev) => ({
           description: ex.description || prev.description,
           urgency: ex.urgency || prev.urgency,
           intent: ex.intent || prev.intent,
-          customer: { ...prev.customer, address: ex.address || prev.customer.address },
+          customer: { ...prev.customer, address: ex.address || prev.customer.address || typed || undefined },
           lastQuestion: res.nextAction,
           provider: res.provider,
         }));
         // Same address as an earlier enquiry to this business: link them, so the owner sees the history.
         const linked = getCase(id);
         if (linked.customer.address && !linked.returning) {
-          const earlier = earlierEnquiries(linked, getState().cases);
-          if (earlier.length) updateCase(id, { returning: { count: earlier.length, ids: earlier.map((e) => e.id), last: { at: earlier[0].createdAt, reported: earlier[0].description || null, status: earlier[0].bookingSlotId ? "visit booked" : earlier[0].quote?.status || "enquiry" } } });
+          const earlier = mergeEarlier(earlierEnquiries(linked, getState().cases), remoteHistory, id);
+          if (earlier.length) updateCase(id, { returning: { count: earlier.length, ids: earlier.map((e) => e.id), last: { at: earlier[0].at, reported: earlier[0].reported, status: earlier[0].status } } });
         }
         if (BOOK_INTENT.test(text)) updateCase(id, { bookingOffered: true });
         appendMessage(id, { role: "assistant", content: res.reply, trace: res.trace });
         say(res.reply);
+        syncLead(id);
         // A menu trade that has the description but no photo coming can be matched from the text straight away.
         const now = getCase(id);
         if (res.nextAction === "assess" && isMenu(now.trade) && now.trade !== "medspa" && !now.photo && !now.assessment && now.description) setTimeout(() => assessRef.current?.(), 0);

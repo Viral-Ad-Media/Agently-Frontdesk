@@ -2,7 +2,7 @@
 // Simple capture questions and short drafts go small; a clear single-problem assessment goes medium;
 // safety, conflicting evidence or several problems go large and force human review.
 // On a failed or low-confidence result the caller retries once on the next tier up, then escalates.
-import { ROUTER_TIERS } from "../config/policy.js";
+import { CHAT_EFFORT, ROUTER_TIERS } from "../config/policy.js";
 
 const UP = { small: "medium", medium: "large", large: null };
 
@@ -10,6 +10,9 @@ export function route(task, signals = {}) {
   const { emergency = false, regions = 1, conflict = false, attempt = 0, lowConfidence = false } = signals;
   let tier;
   let reason;
+  if (task === "converse" && !attempt && !lowConfidence) {
+    return { tier: "small", effort: CHAT_EFFORT, label: ROUTER_TIERS.small.label, reason: "Customer chat reply: small tier, minimal effort for speed; the grounding check still runs.", forceHuman: false };
+  }
   if (task === "converse" || task === "reactivateMessage" || task === "deskCommand") {
     tier = "small";
     reason = "Short reply or draft: small tier, low effort.";

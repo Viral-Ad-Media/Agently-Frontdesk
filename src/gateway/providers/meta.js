@@ -8,6 +8,7 @@
 // Same return shapes as mock.js; prompts are read from prompts/prompts.md.
 import { printedDollars, rateCardFromSite } from "../../lib/rateCard.js";
 import { TRADE_IDS, isMenu, tradeProfile } from "../../config/trades.js";
+import { CHAT_EFFORT } from "../../config/policy.js";
 import promptsMd from "../../../prompts/prompts.md?raw";
 import { renderReportVisual as composeReport } from "./mock.js";
 
@@ -421,6 +422,8 @@ export async function deskCommand({ utterance = "", snapshot = {}, tenant = { na
   const out = await sparkJson({
     system: fill(section("deskCommand"), { tenant }),
     user: JSON.stringify({ owner_said: utterance, desk: snapshot }),
+    // Owner questions get the same speed setting as customer chat; every action still needs the owner's Confirm.
+    effort: CHAT_EFFORT,
     schema: {
       type: "object",
       additionalProperties: false,

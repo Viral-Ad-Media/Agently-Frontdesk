@@ -4,6 +4,7 @@
 import crypto from "node:crypto";
 import { put, get, list, del } from "@vercel/blob";
 import webpush from "web-push";
+import { historyFor, upsertHistory } from "../src/lib/history.js";
 
 const mem = new Map();
 
@@ -51,6 +52,8 @@ export const cleanHost = (h) =>
 const fail = (status, error) => Object.assign(new Error(error), { status });
 const deskPath = (host) => `desks/${host}.json`;
 const alertPath = (host) => `alerts/${host}.json`;
+const historyPath = (host) => `history/${host}.json`;
+const leadPath = (host, caseId) => `leads/${host}/${String(caseId).replace(/[^a-z0-9-]/gi, "").slice(0, 60)}.json`;
 
 async function ownerDesk(store, host, ownerKey) {
   const rec = await store.read(deskPath(host));
@@ -77,6 +80,46 @@ export async function deskPublish(store, { tenant, ownerKey } = {}) {
   if (!rec) key = crypto.randomBytes(18).toString("base64url");
   await store.write(deskPath(host), { tenant: JSON.parse(body), keyHash: sha(key), createdAt: rec?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() });
   return { ok: true, host, ownerKey: key };
+}
+
+// The owner removes a business: its published desk, alerts, address book and every lead copy go.
+export async function deskRemove(store, { site, ownerKey } = {}) {
+  const host = cleanHost(site);
+  await ownerDesk(store, host, ownerKey);
+  const leads = await store.list(`leads/${host}/`);
+  for (const p of [deskPath(host), alertPath(host), historyPath(host), ...leads]) await store.remove(p).catch(() => {});
+  return { ok: true, host, removed: leads.length };
+}
+
+// ----- Returning customers across devices -----
+
+// A copy of the lead for the owner's other devices, and its address in the desk's address book.
+async function saveLead(store, host, caseId, lead) {
+  if (!lead || !caseId) return;
+  let copy = { ...lead, id: lead.id || String(caseId), remoteAt: new Date().toISOString() };
+  if (JSON.stringify(copy).length > 1_500_000) copy = { ...copy, photo: copy.photo ? { ...copy.photo, dataUrl: null } : null };
+  await store.write(leadPath(host, caseId), copy);
+  if (copy.customer?.address) {
+    const book = (await store.read(historyPath(host))) || { entries: [] };
+    await store.write(historyPath(host), { entries: upsertHistory(book.entries, copy) });
+  }
+}
+
+// A customer's chat keeps its lead copy current (no alert is sent). Anyone may call it, as with notify: it
+// only writes under a desk that its owner published.
+export async function leadSync(store, { host, caseId, lead } = {}) {
+  host = cleanHost(host);
+  if (!(await store.read(deskPath(host)))) throw fail(404, "No published desk for this website.");
+  await saveLead(store, host, caseId, lead);
+  return { ok: true };
+}
+
+// Earlier enquiries at a property address, for the desk's chat on any device: when, what was reported and where
+// it got to, never a name, phone number or email.
+export async function deskHistory(store, { site, address, caseId } = {}) {
+  const host = cleanHost(site);
+  const book = (await store.read(historyPath(host))) || { entries: [] };
+  return { earlier: historyFor(book.entries, String(address || "").slice(0, 160), caseId || null) };
 }
 
 // ----- Owner alerts -----
@@ -141,7 +184,7 @@ export async function alertsNotify(store, env, { host, caseId, kind = "new", tit
   const tag = `${String(caseId).slice(0, 60)}:${String(kind).slice(0, 20)}`;
   rec.recent = rec.recent || [];
   rec.sentAt = (rec.sentAt || []).filter((t) => Date.now() - t < 3600_000);
-  if (lead && caseId) await store.write(`leads/${host}/${String(caseId).replace(/[^a-z0-9-]/gi, "").slice(0, 60)}.json`, { ...lead, remoteAt: new Date().toISOString() });
+  await saveLead(store, host, caseId, lead);
   if (rec.recent.includes(tag)) return { duplicate: true, push: 0, email: false };
   if (rec.sentAt.length >= 40) return { throttled: true, push: 0, email: false };
   const business = desk.tenant?.name || host;
@@ -195,11 +238,12 @@ export async function handleCloud(route, method, query, body, env = process.env)
   const store = makeStore(env);
   if (route === "desk") {
     if (method === "GET") {
+      if (query.history != null) return deskHistory(store, { site: query.site, address: query.history, caseId: query.case });
       const d = await deskGet(store, query.site);
       if (!d) throw fail(404, "No desk is published for this website yet.");
       return d;
     }
-    if (method === "POST") return deskPublish(store, body);
+    if (method === "POST") return body.action === "remove" ? deskRemove(store, body) : deskPublish(store, body);
   }
   if (route === "alerts") {
     if (method === "GET") {
@@ -211,6 +255,7 @@ export async function handleCloud(route, method, query, body, env = process.env)
       const a = body.action;
       if (a === "subscribe") return alertsSubscribe(store, env, body);
       if (a === "notify") return alertsNotify(store, env, body);
+      if (a === "lead") return leadSync(store, body);
       if (a === "test") return alertsTest(store, env, body);
     }
   }

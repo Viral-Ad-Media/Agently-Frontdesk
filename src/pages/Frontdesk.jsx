@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Bell, CalendarDays, Check, Globe, History, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, MessageSquare, Phone, Plus, Pencil, QrCode, RefreshCw, Send, X } from "lucide-react";
-import { useStore, moveQuote, rejectQuote, editQuoteRange, cancelBooking, resetDemo, setActiveTenant, correctOutline } from "@/lib/store";
+import { Bell, CalendarDays, Check, Globe, History, FlaskConical, CircleCheck, Inbox, MessageCircle, Sparkles, ChevronDown, CloudLightning, FileText, MessageSquare, Phone, Plus, Pencil, QrCode, RefreshCw, Send, Trash2, X } from "lucide-react";
+import { useStore, moveQuote, rejectQuote, editQuoteRange, cancelBooking, resetDemo, removeTenant, setActiveTenant, correctOutline } from "@/lib/store";
 import { jobStatus } from "@/lib/verify";
 import VerificationPanel, { VerifyPill } from "@/components/frontdesk/VerificationPanel";
 import AgentTrace from "@/components/frontdesk/AgentTrace";
@@ -25,7 +25,7 @@ import TakeOver from "@/components/frontdesk/TakeOver";
 import RateCardPanel from "@/components/frontdesk/RateCardPanel";
 import AlertsPanel from "@/components/frontdesk/AlertsPanel";
 import { SharePanel } from "@/components/frontdesk/ShareLink";
-import { pullRemoteLeads } from "@/lib/cloud";
+import { pullRemoteLeads, removeDesk } from "@/lib/cloud";
 import { tenantForSite } from "@/lib/returning";
 import { scoreLead, SCORE_LABEL } from "@/lib/leadScore";
 import Panel from "@/components/frontdesk/Panel";
@@ -122,6 +122,46 @@ export default function Frontdesk() {
     setResetStep("done");
   };
 
+  // Remove a business added from a website (two taps, like Reset): its published copy, alerts and lead copies
+  // go too when this browser published it, so its website can be set up again from scratch.
+  const [removeStep, setRemoveStep] = useState("idle"); // idle | confirm | busy
+  const [removeNote, setRemoveNote] = useState(null);
+  useEffect(() => {
+    if (removeStep !== "confirm") return undefined;
+    const t = setTimeout(() => setRemoveStep("idle"), 4000);
+    return () => clearTimeout(t);
+  }, [removeStep]);
+  useEffect(() => {
+    if (!removeNote) return undefined;
+    const t = setTimeout(() => setRemoveNote(null), 6000);
+    return () => clearTimeout(t);
+  }, [removeNote]);
+  const removeBusiness = async () => {
+    if (removeStep === "busy") return;
+    if (removeStep !== "confirm") return setRemoveStep("confirm");
+    setRemoveStep("busy");
+    const name = tenant.name;
+    const res = await removeDesk(tenant);
+    if (!res.ok) {
+      setRemoveStep("idle");
+      return setRemoveNote(`Couldn't remove ${name}'s published copy (${res.error}). Nothing was removed. Try again.`);
+    }
+    removeTenant(tenant.id);
+    clearGatewayCache();
+    setOpenId(null);
+    setShowShare(false);
+    setShowAlerts(false);
+    setEpoch((n) => n + 1);
+    setRemoveStep("idle");
+    setRemoveNote(
+      res.cloud
+        ? `${name} is removed, with its published copy. Set its website up again from Add a business.`
+        : res.notOwner
+          ? `${name} is removed from this browser. Its published copy came from another browser, so only that browser can remove it.`
+          : `${name} is removed from this browser.`
+    );
+  };
+
   return (
     <div key={epoch} className="min-h-screen bg-background">
       <header className="glass sticky top-0 z-20 border-b border-white/[0.08]">
@@ -173,6 +213,12 @@ export default function Frontdesk() {
             <Link to="/eval" className="fd-btn-sm inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground" title="Run the eval set">
               <FlaskConical className="h-4 w-4" /> <span className="hidden sm:inline">Eval</span>
             </Link>
+            {tenant.setup && (
+              <button type="button" onClick={removeBusiness} disabled={removeStep === "busy"} className={`fd-btn-sm inline-flex items-center gap-1.5 ${removeStep === "confirm" ? "text-[hsl(var(--ios-red))]" : "text-muted-foreground hover:text-foreground"}`} title={`Remove ${tenant.name} and its published copy, so its website can be set up again`} aria-live="polite" data-testid="remove-business">
+                <Trash2 className="h-4 w-4" />
+                <span className={removeStep === "idle" ? "hidden sm:inline" : ""}>{removeStep === "confirm" ? `Tap again to remove ${tenant.name}` : removeStep === "busy" ? "Removing…" : "Remove business"}</span>
+              </button>
+            )}
             <button type="button" onClick={reset} className={`fd-btn-sm inline-flex items-center gap-1.5 ${resetStep === "confirm" ? "text-[hsl(var(--ios-red))]" : "text-muted-foreground hover:text-foreground"}`} title="Clear every demo lead, booking, draft and counter, for every business" aria-live="polite">
               {resetStep === "done" ? <Check className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
               <span className={resetStep === "idle" ? "hidden sm:inline" : ""}>{resetStep === "confirm" ? "Tap again to reset" : resetStep === "done" ? "Demo reset" : "Reset demo"}</span>
@@ -180,6 +226,11 @@ export default function Frontdesk() {
           </div>
         </div>
 
+        {removeNote && (
+          <p role="status" className="mt-3 rounded-xl border border-border bg-secondary px-3.5 py-2.5 text-[14px]" data-testid="remove-note">
+            {removeNote}
+          </p>
+        )}
         <div className="mt-5 grid gap-4 lg:grid-cols-12">
           {showShare && tenant.setup?.host && <SharePanel tenant={tenant} onClose={() => setShowShare(false)} />}
           {showAlerts && <AlertsPanel tenant={tenant} onClose={() => setShowAlerts(false)} />}
