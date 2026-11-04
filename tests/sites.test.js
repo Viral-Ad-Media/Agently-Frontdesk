@@ -76,3 +76,19 @@ test("cloud: publish, owner-only updates, alerts dedupe and lead snapshots", asy
   assert.equal(st.email, "owner@example.com");
   await assert.rejects(handleCloud("alerts", "POST", {}, { action: "subscribe", host: "ironwood-test.example", ownerKey: pub.ownerKey, email: "nope" }, env), /doesn't look right/);
 });
+
+test("reset demo keeps old cloud leads out of a clean desk", async () => {
+  const { remoteLeadsToTake } = await import("../src/lib/remoteLeads.js");
+  const tenants = { ironwood: { id: "ironwood" } };
+  const old = { id: "c-old", tenantId: "ironwood", createdAt: "2026-11-04T05:00:00.000Z", updatedAt: "2026-11-04T05:01:00.000Z" };
+  const fresh = { id: "c-new", tenantId: "ironwood", createdAt: "2026-11-04T07:00:00.000Z", updatedAt: "2026-11-04T07:01:00.000Z" };
+  const stranger = { id: "c-x", tenantId: "someone-else", createdAt: "2026-11-04T07:00:00.000Z" };
+  const resetAt = "2026-11-04T06:00:00.000Z";
+  assert.deepEqual(remoteLeadsToTake([old, fresh, stranger], { cases: [], tenants, resetAt }).map((l) => l.id), ["c-new"]);
+  // Without a reset both of this desk's leads come in; a lead the desk already holds locally is not taken again.
+  assert.deepEqual(remoteLeadsToTake([old, fresh], { cases: [], tenants }).map((l) => l.id), ["c-old", "c-new"]);
+  assert.deepEqual(remoteLeadsToTake([fresh], { cases: [{ ...fresh }], tenants }), []);
+  // A newer copy of a lead that came from the cloud replaces the older one.
+  const newer = { ...fresh, updatedAt: "2026-11-04T07:05:00.000Z" };
+  assert.equal(remoteLeadsToTake([newer], { cases: [{ ...fresh, remote: true }], tenants }).length, 1);
+});
