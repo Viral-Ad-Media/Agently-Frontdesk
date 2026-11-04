@@ -45,3 +45,4 @@ footage/
 
 # Claude Code local settings (kept off GitHub)
 .claude/
+demo-sites/dist

@@ -16,6 +16,8 @@ export default function InsuranceCard({ c }) {
   const [carrier, setCarrier] = useState("");
   const [claim, setClaim] = useState("");
   const [date, setDate] = useState("");
+  const [policy, setPolicy] = useState("");
+  const [holder, setHolder] = useState(c.customer?.name || "");
   const ins = c.insurance;
 
   if (ins) {
@@ -38,17 +40,25 @@ export default function InsuranceCard({ c }) {
       onSubmit={(e) => {
         e.preventDefault();
         if (!carrier.trim()) return;
-        setInsurance(c.id, { claiming: true, carrier: carrier.trim(), claimNumber: claim.trim() || null, stormDate: date || null });
+        setInsurance(c.id, { claiming: true, holder: holder.trim() || null, carrier: carrier.trim(), policyNumber: policy.trim() || null, claimNumber: claim.trim() || null, stormDate: date || null });
       }}
     >
       <p className="flex items-center gap-2 text-[15px] font-medium">
         <FileText className="h-4 w-4 text-primary" strokeWidth={1.75} /> Is this storm damage you'll claim on insurance?
       </p>
       <p className="text-[13px] text-muted-foreground">Optional. We add these to your claim pack so the roofer has them before the inspection. We can't say what your insurer will decide.</p>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2">
         <label className="block text-[13px]">
           <span className="text-muted-foreground">Insurance company</span>
           <input value={carrier} onChange={(e) => setCarrier(e.target.value)} className="mt-1 h-10 w-full rounded-xl border border-border bg-secondary px-3 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ios-blue)/0.45)]" />
+        </label>
+        <label className="block text-[13px]">
+          <span className="text-muted-foreground">Name on the policy</span>
+          <input value={holder} onChange={(e) => setHolder(e.target.value)} autoComplete="name" className="mt-1 h-10 w-full rounded-xl border border-border bg-secondary px-3 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ios-blue)/0.45)]" />
+        </label>
+        <label className="block text-[13px]">
+          <span className="text-muted-foreground">Policy number (optional)</span>
+          <input value={policy} onChange={(e) => setPolicy(e.target.value)} className="mt-1 h-10 w-full rounded-xl border border-border bg-secondary px-3 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ios-blue)/0.45)]" />
         </label>
         <label className="block text-[13px]">
           <span className="text-muted-foreground">Claim number (if you have one)</span>

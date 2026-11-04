@@ -8,6 +8,7 @@ import ClaimPack from "@/pages/ClaimPack";
 import Setup from "@/pages/Setup";
 import Product from "@/pages/Product";
 import Eval from "@/pages/Eval";
+import Alerts from "@/pages/Alerts";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/claim/:id" element={<ClaimPack />} />
         <Route path="/setup" element={<Setup />} />
         <Route path="/eval" element={<Eval />} />
+        <Route path="/alerts" element={<Alerts />} />
         <Route path="/aura" element={<Navigate to="/chat" replace />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
