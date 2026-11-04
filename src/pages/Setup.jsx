@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowRight, Check, Copy, ExternalLink, Globe, LayoutDashboard, Loader2, MessageSquare, Quote } from "lucide-react";
+import { ArrowRight, Check, ExternalLink, Globe, LayoutDashboard, Loader2, MessageSquare, Quote } from "lucide-react";
 import { publishDesk } from "@/lib/cloud";
 import { perSqFt } from "@/lib/rateCard";
 import { gateway } from "@/gateway";
 import { addTenant } from "@/lib/store";
 import { buildTenant } from "@/lib/onboard";
 import Logo from "@/components/shared/Logo";
-import ShareLink from "@/components/frontdesk/ShareLink";
+import ShareLink, { WidgetLine } from "@/components/frontdesk/ShareLink";
 import ProviderBadge from "@/components/shared/ProviderBadge";
 import { isMenu } from "@/config/trades";
 
@@ -242,17 +242,6 @@ export default function Setup() {
 
 // After launch: the desk is live. Show the one line that puts the chat button on the business's own website.
 function Launched({ tenant, published, onOpen }) {
-  const [copied, setCopied] = useState(false);
-  const snippet = `<script src="${window.location.origin}/widget.js" defer></script>`;
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(snippet);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* clipboard blocked: the snippet is selectable */
-    }
-  };
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-[760px] px-4 py-14 md:px-8">
@@ -268,11 +257,8 @@ function Launched({ tenant, published, onOpen }) {
         )}
         <div className="fd-card mt-4 p-5">
           <p className="text-[15px] font-medium">Add a chat button to your website</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">Optional. Paste this line before &lt;/body&gt;, or in the custom code box on Wix, Squarespace or WordPress. It adds a chat button that opens your desk.</p>
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-secondary p-3">
-            <code className="min-w-0 flex-1 select-all break-all font-mono text-[13px]">{snippet}</code>
-            <button type="button" onClick={copy} className="fd-btn-outline fd-btn-sm shrink-0"><Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy"}</button>
-          </div>
+          <p className="mb-3 mt-1 text-[13px] text-muted-foreground">Optional. Paste this line just above &lt;/body&gt;, or in the custom code box on Wix, Squarespace or WordPress. The button shows your business name and picks up your site's colours.</p>
+          {tenant.setup?.host ? <WidgetLine host={tenant.setup.host} /> : null}
           <p className="mt-3 text-[13px] text-muted-foreground" data-testid="publish-status">
             {published === null ? "Publishing your desk so the button works on any device…" : published?.ok ? "Published: the button works on any phone or computer." : `Works in this browser. Publishing failed${published?.error ? ` (${published.error})` : ""}, so other devices can't reach it yet.`}
           </p>

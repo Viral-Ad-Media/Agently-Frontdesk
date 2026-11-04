@@ -1,12 +1,19 @@
 // Builds the two demo roofing websites as plain static HTML: node demo-sites/build.mjs [deskOrigin]
 // Output: demo-sites/dist/<slug>/{index,pricing,services,about,contact}.html, ready for any static host.
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SITES } from "./sites.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DESK = process.argv[2] || "https://agently-frontdesk.vercel.app";
+
+// The site's own code box: whatever is in demo-sites/embed/<slug>.html goes just above </body> on every page,
+// like the custom code box on Wix, Squarespace or WordPress. It ships empty: the owner pastes the chat line in.
+const embed = (s) => {
+  const f = join(here, "embed", `${s.slug}.html`);
+  return existsSync(f) ? readFileSync(f, "utf8").trim() : "";
+};
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -154,7 +161,7 @@ ${body}
 </div>
 <div class="legal"><div class="wrap">© ${new Date().getFullYear()} ${esc(s.name)} · ${esc(s.licence)}. <strong>Demo website:</strong> ${esc(s.name)} is a fictional business made to demonstrate Agently Front Desk. Names, licence numbers, reviews, addresses and prices are made up; phone numbers use the 555 range reserved for fiction. Photos made with Muse Image.</div></div>
 </footer>
-<script src="${DESK}/widget.js" data-color="${s.color}" data-label="Chat with ${esc(s.short)}" data-sub="Send a photo, get a price range" defer></script>
+${embed(s)}
 </body>
 </html>`;
 }
@@ -315,7 +322,8 @@ document.getElementById("contact-form").addEventListener("submit", function (e) 
   if (f.get("address")) parts.push("The address is " + f.get("address") + ".");
   if (f.get("name")) parts.push("My name is " + f.get("name") + (f.get("phone") ? ", phone " + f.get("phone") : "") + ".");
   var q = parts.filter(Boolean).join(" ");
-  if (window.FrontDesk) window.FrontDesk.open(q);
+  if (window.FrontDesk) return window.FrontDesk.open(q);
+  e.target.querySelector(".note").textContent = "Thanks, we've got your message. We'll call you back within one business day.";
 });
 </script>`
   );

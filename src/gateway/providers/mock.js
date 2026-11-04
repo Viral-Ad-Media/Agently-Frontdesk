@@ -22,6 +22,7 @@
 import { rateCardFromSite, readRateCard } from "../../lib/rateCard.js";
 import { areaPercent } from "../../lib/eye.js";
 import { readUtterance } from "../../lib/desk.js";
+import { findAddress } from "../../lib/address.js";
 import { QUESTION, NEEDS, DAY_WORD, THOUGHT } from "../../lib/agent.js";
 import { isMenu, mentions, tradeProfile } from "../../config/trades.js";
 
@@ -665,10 +666,13 @@ function answerFrom(o, tenant, trade, text = "") {
     return `${bits.join(" ")} Anything else, like insurance or warranty details, isn't on my record, so I've noted it for the team to confirm.`.trim();
   }
   if (o.tool === "customer_history") {
-    if (!r.addressKnown) return "I can look up earlier enquiries once I have the property address.";
-    if (!r.earlier?.length) return "I can't find an earlier enquiry for this address, so we'll start fresh.";
+    // Looked up because they gave an address: a new customer hears nothing about it.
+    const asked = NEEDS.find(([t]) => t === "customer_history")[1].test(text);
+    if (!r.addressKnown) return asked ? "I can look up earlier enquiries once I have the property address." : "";
+    if (!r.earlier?.length) return asked ? "I can't find an earlier enquiry for this address, so we'll start fresh." : "";
     const e = r.earlier[0];
-    return `I can see your earlier enquiry${e.date ? ` from ${e.date}` : ""}${e.reported ? ` about "${e.reported}"` : ""} (${e.status}).`;
+    const where = e.status === "visit booked" ? "a visit was booked" : e.status === "enquiry" ? "it was an enquiry" : `the quote was ${String(e.status).replace(/_/g, " ")}`;
+    return `Welcome back! I can see your earlier enquiry${e.date ? ` from ${e.date}` : ""}${e.reported ? ` about "${e.reported}"` : ""}, and ${where}.`;
   }
   if (o.tool === "storm_reports") {
     if (!r.reports?.length) return "I don't have a storm report on record for your area.";
@@ -695,7 +699,11 @@ export async function agentStep({ trade = "roofing", tenant = {}, messages = [],
   // A price question that names a listed service ("how much is leak detection?") is a question, not a description.
   const namesService = (tenant.services || []).some((sv) => String(sv.name).toLowerCase().split(/\s+/).some((w) => w.length > 3 && text.toLowerCase().includes(w)));
   const pureQuestion = needed.length > 0 && (!describesJob(trade, tenant, text) || (needed.includes("rate_card") && namesService));
-  const base = pureQuestion ? { ...qualifyOnly(trade, caseState), extracted: {} } : await converse({ trade, messages, caseState, tenant });
+  // An address given inside a question ("do you remember me, 14 Larkspur Ln?") is the property address.
+  const typedAddress = pureQuestion && !caseState.address ? findAddress(text) : "";
+  const base = pureQuestion
+    ? { ...qualifyOnly(trade, { ...caseState, address: caseState.address || typedAddress }), extracted: typedAddress ? { address: typedAddress } : {} }
+    : await converse({ trade, messages, caseState, tenant });
   return {
     action: "answer",
     reply: [...answers, base.reply].filter(Boolean).join(" "),

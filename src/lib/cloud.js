@@ -73,6 +73,59 @@ export async function fetchDesk(host) {
   }
 }
 
+// The owner removes a business they published: the cloud copy, its alerts, address book and lead copies go.
+// Returns { ok } when the cloud copy is gone (or there never was one this browser owns).
+export async function removeDesk(tenant) {
+  const key = tenant?.cloud?.host || tenant?.setup?.host;
+  if (!key || !ownerKey(key)) return { ok: true, cloud: false, notOwner: !!tenant?.cloud?.host };
+  try {
+    await post("/api/desk", { action: "remove", site: key, ownerKey: ownerKey(key) });
+    const all = readJson(OWNER, {});
+    delete all[key];
+    writeJson(OWNER, all);
+    return { ok: true, cloud: true };
+  } catch (e) {
+    // Already gone from the cloud: nothing left to remove there.
+    if (e.status === 404) return { ok: true, cloud: false };
+    return { ok: false, error: e.message };
+  }
+}
+
+// ----- Returning customers on any device -----
+
+// Earlier enquiries at this address from the desk's cloud address book. Quick or nothing: the chat never waits
+// more than 2.5 s for it.
+export async function fetchHistory(host, address, caseId) {
+  if (!host || !address) return [];
+  const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctl && setTimeout(() => ctl.abort(), 2500);
+  try {
+    const d = await api(`/api/desk?site=${encodeURIComponent(host)}&history=${encodeURIComponent(address)}&case=${encodeURIComponent(caseId || "")}`, ctl ? { signal: ctl.signal } : undefined);
+    return Array.isArray(d.earlier) ? d.earlier : [];
+  } catch {
+    return [];
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// Keep the cloud copy of a lead current after each reply (no alert), so the owner's other devices see the
+// conversation and the customer is remembered by address on any device. Only for a published desk.
+const synced = new Map();
+export async function syncLead(caseId) {
+  const c = getCase(caseId);
+  const tenant = c && getState().tenants[c.tenantId];
+  if (!c || !tenant?.cloud?.host) return null;
+  const mark = `${c.updatedAt || ""}:${c.messages?.length || 0}`;
+  if (synced.get(caseId) === mark) return null;
+  synced.set(caseId, mark);
+  try {
+    return await post("/api/alerts", { action: "lead", host: tenant.cloud.host, caseId, lead: await snapshot(c) });
+  } catch {
+    return null;
+  }
+}
+
 // ----- Lead alerts -----
 
 const agentFor = (t) => t?.words?.agentName || "Aura";

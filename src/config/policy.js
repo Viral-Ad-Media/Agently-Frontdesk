@@ -72,3 +72,7 @@ export const ROUTER_TIERS = {
   medium: { label: "Medium", effort: "low" }, // low effort for speed: a medium-effort judge took 34 s on Meta (2 Nov)
   large: { label: "Large", effort: "high" },
 };
+// Customer chat replies run at minimal effort: measured on the live site (4 Nov, same agent step, 1,528 input
+// tokens) at a median 4.3 s against 11.4 s at low effort, with the same grounded answers. The coded grounding
+// check still holds back any price or time no lookup proved.
+export const CHAT_EFFORT = "minimal";
