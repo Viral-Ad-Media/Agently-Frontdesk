@@ -159,6 +159,22 @@ export function addTenant(tenant) {
   });
 }
 
+// The owner removes a business they added from a website: the desk and everything of it in this browser go
+// (its customers, bookings, re-opener drafts and storm check-ins). The built-in demo businesses stay.
+export function removeTenant(id) {
+  const t = state.tenants[id];
+  if (!t?.setup) return false;
+  update((s) => {
+    delete s.tenants[id];
+    s.cases = s.cases.filter((c) => c.tenantId !== id);
+    s.slots = s.slots.filter((sl) => sl.tenantId !== id);
+    if (Array.isArray(s.leads)) s.leads = s.leads.filter((l) => l.tenantId !== id);
+    s.stormRuns = (s.stormRuns || []).filter((r) => r.tenantId !== id);
+    if (s.activeTenantId === id) s.activeTenantId = Object.keys(s.tenants)[0];
+  });
+  return true;
+}
+
 const uid = (p) => `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 // ----- Cases -----

@@ -4,6 +4,29 @@ import { Check, Copy, Download, QrCode, X } from "lucide-react";
 // The business's own chat link: no code needed. Customers who open it reach this desk, under the business's
 // name, from anywhere the owner puts it (Google listing, Facebook button, Instagram bio, invoices, a yard sign).
 export const chatLinkFor = (host) => `${window.location.origin}/chat?site=${encodeURIComponent(host)}`;
+// The website button's one line, with the business's own website in it, so the line itself says whose desk it opens.
+export const widgetLineFor = (host) => `<script src="${window.location.origin}/widget.js?site=${encodeURIComponent(host)}" defer></script>`;
+
+// The one line for the business's website, with Copy.
+export function WidgetLine({ host }) {
+  const line = widgetLineFor(host);
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(line);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard blocked: the line is selectable */
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary p-3" data-testid="widget-line">
+      <code className="min-w-0 flex-1 select-all break-all font-mono text-[13px]">{line}</code>
+      <button type="button" onClick={copy} className="fd-btn-outline fd-btn-sm shrink-0"><Copy className="h-4 w-4" /> {copied ? "Copied" : "Copy"}</button>
+    </div>
+  );
+}
 
 const PLACES = ["Google Business Profile", "Facebook button", "Instagram bio", "Text replies", "Invoices", "Yard signs and trucks"];
 
@@ -84,7 +107,18 @@ export function SharePanel({ tenant, onClose }) {
         </button>
       </header>
       <div className="px-4 py-4">
-        {host ? <ShareLink host={host} name={tenant.name} /> : <p className="text-[15px] text-muted-foreground">Set this business up from its website first, then its chat link shows here.</p>}
+        {host ? (
+          <>
+            <ShareLink host={host} name={tenant.name} />
+            <div className="mt-5 border-t border-border/70 pt-4">
+              <p className="text-[15px] font-medium">Chat button for your website</p>
+              <p className="mb-3 mt-0.5 text-[13px] text-muted-foreground">Paste this line just above &lt;/body&gt;, or in the custom code box on Wix, Squarespace or WordPress. The button shows {tenant.name}'s name and picks up your site's colours.</p>
+              <WidgetLine host={host} />
+            </div>
+          </>
+        ) : (
+          <p className="text-[15px] text-muted-foreground">Set this business up from its website first, then its chat link shows here.</p>
+        )}
       </div>
     </section>
   );

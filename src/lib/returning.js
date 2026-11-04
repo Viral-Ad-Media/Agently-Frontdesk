@@ -3,26 +3,17 @@
 // from the same address. The owner sees the history; the customer only sees that they were recognised, because
 // an address alone doesn't prove who someone is.
 import { hostOf } from "./onboard.js";
+import { sameAddress } from "./address.js";
 
-const SHORT = { street: "st", avenue: "ave", road: "rd", drive: "dr", lane: "ln", court: "ct", boulevard: "blvd", place: "pl", north: "n", south: "s", east: "e", west: "w" };
-const norm = (s) =>
-  String(s || "")
-    .toLowerCase()
-    .replace(/\b(street|avenue|road|drive|lane|court|boulevard|place|north|south|east|west)\b/g, (w) => SHORT[w])
-    .replace(/[^a-z0-9]/g, "");
+export { sameAddress };
+export { enquirySummary, mergeEarlier } from "./history.js";
 
-export function sameAddress(a, b) {
-  const x = norm(a);
-  const y = norm(b);
-  if (!x || !y) return false;
-  return x === y || (x.length > 8 && y.length > 8 && (x.startsWith(y) || y.startsWith(x)));
-}
-
-// Earlier enquiries to the same business from the same address, newest first.
-export function earlierEnquiries(c, cases = []) {
-  if (!c?.customer?.address) return [];
+// Earlier enquiries to the same business from the same address, newest first. `address` overrides the case's
+// own (an address the customer has just typed, before the case is updated).
+export function earlierEnquiries(c, cases = [], address = c?.customer?.address) {
+  if (!address) return [];
   return cases
-    .filter((o) => o.id !== c.id && o.tenantId === c.tenantId && sameAddress(o.customer?.address, c.customer.address) && (o.description || (o.messages || []).some((m) => m.role === "user")))
+    .filter((o) => o.id !== c.id && o.tenantId === c.tenantId && sameAddress(o.customer?.address, address) && (o.description || (o.messages || []).some((m) => m.role === "user")))
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
